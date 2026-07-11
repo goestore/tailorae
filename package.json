@@ -1,0 +1,26 @@
+{
+  "name": "creative-impression-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev --prefix creative-impression/frontend\" \"npm run dev --prefix creative-impression/backend\"",
+    "dev:frontend": "npm run dev --prefix creative-impression/frontend",
+    "dev:backend": "npm run dev --prefix creative-impression/backend",
+    "build": "npm run build --prefix creative-impression/frontend && npm run build --prefix creative-impression/backend",
+    "build:frontend": "npm run build --prefix creative-impression/frontend",
+    "build:backend": "npm run build --prefix creative-impression/backend",
+    "start": "npm start --prefix creative-impression/frontend",
+    "install:all": "npm install --prefix creative-impression/frontend --legacy-peer-deps && npm install --prefix creative-impression/backend",
+    "lint": "npm run lint --prefix creative-impression/frontend && npm run lint --prefix creative-impression/backend",
+    "type-check": "npm run type-check --prefix creative-impression/frontend && npm run type-check --prefix creative-impression/backend",
+    "format": "prettier --write \"creative-impression/**/*.{ts,tsx,js,jsx,json,md}\"",
+    "format:check": "prettier --check \"creative-impression/**/*.{ts,tsx,js,jsx,json,md}\"",
+    "prisma:migrate": "npm run prisma:migrate --prefix creative-impression/backend",
+    "prisma:studio": "npm run prisma:studio --prefix creative-impression/backend",
+    "seed": "npm run seed --prefix creative-impression/backend",
+    "db:push": "npm run prisma:push --prefix creative-impression/backend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

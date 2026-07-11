@@ -1,0 +1,79 @@
+# Frontend dependencies
+frontend/node_modules
+frontend/.npm
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+# Frontend build outputs
+frontend/.next
+frontend/out
+frontend/build
+frontend/dist
+
+# Frontend IDE
+frontend/.idea
+frontend/.vscode
+frontend/*.swp
+frontend/*.swo
+frontend/*~
+
+# Backend dependencies
+backend/node_modules
+backend/.npm
+backend/.env
+backend/.env.local
+backend/.env.*.local
+
+# Backend build outputs
+backend/dist
+backend/build
+
+# Backend IDE
+backend/.idea
+backend/.vscode
+backend/*.swp
+backend/*.swo
+backend/*~
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# OS
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Uploads
+uploads/
+public/uploads/
+
+# AWS
+.aws/
+
+# Docker
+.dockerignore
+docker-compose.override.yml
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+.turbo
+*.pem
+*.key
+*.crt
+.cache/
+
+# Environment
+.env
+.env.local
+.env.*.local
+.env.production.local

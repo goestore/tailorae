@@ -1,0 +1,332 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
+
+html,
+body {
+  width: 100%;
+  overflow-x: hidden;
+}
+
+* {
+  @apply transition-colors duration-200;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-white text-black;
+}
+
+/* ============================================
+   TYPOGRAPHY
+   ============================================ */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  @apply font-playfair font-semibold tracking-tight;
+}
+
+h1 {
+  @apply text-5xl md:text-6xl;
+}
+
+h2 {
+  @apply text-4xl md:text-5xl;
+}
+
+h3 {
+  @apply text-3xl md:text-4xl;
+}
+
+h4 {
+  @apply text-2xl md:text-3xl;
+}
+
+h5 {
+  @apply text-xl md:text-2xl;
+}
+
+h6 {
+  @apply text-lg md:text-xl;
+}
+
+p {
+  @apply text-base leading-relaxed font-sans;
+}
+
+/* ============================================
+   BUTTONS
+   ============================================ */
+
+.btn {
+  @apply inline-flex items-center justify-center px-4 py-3 font-medium rounded-lg transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-primary {
+  @apply bg-primary-600 text-black hover:bg-primary-700 active:bg-yellow-400;
+}
+
+.btn-secondary {
+  @apply bg-secondary-600 text-black hover:bg-secondary-700 active:bg-yellow-400;
+}
+
+.btn-outline {
+  @apply bg-white text-black hover:bg-neutral-50 active:bg-yellow-400;
+}
+
+.btn-ghost {
+  @apply bg-white text-black hover:bg-neutral-100 active:bg-yellow-400;
+}
+
+.btn-danger {
+  @apply bg-red-600 text-black hover:bg-red-700 active:bg-yellow-400;
+}
+
+.btn-success {
+  @apply bg-green-600 text-black hover:bg-green-700 active:bg-yellow-400;
+}
+
+.btn-sm {
+  @apply px-3 py-2 text-sm;
+}
+
+.btn-lg {
+  @apply px-6 py-4 text-lg;
+}
+
+.btn-block {
+  @apply w-full;
+}
+
+/* ============================================
+   FORMS
+   ============================================ */
+
+input,
+textarea,
+select {
+  @apply w-full rounded-lg border border-neutral-300 bg-white px-4 py-3 text-black placeholder-neutral-500 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-opacity-50;
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  @apply h-4 w-4 rounded;
+}
+
+label {
+  @apply block text-sm font-medium text-black;
+}
+
+.form-group {
+  @apply mb-4 flex flex-col gap-2;
+}
+
+.form-error {
+  @apply text-sm text-red-600;
+}
+
+.form-help {
+  @apply text-sm text-neutral-500;
+}
+
+/* ============================================
+   CARDS
+   ============================================ */
+
+.card {
+  @apply rounded-xl border border-neutral-200 bg-white p-6 shadow-sm;
+}
+
+.card-hover {
+  @apply transition-all duration-300 hover:shadow-lg hover:border-neutral-300;
+}
+
+/* ============================================
+   BADGE
+   ============================================ */
+
+.badge {
+  @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold;
+}
+
+.badge-primary {
+  @apply bg-primary-100 text-primary-800;
+}
+
+.badge-secondary {
+  @apply bg-secondary-100 text-secondary-800;
+}
+
+.badge-success {
+  @apply bg-green-100 text-green-800;
+}
+
+.badge-danger {
+  @apply bg-red-100 text-red-800;
+}
+
+.badge-warning {
+  @apply bg-yellow-100 text-yellow-800;
+}
+
+.badge-info {
+  @apply bg-blue-100 text-blue-800;
+}
+
+/* ============================================
+   ALERTS
+   ============================================ */
+
+.alert {
+  @apply rounded-lg border px-4 py-3;
+}
+
+.alert-success {
+  @apply border-green-400 bg-green-50 text-green-800;
+}
+
+.alert-error {
+  @apply border-red-400 bg-red-50 text-red-800;
+}
+
+.alert-warning {
+  @apply border-yellow-400 bg-yellow-50 text-yellow-800;
+}
+
+.alert-info {
+  @apply border-blue-400 bg-blue-50 text-blue-800 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-200;
+}
+
+/* ============================================
+   UTILITIES
+   ============================================ */
+
+.container-max {
+  @apply max-w-7xl;
+}
+
+.section-padding {
+  @apply px-4 py-12 md:px-8 md:py-16 lg:px-12 lg:py-20;
+}
+
+.text-truncate {
+  @apply overflow-hidden text-ellipsis whitespace-nowrap;
+}
+
+.text-clamp {
+  @apply line-clamp-3;
+}
+
+.glass-effect {
+  @apply bg-white/30 backdrop-blur-md dark:bg-neutral-900/30;
+}
+
+.gradient-text {
+  @apply bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent;
+}
+
+.divider {
+  @apply border-t border-neutral-200 dark:border-neutral-800;
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+.animate-shimmer {
+  animation: shimmer 2s infinite;
+  background: linear-gradient(
+    to right,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.2) 20%,
+    rgba(255, 255, 255, 0) 40%
+  );
+  background-size: 1000px 100%;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 640px) {
+  body {
+    @apply text-sm;
+  }
+
+  h1 {
+    @apply text-3xl;
+  }
+
+  h2 {
+    @apply text-2xl;
+  }
+
+  h3 {
+    @apply text-xl;
+  }
+
+  .section-padding {
+    @apply px-4 py-8;
+  }
+}
+
+/* ============================================
+   DARK MODE
+   ============================================ */
+
+@media (prefers-color-scheme: dark) {
+  body {
+    color-scheme: dark;
+  }
+}
+
+/* ============================================
+   ACCESSIBILITY
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================
+   SCROLL
+   ============================================ */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-neutral-100 dark:bg-neutral-900;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-neutral-400 hover:bg-neutral-500 dark:bg-neutral-700 dark:hover:bg-neutral-600;
+}
