@@ -2,6 +2,7 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button, Card } from '@/components/common';
+import { DualPromoBanner } from '@/components/home';
 
 export const metadata: Metadata = {
   title: 'Home | Creative Impression',
@@ -11,33 +12,20 @@ export const metadata: Metadata = {
 export default function Home() {
   return (
     <div className="min-h-screen">
-      {/* Hero Section */}
-      <section className="relative h-screen flex items-center justify-center overflow-hidden bg-gradient-to-br from-primary-50 to-secondary-50 dark:from-neutral-950 dark:to-neutral-900">
-        <div className="absolute inset-0 bg-black/20 z-0" />
-
-        <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
-          <h1 className="font-serif text-5xl md:text-7xl font-bold text-neutral-900 dark:text-white mb-6 drop-shadow-lg">
-            Creative Impression
-          </h1>
-
-          <p className="text-xl md:text-2xl text-neutral-700 dark:text-neutral-200 mb-8 max-w-2xl mx-auto drop-shadow">
-            Premium Fashion & Custom Apparel for B2B Wholesale & B2C Retail Customers
-          </p>
-
-          <div className="flex gap-4 justify-center flex-wrap">
-            <Link href="/products">
-              <Button size="lg">
-                Shop Now
-              </Button>
-            </Link>
-            <Link href="/b2b">
-              <Button variant="outline" size="lg">
-                B2B Wholesale
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
+      {/* Hero Banner - Edit images in the DualPromoBanner props below */}
+      <DualPromoBanner
+        left={{
+          image: '/images/Female Model.png',
+          alt: 'Creative Impression Female Model',
+        }}
+        right={{
+          image: '/images/Male Model.png',
+          alt: 'Creative Impression Male Model',
+          href: '/b2b',
+        }}
+        divider={0}
+        aspectRatio="aspect-video"
+      />
 
       {/* Features Section */}
       <section className="py-20 px-4 bg-white dark:bg-neutral-900">

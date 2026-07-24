@@ -19,7 +19,7 @@ export interface AnnouncementBarProps {
 /** Edit these defaults to change announcement bar styling site-wide. */
 export const ANNOUNCEMENT_BAR_DEFAULTS = {
   message: 'FREE SHIPPING ON ORDERS OVER ₹999 • CUSTOMIZE YOUR PROFESSIONAL WEAR • B2B WHOLESALE PRICING',
-  backgroundColor: '#f6dd3b',
+  backgroundColor: '#FBB602',
   textColor: '#000000',
   fontFamily: 'montserrat' as AnnouncementFontFamily,
   fontSize: '10px',

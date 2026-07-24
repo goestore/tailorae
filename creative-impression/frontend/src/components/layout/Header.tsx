@@ -31,11 +31,12 @@ export const Header: React.FC = () => {
 
   const navigation = [
     { name: 'Home', href: '/' },
-    { name: 'Products', href: '/products' },
-    { name: 'Custom Printing', href: '/custom-printing' },
-    { name: 'B2B', href: '/b2b' },
-    { name: 'About', href: '/about' },
-    { name: 'Contact', href: '/contact' },
+    { name: 'New Arrivals', href: '/products/new-arrivals' },
+    { name: 'Womens', href: '/products/womens' },
+    { name: 'Mens', href: '/products/mens' },
+    { name: 'Kids', href: '/products/kids' },
+    { name: 'Sale', href: '/products/sale' },
+    { name: 'Custom Wear', href: '/custom-printing' },
   ];
 
   const handleSearch = (e: React.FormEvent) => {
