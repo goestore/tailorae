@@ -9,11 +9,7 @@ export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 export const Card = React.forwardRef<HTMLDivElement, CardProps>(
   ({ className, hover, children, ...props }, ref) => {
     return (
-      <div
-        ref={ref}
-        className={cn('card', hover && 'card-hover', className)}
-        {...props}
-      >
+      <div ref={ref} className={cn('card', hover && 'card-hover', className)} {...props}>
         {children}
       </div>
     );
@@ -29,11 +25,7 @@ export interface CardHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
 export const CardHeader = React.forwardRef<HTMLDivElement, CardHeaderProps>(
   ({ className, children, ...props }, ref) => {
     return (
-      <div
-        ref={ref}
-        className={cn('mb-4', className)}
-        {...props}
-      >
+      <div ref={ref} className={cn('mb-4', className)} {...props}>
         {children}
       </div>
     );
@@ -49,11 +41,7 @@ export interface CardContentProps extends React.HTMLAttributes<HTMLDivElement> {
 export const CardContent = React.forwardRef<HTMLDivElement, CardContentProps>(
   ({ className, children, ...props }, ref) => {
     return (
-      <div
-        ref={ref}
-        className={cn('', className)}
-        {...props}
-      >
+      <div ref={ref} className={cn('', className)} {...props}>
         {children}
       </div>
     );
@@ -69,11 +57,7 @@ export interface CardFooterProps extends React.HTMLAttributes<HTMLDivElement> {
 export const CardFooter = React.forwardRef<HTMLDivElement, CardFooterProps>(
   ({ className, children, ...props }, ref) => {
     return (
-      <div
-        ref={ref}
-        className={cn('mt-4 flex items-center justify-between', className)}
-        {...props}
-      >
+      <div ref={ref} className={cn('mt-4 flex items-center justify-between', className)} {...props}>
         {children}
       </div>
     );

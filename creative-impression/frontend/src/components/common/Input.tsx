@@ -14,14 +14,12 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
     return (
       <div className="space-y-1">
         {label && (
-          <label
-            htmlFor={inputId}
-            className="block text-sm font-medium text-black"
-          >
+          <label htmlFor={inputId} className="block text-sm font-medium text-black">
             {label}
           </label>
         )}
         <input
+          suppressHydrationWarning
           ref={ref}
           id={inputId}
           className={cn(
@@ -31,12 +29,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           )}
           {...props}
         />
-        {error && (
-          <p className="text-sm text-red-600">{error}</p>
-        )}
-        {helperText && !error && (
-          <p className="text-sm text-neutral-500">{helperText}</p>
-        )}
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        {helperText && !error && <p className="text-sm text-neutral-500">{helperText}</p>}
       </div>
     );
   }

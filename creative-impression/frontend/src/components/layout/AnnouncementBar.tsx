@@ -18,7 +18,8 @@ export interface AnnouncementBarProps {
 
 /** Edit these defaults to change announcement bar styling site-wide. */
 export const ANNOUNCEMENT_BAR_DEFAULTS = {
-  message: 'FREE SHIPPING ON ORDERS OVER ₹999 • CUSTOMIZE YOUR PROFESSIONAL WEAR • B2B WHOLESALE PRICING',
+  message:
+    'FREE SHIPPING ON ORDERS OVER ₹999 • CUSTOMIZE YOUR PROFESSIONAL WEAR • B2B WHOLESALE PRICING',
   backgroundColor: '#FBB602',
   textColor: '#000000',
   fontFamily: 'montserrat' as AnnouncementFontFamily,
@@ -71,13 +72,19 @@ export const AnnouncementBar: React.FC<AnnouncementBarProps> = ({
         </p>
         {isDismissible && (
           <button
+            suppressHydrationWarning
             onClick={() => setIsDismissed(true)}
             className="ml-4 flex-shrink-0 hover:opacity-80"
             aria-label="Close announcement"
             style={{ color: textColor }}
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M6 18L18 6M6 6l12 12"
+              />
             </svg>
           </button>
         )}

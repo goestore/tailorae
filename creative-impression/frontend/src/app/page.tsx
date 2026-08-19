@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button, Card } from '@/components/common';
-import { DualPromoBanner } from '@/components/home';
+import { DualPromoBanner, CategoryCarousel, BestSellingSlider } from '@/components/home';
 
 export const metadata: Metadata = {
   title: 'Home | Creative Impression',
@@ -23,12 +23,21 @@ export default function Home() {
           alt: 'Creative Impression Male Model',
           href: '/b2b',
         }}
-        divider={0}
+        divider={1}
         aspectRatio="aspect-video"
       />
 
-      {/* Features Section */}
-      <section className="py-20 px-4 bg-white dark:bg-neutral-900">
+      <div className="mt-5">
+        <CategoryCarousel />
+      </div>
+
+      <div className="mt-5">
+        <BestSellingSlider />
+      </div>
+
+      <div className="mt-5">
+        {/* Features Section */}
+        <section className="py-20 px-4 bg-white dark:bg-neutral-900">
         <div className="max-w-7xl mx-auto">
           <h2 className="text-4xl font-serif font-bold text-center mb-16 text-neutral-900 dark:text-neutral-50">
             Why Choose Creative Impression?
@@ -73,6 +82,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      </div>
 
       {/* Services Section */}
       <section className="py-20 px-4 bg-neutral-50 dark:bg-neutral-800">

@@ -21,6 +21,7 @@ export const AuthToggleButtons: React.FC = () => {
     <div className="flex items-center space-x-2">
       <Link href="/auth/login">
         <button
+          suppressHydrationWarning
           onClick={() => setActiveMode('signin')}
           className={`px-4 py-2 rounded-full font-semibold transition-all ${
             activeMode === 'signin'
@@ -33,6 +34,7 @@ export const AuthToggleButtons: React.FC = () => {
       </Link>
       <Link href="/auth/register">
         <button
+          suppressHydrationWarning
           onClick={() => setActiveMode('signup')}
           className={`px-4 py-2 rounded-full font-semibold transition-all ${
             activeMode === 'signup'

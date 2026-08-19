@@ -1,6 +1,6 @@
-"use client";
+'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useSelector } from 'react-redux';
@@ -19,33 +19,152 @@ export const NAV_MENU_STYLES = {
   fontWeight: 500,
 };
 
+export type SubCategory = {
+  name: string;
+  href: string;
+};
+
+export type NavCategory = {
+  name: string;
+  href: string;
+  subcategories?: SubCategory[];
+};
+
+export const HEADER_NAVIGATION: NavCategory[] = [
+  { name: 'Home', href: '/' },
+  { name: 'New Arrivals', href: '/products/new-arrivals' },
+  {
+    name: 'Womens',
+    href: '/products/womens',
+    subcategories: [
+      { name: 'Polo T-Shirt', href: '/products/womens/polo-t-shirt' },
+      { name: 'Top & Tunic', href: '/products/womens/tops-tunics' },
+      { name: 'Round Neck T-Shirt', href: '/products/womens/round-neck-tshirts' },
+      { name: 'Plus Size', href: '/products/womens/plus-size' },
+    ],
+  },
+  {
+    name: 'Mens',
+    href: '/products/mens',
+    subcategories: [
+      { name: 'Polo T-Shirt', href: '/products/mens/polo-t-shirt' },
+      { name: 'Round Neck T-Shirt', href: '/products/mens/round-neck-tshirts' },
+      { name: 'Shirts', href: '/products/mens/shirts' },
+    ],
+  },
+  {
+    name: 'Kids',
+    href: '/products/kids',
+    subcategories: [
+      { name: 'Boys Polo T-Shirt', href: '/products/kids/boys-polo-tshirt' },
+      { name: 'Boys Round Neck T-Shirt', href: '/products/kids/boys-round-neck-tshirt' },
+      { name: 'Girl Polo T-Shirt', href: '/products/kids/girl-polo-tshirt' },
+      { name: 'Girl Round Neck T-Shirt', href: '/products/kids/girl-round-neck-tshirt' },
+      { name: 'Girl Tops', href: '/products/kids/girl-tops' },
+    ],
+  },
+  { name: 'Sale', href: '/products/sale' },
+  {
+    name: 'Custom Wear',
+    href: '/custom-wear',
+    subcategories: [
+      { name: "Men's Custom Wear", href: '/custom-wear/men' },
+      { name: "Women's Custom Wear", href: '/custom-wear/women' },
+      { name: "Kid's Custom Wear", href: '/custom-wear/kids' },
+      { name: 'Get a Bulk Quote', href: '/custom-wear?mode=quote' },
+    ],
+  },
+];
+
 export const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
+  const [expandedMobileSubmenu, setExpandedMobileSubmenu] = useState<string | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const dropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const mobileSubmenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const hoverTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+
+  const DROPDOWN_CLOSE_DELAY = 200;
 
   const { user } = useSelector((state: RootState) => state.auth);
   const { items: cartItems, total } = useSelector((state: RootState) => state.cart);
 
   const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
-  const navigation = [
-    { name: 'Home', href: '/' },
-    { name: 'New Arrivals', href: '/products/new-arrivals' },
-    { name: 'Womens', href: '/products/womens' },
-    { name: 'Mens', href: '/products/mens' },
-    { name: 'Kids', href: '/products/kids' },
-    { name: 'Sale', href: '/products/sale' },
-    { name: 'Custom Wear', href: '/custom-printing' },
-  ];
-
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      // TODO: Implement search navigation
       console.log('Searching for:', searchQuery);
     }
   };
+
+  const openDropdown = (name: string) => {
+    Object.keys(hoverTimeoutRef.current).forEach((key) => {
+      if (hoverTimeoutRef.current[key]) {
+        clearTimeout(hoverTimeoutRef.current[key]);
+        delete hoverTimeoutRef.current[key];
+      }
+    });
+    setActiveDropdown(name);
+    setIsAnimating(true);
+  };
+
+  const closeDropdown = (name: string, delay: number = 100) => {
+    hoverTimeoutRef.current[name] = setTimeout(() => {
+      setIsAnimating(false);
+      setTimeout(() => {
+        setActiveDropdown((prev) => (prev === name ? null : prev));
+        delete hoverTimeoutRef.current[name];
+      }, DROPDOWN_CLOSE_DELAY);
+    }, delay);
+  };
+
+  const handleMouseEnter = (name: string) => {
+    openDropdown(name);
+  };
+
+  const handleMouseLeave = (name: string) => {
+    closeDropdown(name);
+  };
+
+  const handleDropdownClick = (name: string) => {
+    if (activeDropdown === name) {
+      if (hoverTimeoutRef.current[name]) {
+        clearTimeout(hoverTimeoutRef.current[name]);
+        delete hoverTimeoutRef.current[name];
+      }
+      setIsAnimating(false);
+      setTimeout(() => {
+        setActiveDropdown(null);
+      }, DROPDOWN_CLOSE_DELAY);
+    } else {
+      openDropdown(name);
+    }
+  };
+
+  const toggleMobileSubmenu = (name: string) => {
+    setExpandedMobileSubmenu((prev) => (prev === name ? null : name));
+  };
+
+  const handleMobileSubmenuClick = (name: string) => {
+    toggleMobileSubmenu(name);
+  };
+
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (activeDropdown && !hoverTimeoutRef.current[activeDropdown]) {
+        closeDropdown(activeDropdown, 0);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+      Object.values(hoverTimeoutRef.current).forEach((timeout) => clearTimeout(timeout));
+    };
+  }, [activeDropdown]);
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white shadow-sm">
@@ -63,31 +182,129 @@ export const Header: React.FC = () => {
                 aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
                 suppressHydrationWarning={true}
               >
-                <svg className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg
+                  className="h-5 w-5 md:h-6 md:w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
                   {isMobileMenuOpen ? (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   ) : (
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 6h16M4 12h16M4 18h16"
+                    />
                   )}
                 </svg>
               </button>
 
               <nav className="hidden lg:flex lg:items-center lg:space-x-6">
-                {navigation.map((item) => (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className="whitespace-nowrap hover:text-primary-600"
-                    style={{
-                      color: NAV_MENU_STYLES.color,
-                      fontSize: NAV_MENU_STYLES.fontSize,
-                      fontFamily: NAV_MENU_STYLES.fontFamily,
-                      fontWeight: NAV_MENU_STYLES.fontWeight,
-                    }}
-                  >
-                    {item.name}
-                  </Link>
-                ))}
+                {HEADER_NAVIGATION.map((item) => {
+                  const hasDropdown = item.subcategories && item.subcategories.length > 0;
+                  const isDropdownOpen = activeDropdown === item.name;
+                  const navItemStyle: React.CSSProperties = {
+                    color: NAV_MENU_STYLES.color,
+                    fontSize: NAV_MENU_STYLES.fontSize,
+                    fontFamily: NAV_MENU_STYLES.fontFamily,
+                    fontWeight: NAV_MENU_STYLES.fontWeight,
+                    cursor: hasDropdown ? 'pointer' : 'pointer',
+                    position: 'relative',
+                  };
+
+                  if (!hasDropdown) {
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        className="whitespace-nowrap hover:text-primary-600 transition-colors duration-200"
+                        style={navItemStyle}
+                      >
+                        {item.name}
+                      </Link>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={item.name}
+                      className="relative"
+                      ref={(el) => {
+                        dropdownRefs.current[item.name] = el;
+                      }}
+                      onMouseEnter={() => handleMouseEnter(item.name)}
+                      onMouseLeave={() => handleMouseLeave(item.name)}
+                    >
+                      <button
+                        suppressHydrationWarning
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          e.preventDefault();
+                          handleDropdownClick(item.name);
+                        }}
+                        className="whitespace-nowrap hover:text-primary-600 transition-colors duration-200 inline-flex items-center gap-1"
+                        style={navItemStyle}
+                        aria-expanded={isDropdownOpen}
+                        aria-haspopup="true"
+                      >
+                        {item.name}
+                        <svg
+                          className={`h-3 w-3 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </button>
+
+                      {isDropdownOpen && (
+                        <div
+                          className={`absolute top-full left-0 pt-2 transition-all duration-200 ease-out ${
+                            isAnimating ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'
+                          }`}
+                          onMouseEnter={() => openDropdown(item.name)}
+                          onMouseLeave={() => closeDropdown(item.name)}
+                          style={{ zIndex: 50 }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="min-w-[200px] rounded-lg border border-neutral-200 bg-white py-2 shadow-lg">
+                            {item.subcategories?.map((sub) => (
+                              <Link
+                                key={sub.name}
+                                href={sub.href}
+                                className="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 hover:text-primary-600 transition-colors duration-150"
+                                style={{
+                                  fontFamily: NAV_MENU_STYLES.fontFamily,
+                                  fontWeight: NAV_MENU_STYLES.fontWeight,
+                                  fontSize: '13px',
+                                }}
+                                onClick={() => {
+                                  closeDropdown(item.name, 0);
+                                }}
+                              >
+                                {sub.name}
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </nav>
             </div>
 
@@ -102,7 +319,10 @@ export const Header: React.FC = () => {
                   className="h-7 w-7 md:h-8 md:w-8 object-contain"
                   priority
                 />
-                <span className="text-xs sm:text-sm md:text-lg font-semibold text-black whitespace-nowrap" style={{ fontFamily: 'var(--font-playfair)' }}>
+                <span
+                  className="text-xs sm:text-sm md:text-lg font-semibold text-black whitespace-nowrap"
+                  style={{ fontFamily: 'var(--font-playfair)' }}
+                >
                   Creative Impression
                 </span>
               </Link>
@@ -126,8 +346,18 @@ export const Header: React.FC = () => {
                       className="absolute inset-y-0 right-0 flex items-center pr-3"
                       suppressHydrationWarning={true}
                     >
-                      <svg className="h-5 w-5 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      <svg
+                        className="h-5 w-5 text-neutral-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                        />
                       </svg>
                     </button>
                   </div>
@@ -140,12 +370,25 @@ export const Header: React.FC = () => {
                 aria-label="Toggle search"
                 suppressHydrationWarning={true}
               >
-                <svg className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                <svg
+                  className="h-5 w-5 md:h-6 md:w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                  />
                 </svg>
               </button>
 
-              <Link href="/cart" className="relative p-1 md:p-2 text-neutral-600 hover:text-primary-600 flex-shrink-0">
+              <Link
+                href="/cart"
+                className="relative p-1 md:p-2 text-neutral-600 hover:text-primary-600 flex-shrink-0"
+              >
                 <Image
                   src="/images/wishlist%2Bcart.png"
                   alt="Cart"
@@ -161,9 +404,22 @@ export const Header: React.FC = () => {
               </Link>
 
               {user ? (
-                <button className="p-1 md:p-2 text-neutral-600 hover:text-primary-600 flex-shrink-0" suppressHydrationWarning={true}>
-                  <svg className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                <button
+                  className="p-1 md:p-2 text-neutral-600 hover:text-primary-600 flex-shrink-0"
+                  suppressHydrationWarning={true}
+                >
+                  <svg
+                    className="h-5 w-5 md:h-6 md:w-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
                   </svg>
                 </button>
               ) : (
@@ -193,8 +449,18 @@ export const Header: React.FC = () => {
                   className="absolute inset-y-0 right-0 flex items-center pr-3"
                   suppressHydrationWarning={true}
                 >
-                  <svg className="h-5 w-5 text-neutral-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  <svg
+                    className="h-5 w-5 text-neutral-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                    />
                   </svg>
                 </button>
               </div>
@@ -207,24 +473,89 @@ export const Header: React.FC = () => {
           <div className="w-full border-t border-neutral-200 lg:hidden">
             <nav className="px-2 py-2 md:px-4 sm:py-3">
               <div className="space-y-1">
-                {navigation.map((item) => (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    className="block px-3 py-2 hover:bg-neutral-50 hover:text-primary-600 rounded"
-                    style={{
-                      color: NAV_MENU_STYLES.color,
-                      fontSize: NAV_MENU_STYLES.mobileFontSize,
-                      fontFamily: NAV_MENU_STYLES.fontFamily,
-                      fontWeight: NAV_MENU_STYLES.fontWeight,
-                    }}
-                    onClick={() => setIsMobileMenuOpen(false)}
-                  >
-                    {item.name}
-                  </Link>
-                ))}
+                {HEADER_NAVIGATION.map((item) => {
+                  const hasSubcategories = item.subcategories && item.subcategories.length > 0;
+                  const isExpanded = expandedMobileSubmenu === item.name;
+                  const mobileItemStyle: React.CSSProperties = {
+                    color: NAV_MENU_STYLES.color,
+                    fontSize: NAV_MENU_STYLES.mobileFontSize,
+                    fontFamily: NAV_MENU_STYLES.fontFamily,
+                    fontWeight: NAV_MENU_STYLES.fontWeight,
+                  };
+
+                  if (!hasSubcategories) {
+                    return (
+                      <Link
+                        key={item.name}
+                        href={item.href}
+                        className="block px-3 py-2 hover:bg-neutral-50 hover:text-primary-600 rounded transition-colors duration-150"
+                        style={mobileItemStyle}
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        {item.name}
+                      </Link>
+                    );
+                  }
+
+                  return (
+                    <div key={item.name} className="space-y-1">
+                      <button
+                        suppressHydrationWarning
+                        type="button"
+                        onClick={() => handleMobileSubmenuClick(item.name)}
+                        className="w-full flex items-center justify-between px-3 py-2 hover:bg-neutral-50 hover:text-primary-600 rounded transition-colors duration-150"
+                        style={mobileItemStyle}
+                        aria-expanded={isExpanded}
+                      >
+                        <span>{item.name}</span>
+                        <svg
+                          className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19 9l-7 7-7-7"
+                          />
+                        </svg>
+                      </button>
+
+                      {isExpanded && (
+                        <div
+                          className="pl-4 space-y-1"
+                          ref={(el) => {
+                            mobileSubmenuRefs.current[item.name] = el;
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {item.subcategories?.map((sub) => (
+                            <Link
+                              key={sub.name}
+                              href={sub.href}
+                              className="block px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50 hover:text-primary-600 rounded transition-colors duration-150"
+                              style={{
+                                fontFamily: NAV_MENU_STYLES.fontFamily,
+                                fontWeight: NAV_MENU_STYLES.fontWeight,
+                                fontSize: '14px',
+                              }}
+                              onClick={() => {
+                                setExpandedMobileSubmenu(null);
+                                setIsMobileMenuOpen(false);
+                              }}
+                            >
+                              {sub.name}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
-              
+
               {/* Mobile Auth Buttons */}
               {!user && (
                 <div className="mt-3 pt-3 border-t border-neutral-200">

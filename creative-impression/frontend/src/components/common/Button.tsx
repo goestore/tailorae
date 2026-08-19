@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import React, { useState } from 'react';
 import { cn } from '@/utils/helpers';
@@ -14,7 +14,22 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = 'primary', size = 'md', block, fullWidth, loading, disabled, children, persistent = false, onClick, ...props }, ref) => {
+  (
+    {
+      className,
+      variant = 'primary',
+      size = 'md',
+      block,
+      fullWidth,
+      loading,
+      disabled,
+      children,
+      persistent = false,
+      onClick,
+      ...props
+    },
+    ref
+  ) => {
     const [isClicked, setIsClicked] = useState(false);
 
     const isFullWidth = block || fullWidth;

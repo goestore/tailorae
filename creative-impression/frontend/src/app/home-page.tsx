@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { HeroBanner, CategoryShowcase, FeaturedProducts, NewsletterSignup } from '@/components/home';
+import { HeroBanner, CategoryCarousel, FeaturedProducts, NewsletterSignup } from '@/components/home';
 
 export default function HomePage() {
   return (
@@ -10,7 +10,7 @@ export default function HomePage() {
         title="Premium Custom Printing Solutions"
         subtitle="Create impressive designs with our creative printing services"
       />
-      <CategoryShowcase />
+      <CategoryCarousel />
       <FeaturedProducts />
       <NewsletterSignup />
     </main>
