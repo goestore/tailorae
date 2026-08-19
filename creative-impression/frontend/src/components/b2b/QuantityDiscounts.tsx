@@ -20,6 +20,13 @@ export const QuantityDiscounts: React.FC<QuantityDiscountsProps> = ({
   tiers,
   selectedQuantity = 1,
 }) => {
+  // The applicable tier is the highest one whose threshold the quantity meets.
+  const activeTier = [...tiers]
+    .filter((tier) => selectedQuantity >= tier.quantity)
+    .sort((a, b) => b.quantity - a.quantity)[0];
+  const effectivePricePerUnit = activeTier?.pricePerUnit ?? basePricePerUnit;
+  const totalPrice = effectivePricePerUnit * selectedQuantity;
+
   return (
     <Card className="p-6">
       <h3 className="text-xl font-bold mb-4">Bulk Pricing</h3>
@@ -39,7 +46,9 @@ export const QuantityDiscounts: React.FC<QuantityDiscountsProps> = ({
             }`}
           >
             <span>
-              {tier.quantity} {index === 0 ? '' : `- ${tiers[index + 1]?.quantity - 1 || '+'}`}
+              {tiers[index + 1]
+                ? `${tier.quantity} - ${tiers[index + 1].quantity - 1}`
+                : `${tier.quantity}+`}
             </span>
             <span className="text-green-600 font-semibold">{tier.discount}% OFF</span>
             <span className="font-bold">₹{tier.pricePerUnit}</span>
@@ -52,10 +61,12 @@ export const QuantityDiscounts: React.FC<QuantityDiscountsProps> = ({
           Selected Quantity: <strong>{selectedQuantity}</strong>
         </p>
         <p className="mt-1">
+          Price/Unit:{' '}
+          <strong>₹{effectivePricePerUnit.toFixed(2)}</strong>
+        </p>
+        <p className="mt-1">
           Total Price:{' '}
-          <strong className="text-primary-600">
-            ₹{(basePricePerUnit * selectedQuantity).toFixed(2)}
-          </strong>
+          <strong className="text-primary-600">₹{totalPrice.toFixed(2)}</strong>
         </p>
       </div>
     </Card>

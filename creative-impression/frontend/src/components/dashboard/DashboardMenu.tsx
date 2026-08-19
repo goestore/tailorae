@@ -10,10 +10,8 @@ export interface DashboardMenuProps {
 
 const menuItems = [
   { id: 'overview', label: 'Dashboard Overview', icon: '📊' },
-  { id: 'profile', label: 'Profile', icon: '👤' },
   { id: 'orders', label: 'Order History', icon: '📦' },
-  { id: 'addresses', label: 'Saved Addresses', icon: '📍' },
-  { id: 'designs', label: 'Saved Designs', icon: '🎨' },
+  { id: 'profile', label: 'Profile', icon: '👤' },
   { id: 'settings', label: 'Account Settings', icon: '⚙️' },
   { id: 'logout', label: 'Logout', icon: '🚪' },
 ];

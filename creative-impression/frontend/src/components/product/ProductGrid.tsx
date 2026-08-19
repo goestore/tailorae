@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { ProductCard, Product } from './ProductCard';
+import { Product } from '@/types';
+import { ProductCard } from './ProductCard';
 
 export interface ProductGridProps {
   products: Product[];

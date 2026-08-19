@@ -58,9 +58,21 @@ export interface Product {
   reviewCount: number;
   metaTitle?: string;
   metaDescription?: string;
+  category?: Category;
   variants?: ProductVariant[];
+  customizations?: ProductCustomization[];
+  bulkPricings?: BulkPricing[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface BulkPricing {
+  id: string;
+  productId: string;
+  minQuantity: number;
+  maxQuantity?: number | null;
+  pricePerUnit?: number;
+  discountPercentage?: number;
 }
 
 export interface ProductVariant {
@@ -80,10 +92,13 @@ export interface ProductVariant {
 export interface ProductCustomization {
   id: string;
   name: string;
-  type: 'text' | 'color' | 'image' | 'embroidery';
+  /** Backend values include e.g. 'select', 'text', 'file', 'color', 'image', 'embroidery'. */
+  type: string;
   isRequired: boolean;
-  options?: string[];
+  /** Select options — may arrive as an array or a JSON-encoded string. */
+  options?: string[] | string | null;
   additionalCost: number;
+  maxCharacters?: number | null;
 }
 
 // Cart & Order Types

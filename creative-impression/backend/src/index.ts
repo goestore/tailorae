@@ -2,8 +2,12 @@ import express, { Express, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
-import { PrismaClient } from '@prisma/client';
 import rateLimit from 'express-rate-limit';
+
+// Load environment variables before anything reads process.env
+dotenv.config();
+
+import { prisma } from '@/lib/prisma';
 
 // Import routes
 import authRoutes from '@/routes/auth';
@@ -15,11 +19,7 @@ import b2bRoutes from '@/routes/b2b';
 import paymentRoutes from '@/routes/payments';
 import adminRoutes from '@/routes/admin';
 
-// Load environment variables
-dotenv.config();
-
 const app: Express = express();
-const prisma = new PrismaClient();
 
 // ============================================
 // MIDDLEWARE
@@ -102,7 +102,7 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 // SERVER START
 // ============================================
 
-const PORT = process.env.PORT || 3001;
+const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   // Try database connection but don't block server startup

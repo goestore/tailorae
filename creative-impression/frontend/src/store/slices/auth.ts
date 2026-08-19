@@ -6,6 +6,8 @@ interface AuthState {
   token: string | null;
   isLoading: boolean;
   isAuthenticated: boolean;
+  /** true once the initial session-restore attempt (GET /auth/me) has finished. */
+  isInitialized: boolean;
   error: string | null;
 }
 
@@ -14,6 +16,7 @@ const initialState: AuthState = {
   token: null,
   isLoading: false,
   isAuthenticated: false,
+  isInitialized: false,
   error: null,
 };
 
@@ -68,6 +71,12 @@ const authSlice = createSlice({
       state.user = action.payload.user;
       state.token = action.payload.token;
       state.isAuthenticated = true;
+      state.isInitialized = true;
+    },
+
+    // Mark the initial session-restore attempt as finished (with or without a user)
+    sessionInitialized: (state) => {
+      state.isInitialized = true;
     },
 
     // Clear error
@@ -87,6 +96,7 @@ export const {
   registerFailure,
   updateUser,
   restoreSession,
+  sessionInitialized,
   clearError,
 } = authSlice.actions;
 
