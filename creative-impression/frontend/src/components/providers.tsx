@@ -1,9 +1,65 @@
 'use client';
 
-import { ReactNode, useMemo } from 'react';
-import { Provider } from 'react-redux';
+import { ReactNode, useEffect, useMemo } from 'react';
+import { Provider, useDispatch } from 'react-redux';
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query';
-import { store } from '@/store';
+import { Toaster } from 'react-hot-toast';
+import { store, AppDispatch } from '@/store';
+import { apiClient } from '@/lib/api-client';
+import { restoreSession, sessionInitialized } from '@/store/slices/auth';
+import { loadCart } from '@/store/slices/cart';
+import { Cart } from '@/types';
+
+/**
+ * On mount: if a token exists in localStorage, restore the session via
+ * GET /auth/me and hydrate the cart. A 401 is handled by the apiClient
+ * interceptor (clears the token).
+ */
+function SessionInit() {
+  const dispatch = useDispatch<AppDispatch>();
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      dispatch(sessionInitialized());
+      return;
+    }
+
+    let cancelled = false;
+
+    apiClient
+      .get('/auth/me')
+      .then((res) => {
+        if (cancelled) return;
+        const user = res.data?.data?.user;
+        if (user) {
+          dispatch(restoreSession({ user, token }));
+          // Hydrate the cart so the header badge is live.
+          apiClient
+            .get('/cart')
+            .then((cartRes) => {
+              if (cancelled) return;
+              const cart = cartRes.data?.data?.cart;
+              if (cart) dispatch(loadCart(cart as unknown as Cart));
+            })
+            .catch(() => {
+              /* non-fatal */
+            });
+        } else {
+          dispatch(sessionInitialized());
+        }
+      })
+      .catch(() => {
+        if (!cancelled) dispatch(sessionInitialized());
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dispatch]);
+
+  return null;
+}
 
 export function Providers({ children }: { children: ReactNode }) {
   const queryClient = useMemo(() => new QueryClient({
@@ -18,7 +74,15 @@ export function Providers({ children }: { children: ReactNode }) {
   return (
     <Provider store={store}>
       <QueryClientProvider client={queryClient}>
+        <SessionInit />
         {children}
+        <Toaster
+          position="top-center"
+          toastOptions={{
+            style: { background: '#212121', color: '#ffffff' },
+            success: { iconTheme: { primary: '#FBB602', secondary: '#212121' } },
+          }}
+        />
       </QueryClientProvider>
     </Provider>
   );

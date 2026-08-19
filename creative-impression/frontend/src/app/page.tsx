@@ -2,7 +2,12 @@ import { Metadata } from 'next';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button, Card } from '@/components/common';
-import { DualPromoBanner, CategoryCarousel, BestSellingSlider } from '@/components/home';
+import {
+  DualPromoBanner,
+  CategoryCarousel,
+  BestSellingSlider,
+  FeaturedProductsSection,
+} from '@/components/home';
 
 export const metadata: Metadata = {
   title: 'Home | Creative Impression',
@@ -33,6 +38,11 @@ export default function Home() {
 
       <div className="mt-5">
         <BestSellingSlider />
+      </div>
+
+      {/* Featured Products (live from the catalog) */}
+      <div className="mt-5">
+        <FeaturedProductsSection />
       </div>
 
       <div className="mt-5">
@@ -97,7 +107,7 @@ export default function Home() {
                 title: 'Custom Printing',
                 description: 'Screen printing, DTG, embroidery, and heat transfer services',
                 icon: '🖨️',
-                href: '/custom-printing',
+                href: '/customization',
               },
               {
                 title: 'B2B Wholesale',
@@ -115,7 +125,7 @@ export default function Home() {
                 title: 'Design Services',
                 description: 'Professional design assistance for your custom projects',
                 icon: '🎨',
-                href: '/design-services',
+                href: '/b2b',
               },
             ].map((service, index) => (
               <Link key={index} href={service.href}>
@@ -137,22 +147,22 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="bg-primary-600 text-white py-16 px-4">
+      <section className="bg-primary-500 text-neutral-900 py-16 px-4">
         <div className="max-w-4xl mx-auto text-center">
           <h2 className="text-4xl font-serif font-bold mb-6">
             Ready to Start Your Order?
           </h2>
-          <p className="text-lg mb-8">
+          <p className="text-lg mb-8 text-neutral-800">
             Join thousands of satisfied customers who trust Creative Impression for their fashion and printing needs.
           </p>
           <div className="flex gap-4 justify-center flex-wrap">
             <Link href="/products">
-              <Button size="lg" className="bg-white text-primary-600 hover:bg-neutral-50">
+              <Button size="lg" className="bg-neutral-900 text-white hover:bg-neutral-800">
                 Shop Products
               </Button>
             </Link>
-            <Link href="/contact">
-              <Button variant="outline" size="lg" className="border-white text-white hover:bg-white hover:text-primary-600">
+            <Link href="/info/contact">
+              <Button variant="outline" size="lg" className="border-neutral-900 text-neutral-900 hover:bg-neutral-900 hover:text-white">
                 Get Quote
               </Button>
             </Link>

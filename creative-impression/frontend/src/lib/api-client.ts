@@ -2,7 +2,7 @@ import axios, { AxiosInstance, AxiosError } from 'axios';
 
 export const createApiClient = (baseURL?: string): AxiosInstance => {
   const client = axios.create({
-    baseURL: baseURL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+    baseURL: baseURL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api',
     timeout: 10000,
     headers: {
       'Content-Type': 'application/json',
@@ -29,7 +29,9 @@ export const createApiClient = (baseURL?: string): AxiosInstance => {
         // Handle unauthorized
         if (typeof window !== 'undefined') {
           localStorage.removeItem('token');
-          window.location.href = '/login';
+          if (!window.location.pathname.startsWith('/auth/')) {
+            window.location.href = '/auth/login';
+          }
         }
       }
       return Promise.reject(error);

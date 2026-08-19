@@ -7,15 +7,25 @@ import { Card } from '@/components/common';
 type AuthMode = 'signin' | 'signup';
 
 interface AuthToggleProps {
+  /** Which tab is open initially ('/auth/login' → signin, '/auth/register' → signup). */
+  defaultMode?: AuthMode;
+  isLoading?: boolean;
+  error?: string;
   onSignIn?: (data: Record<string, string>) => Promise<void>;
   onSignUp?: (data: Record<string, string>) => Promise<void>;
+  /** Called whenever the user switches tabs (e.g. to clear a stale error). */
+  onModeChange?: (mode: AuthMode) => void;
 }
 
 export const AuthToggle: React.FC<AuthToggleProps> = ({
+  defaultMode = 'signin',
+  isLoading = false,
+  error,
   onSignIn,
   onSignUp,
+  onModeChange,
 }) => {
-  const [mode, setMode] = useState<AuthMode>('signin');
+  const [mode, setMode] = useState<AuthMode>(defaultMode);
 
   const signInFields = [
     {
@@ -36,10 +46,17 @@ export const AuthToggle: React.FC<AuthToggleProps> = ({
 
   const signUpFields = [
     {
-      name: 'fullName',
-      label: 'Full Name',
+      name: 'firstName',
+      label: 'First Name',
       type: 'text' as const,
-      placeholder: 'John Doe',
+      placeholder: 'First name',
+      required: true,
+    },
+    {
+      name: 'lastName',
+      label: 'Last Name',
+      type: 'text' as const,
+      placeholder: 'Last name',
       required: true,
     },
     {
@@ -47,13 +64,6 @@ export const AuthToggle: React.FC<AuthToggleProps> = ({
       label: 'Email Address',
       type: 'email' as const,
       placeholder: 'you@example.com',
-      required: true,
-    },
-    {
-      name: 'phone',
-      label: 'Phone Number',
-      type: 'tel' as const,
-      placeholder: '+91 9876543210',
       required: true,
     },
     {
@@ -65,12 +75,9 @@ export const AuthToggle: React.FC<AuthToggleProps> = ({
     },
   ];
 
-  const handleSignInClick = () => {
-    setMode('signin');
-  };
-
-  const handleSignUpClick = () => {
-    setMode('signup');
+  const switchMode = (nextMode: AuthMode) => {
+    setMode(nextMode);
+    onModeChange?.(nextMode);
   };
 
   const handleFormSubmit = async (data: Record<string, string>) => {
@@ -88,20 +95,20 @@ export const AuthToggle: React.FC<AuthToggleProps> = ({
           {/* Toggle Buttons */}
           <div className="flex gap-4 mb-8">
             <button
-              onClick={handleSignInClick}
+              onClick={() => switchMode('signin')}
               className={`flex-1 py-2 px-4 font-semibold rounded-lg transition-all ${
                 mode === 'signin'
-                  ? 'bg-yellow-400 text-black font-bold'
+                  ? 'bg-primary-500 text-black font-bold'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
               Sign In
             </button>
             <button
-              onClick={handleSignUpClick}
+              onClick={() => switchMode('signup')}
               className={`flex-1 py-2 px-4 font-semibold rounded-lg transition-all ${
                 mode === 'signup'
-                  ? 'bg-yellow-400 text-black font-bold'
+                  ? 'bg-primary-500 text-black font-bold'
                   : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
               }`}
             >
@@ -119,6 +126,8 @@ export const AuthToggle: React.FC<AuthToggleProps> = ({
                 onSubmit={handleFormSubmit}
                 fields={signInFields}
                 submitButtonText="Sign In"
+                isLoading={isLoading}
+                error={error}
               />
             </div>
           )}
@@ -132,6 +141,8 @@ export const AuthToggle: React.FC<AuthToggleProps> = ({
                 onSubmit={handleFormSubmit}
                 fields={signUpFields}
                 submitButtonText="Create Account"
+                isLoading={isLoading}
+                error={error}
               />
             </div>
           )}

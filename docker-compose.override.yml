@@ -1,0 +1,8 @@
+# Local-only override: a native Windows Postgres already owns 5432, so the
+# container binds 5433 instead. The `!override` tag is required - Compose
+# *appends* port lists by default, so without it the container would still
+# try to claim 5432 and fail to start.
+services:
+  postgres:
+    ports: !override
+      - "5433:5432"

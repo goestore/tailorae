@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
+import { verifyToken } from '@/utils/jwt';
 
 declare global {
   namespace Express {
@@ -31,9 +31,19 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
       return;
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { id: string; email: string; role: string; userId?: string };
-    req.user = decoded;
-    req.userId = decoded.userId || decoded.id;
+    // Single secret source: verification always goes through utils/jwt.
+    const payload = verifyToken(token);
+
+    if (!payload) {
+      res.status(401).json({
+        success: false,
+        message: 'Invalid token',
+      });
+      return;
+    }
+
+    req.user = { id: payload.userId, email: payload.email, role: payload.role };
+    req.userId = payload.userId;
 
     next();
   } catch (error) {
@@ -49,9 +59,11 @@ export const optionalAuth = (req: AuthRequest, res: Response, next: NextFunction
     const token = req.headers.authorization?.split(' ')[1];
 
     if (token) {
-      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as { id: string; email: string; role: string; userId?: string };
-      req.user = decoded;
-      req.userId = decoded.userId || decoded.id;
+      const payload = verifyToken(token);
+      if (payload) {
+        req.user = { id: payload.userId, email: payload.email, role: payload.role };
+        req.userId = payload.userId;
+      }
     }
 
     next();

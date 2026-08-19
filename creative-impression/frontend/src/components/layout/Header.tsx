@@ -1,12 +1,14 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useSelector } from 'react-redux';
-import { Button } from '@/components/common';
-import { RootState } from '@/store';
-import { formatCurrency } from '@/utils/helpers';
+import { useRouter } from 'next/navigation';
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch, RootState } from '@/store';
+import { apiClient } from '@/lib/api-client';
+import { logout } from '@/store/slices/auth';
+import { clearCart } from '@/store/slices/cart';
 import { AuthToggleButtons } from './AuthToggleButtons';
 import { AnnouncementBar } from './AnnouncementBar';
 
@@ -79,6 +81,7 @@ export const HEADER_NAVIGATION: NavCategory[] = [
 export const Header: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [expandedMobileSubmenu, setExpandedMobileSubmenu] = useState<string | null>(null);
@@ -86,18 +89,24 @@ export const Header: React.FC = () => {
   const dropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const mobileSubmenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const hoverTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
+  const accountMenuRef = useRef<HTMLDivElement>(null);
 
   const DROPDOWN_CLOSE_DELAY = 200;
 
+  const router = useRouter();
+  const dispatch = useDispatch<AppDispatch>();
   const { user } = useSelector((state: RootState) => state.auth);
-  const { items: cartItems, total } = useSelector((state: RootState) => state.cart);
+  const { items: cartItems } = useSelector((state: RootState) => state.cart);
 
   const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      console.log('Searching for:', searchQuery);
+    const query = searchQuery.trim();
+    if (query) {
+      router.push(`/products?search=${encodeURIComponent(query)}`);
+      setIsSearchOpen(false);
+      setIsMobileMenuOpen(false);
     }
   };
 
@@ -165,6 +174,28 @@ export const Header: React.FC = () => {
       Object.values(hoverTimeoutRef.current).forEach((timeout) => clearTimeout(timeout));
     };
   }, [activeDropdown]);
+
+  // Close the account menu when clicking outside it.
+  useEffect(() => {
+    if (!isAccountMenuOpen) return;
+    const handleAccountClickOutside = (event: MouseEvent) => {
+      if (accountMenuRef.current && !accountMenuRef.current.contains(event.target as Node)) {
+        setIsAccountMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleAccountClickOutside);
+    return () => document.removeEventListener('mousedown', handleAccountClickOutside);
+  }, [isAccountMenuOpen]);
+
+  const handleLogout = () => {
+    setIsAccountMenuOpen(false);
+    // Best-effort server-side logout; local state is cleared regardless.
+    apiClient.post('/auth/logout').catch(() => {});
+    localStorage.removeItem('token');
+    dispatch(logout());
+    dispatch(clearCart());
+    router.push('/');
+  };
 
   return (
     <header className="sticky top-0 z-40 w-full bg-white shadow-sm">
@@ -397,31 +428,68 @@ export const Header: React.FC = () => {
                   className="h-5 w-5 md:h-6 md:w-6 object-contain"
                 />
                 {cartItemCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4 md:h-5 md:w-5 items-center justify-center rounded-full bg-primary-600 text-xs text-white">
+                  <span className="absolute -top-1 -right-1 flex h-4 w-4 md:h-5 md:w-5 items-center justify-center rounded-full bg-primary-500 text-xs font-semibold text-black">
                     {cartItemCount > 9 ? '9+' : cartItemCount}
                   </span>
                 )}
               </Link>
 
               {user ? (
-                <button
-                  className="p-1 md:p-2 text-neutral-600 hover:text-primary-600 flex-shrink-0"
-                  suppressHydrationWarning={true}
-                >
-                  <svg
-                    className="h-5 w-5 md:h-6 md:w-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+                <div className="relative flex-shrink-0" ref={accountMenuRef}>
+                  <button
+                    onClick={() => setIsAccountMenuOpen((open) => !open)}
+                    className="flex items-center gap-1 p-1 md:p-2 text-neutral-700 hover:text-primary-700"
+                    aria-haspopup="menu"
+                    aria-expanded={isAccountMenuOpen}
+                    suppressHydrationWarning={true}
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                    />
-                  </svg>
-                </button>
+                    <svg className="h-5 w-5 md:h-6 md:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <span className="hidden md:inline max-w-[8rem] truncate text-sm font-medium">
+                      {user.firstName || user.email}
+                    </span>
+                    <svg className="hidden md:block h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {isAccountMenuOpen && (
+                    <div
+                      role="menu"
+                      className="absolute right-0 top-full z-50 mt-2 w-48 rounded-lg border border-neutral-200 bg-white py-2 shadow-lg"
+                    >
+                      <div className="border-b border-neutral-100 px-4 pb-2 mb-1">
+                        <p className="truncate text-sm font-semibold text-neutral-900">
+                          {[user.firstName, user.lastName].filter(Boolean).join(' ') || user.email}
+                        </p>
+                        <p className="truncate text-xs text-neutral-500">{user.email}</p>
+                      </div>
+                      <Link
+                        href="/dashboard"
+                        className="block px-4 py-2 text-sm text-neutral-700 hover:bg-primary-50 hover:text-neutral-900"
+                        onClick={() => setIsAccountMenuOpen(false)}
+                      >
+                        My Account
+                      </Link>
+                      {user.role === 'ADMIN' && (
+                        <Link
+                          href="/admin"
+                          className="block px-4 py-2 text-sm text-neutral-700 hover:bg-primary-50 hover:text-neutral-900"
+                          onClick={() => setIsAccountMenuOpen(false)}
+                        >
+                          Admin
+                        </Link>
+                      )}
+                      <button
+                        onClick={handleLogout}
+                        className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+                      >
+                        Logout
+                      </button>
+                    </div>
+                  )}
+                </div>
               ) : (
                 <div className="hidden sm:flex sm:items-center sm:gap-1 md:gap-2 flex-shrink-0">
                   <AuthToggleButtons />
@@ -557,11 +625,39 @@ export const Header: React.FC = () => {
               </div>
 
               {/* Mobile Auth Buttons */}
-              {!user && (
+              {!user ? (
                 <div className="mt-3 pt-3 border-t border-neutral-200">
                   <div className="px-3">
                     <AuthToggleButtons />
                   </div>
+                </div>
+              ) : (
+                <div className="mt-3 pt-3 border-t border-neutral-200 space-y-1">
+                  <Link
+                    href="/dashboard"
+                    className="block px-3 py-2 rounded text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                  >
+                    My Account
+                  </Link>
+                  {user.role === 'ADMIN' && (
+                    <Link
+                      href="/admin"
+                      className="block px-3 py-2 rounded text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      Admin
+                    </Link>
+                  )}
+                  <button
+                    onClick={() => {
+                      setIsMobileMenuOpen(false);
+                      handleLogout();
+                    }}
+                    className="block w-full px-3 py-2 rounded text-left text-sm font-medium text-red-600 hover:bg-red-50"
+                  >
+                    Logout
+                  </button>
                 </div>
               )}
             </nav>

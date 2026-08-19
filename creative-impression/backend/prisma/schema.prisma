@@ -812,8 +812,8 @@ model Notification {
 
 model AuditLog {
   id        String  @id @default(cuid())
-  userId    String
-  user      User    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId    String?
+  user      User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
   action    String  // CREATE, UPDATE, DELETE
   resource  String  // Product, Order, User, etc.
   resourceId String?

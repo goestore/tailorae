@@ -70,6 +70,9 @@
     "typescript": "^5.3.0",
     "winston": "^3.19.0"
   },
+  "prisma": {
+    "seed": "ts-node -r tsconfig-paths/register prisma/seed.ts"
+  },
   "lint-staged": {
     "src/**/*.{ts,tsx}": [
       "eslint --fix",

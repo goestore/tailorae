@@ -8,6 +8,7 @@ const nextConfig = {
   images: {
     remotePatterns: [
       { protocol: 'http', hostname: 'localhost' },
+      { protocol: 'https', hostname: 'picsum.photos' },
       { protocol: 'https', hostname: 'your-domain.com' },
       { protocol: 'https', hostname: 's3.amazonaws.com' },
       { protocol: 'https', hostname: 'cdn.example.com' },
@@ -41,10 +42,13 @@ const nextConfig = {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL;
     if (!apiUrl) return [];
 
+    // NEXT_PUBLIC_API_URL may already end in /api — strip it so the
+    // rewrite doesn't produce a double /api/api/* path
+    const base = apiUrl.replace(/\/api\/?$/, '');
     return [
       {
         source: '/api/:path*',
-        destination: `${apiUrl}/:path*`,
+        destination: `${base}/api/:path*`,
       },
     ];
   },
