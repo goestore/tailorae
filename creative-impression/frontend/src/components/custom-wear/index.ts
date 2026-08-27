@@ -4,6 +4,8 @@ export { Breadcrumbs } from './Breadcrumbs';
 export type { Crumb } from './Breadcrumbs';
 export { CustomWearProductCard } from './CustomWearProductCard';
 export type { CustomWearProductCardProps } from './CustomWearProductCard';
+export { StarRating } from './StarRating';
+export type { StarRatingProps } from './StarRating';
 
 // Browse
 export { CollectionBrowser } from './browse/CollectionBrowser';
@@ -20,3 +22,10 @@ export { ArtworkInspector } from './studio/ArtworkInspector';
 export { QuoteSheet } from './studio/QuoteSheet';
 export { DesignMark } from './studio/DesignMark';
 export { useProductConfig } from './studio/useProductConfig';
+
+// Product detail content
+export { ProductAccordions } from './detail/ProductAccordions';
+export { ProductDescription } from './detail/ProductDescription';
+export { SizeGuideModal } from './detail/SizeGuideModal';
+export { DeliveryEstimator } from './detail/DeliveryEstimator';
+export { RecentlyViewed } from './detail/RecentlyViewed';

@@ -16,6 +16,7 @@ import type {
   CustomizationLocationId,
   CustomizationPlacement,
   CustomizationSelection,
+  DeliverySpeedId,
   ProductColor,
   PurchaseMode,
   QuantityPricing,
@@ -43,6 +44,10 @@ export interface ProductConfig {
   quantity: number;
   minQuantity: number;
   setQuantity: (value: number) => void;
+
+  /** Chosen in the delivery estimator; carried onto the cart line. */
+  deliverySpeed: DeliverySpeedId;
+  setDeliverySpeed: (speed: DeliverySpeedId) => void;
 
   selection: CustomizationSelection;
   activePlacementId: string | null;
@@ -107,6 +112,7 @@ export function useProductConfig(product: CustomWearProduct): ProductConfig {
   const [quantity, setQuantityState] = useState(
     Math.max(product.defaultQuantity ?? 1, minQuantity)
   );
+  const [deliverySpeed, setDeliverySpeed] = useState<DeliverySpeedId>('standard');
   const [selection, setSelection] = useState<CustomizationSelection>(emptySelection);
   const [activePlacementId, setActivePlacement] = useState<string | null>(null);
   const [errors, setErrors] = useState<ConfigErrors>({});
@@ -319,7 +325,7 @@ export function useProductConfig(product: CustomWearProduct): ProductConfig {
           sizeId: sizeIds[0],
           pricing,
           customization: selection,
-          deliverySpeed: 'standard',
+          deliverySpeed,
         })
       )
     );
@@ -329,7 +335,7 @@ export function useProductConfig(product: CustomWearProduct): ProductConfig {
       total: pricing.total,
     });
     return { ok: true, errors: {} };
-  }, [validate, colorId, dispatch, product, sizeIds, pricing, selection]);
+  }, [validate, colorId, dispatch, product, sizeIds, pricing, selection, deliverySpeed]);
 
   const hasArtwork = selection.placements.some(
     (placement) => placement.templateId || placement.uploadId
@@ -347,6 +353,8 @@ export function useProductConfig(product: CustomWearProduct): ProductConfig {
     quantity,
     minQuantity,
     setQuantity,
+    deliverySpeed,
+    setDeliverySpeed,
     selection,
     activePlacementId,
     setActivePlacement,

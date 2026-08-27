@@ -8,6 +8,12 @@ import { formatCurrency } from '@/utils/helpers';
 import type { CustomWearProduct } from '@/types/custom-wear';
 import { Breadcrumbs, type Crumb } from '../Breadcrumbs';
 import { CustomWearProductCard } from '../CustomWearProductCard';
+import { StarRating } from '../StarRating';
+import { DeliveryEstimator } from '../detail/DeliveryEstimator';
+import { ProductAccordions } from '../detail/ProductAccordions';
+import { ProductDescription } from '../detail/ProductDescription';
+import { RecentlyViewed } from '../detail/RecentlyViewed';
+import { SizeGuideModal } from '../detail/SizeGuideModal';
 import { ProductPhotos } from './ProductPhotos';
 import { Designer } from './Designer';
 import { QuoteSheet } from './QuoteSheet';
@@ -36,6 +42,7 @@ export const ProductView: React.FC<ProductViewProps> = ({
   const config = useProductConfig(product);
   const [isDesignerOpen, setDesignerOpen] = useState(false);
   const [isQuoteOpen, setQuoteOpen] = useState(false);
+  const [isSizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
 
   const spec = [
@@ -79,7 +86,11 @@ export const ProductView: React.FC<ProductViewProps> = ({
             <p className="cw-pdp-spec">
               {spec}
               {product.rating !== undefined && (
-                <span className="cw-pdp-rating">★ {product.rating.toFixed(1)}</span>
+                <StarRating
+                  className="cw-pdp-rating"
+                  rating={product.rating}
+                  reviewCount={product.reviewCount}
+                />
               )}
             </p>
 
@@ -123,6 +134,14 @@ export const ProductView: React.FC<ProductViewProps> = ({
               <h2>
                 Size
                 {config.errors.size && <em role="alert">{config.errors.size}</em>}
+                <button
+                  suppressHydrationWarning
+                  type="button"
+                  onClick={() => setSizeGuideOpen(true)}
+                  className="cw-field-link"
+                >
+                  {customWearContent.labels.sizeGuide}
+                </button>
               </h2>
               <div className="cw-chips" role="group" aria-label="Size">
                 {product.sizes.map((size) => (
@@ -200,6 +219,13 @@ export const ProductView: React.FC<ProductViewProps> = ({
                   })}
                 </div>
               </div>
+
+              {config.pricing.nextTier && (
+                <p className="cw-tier-nudge">
+                  Add {config.pricing.nextTier.minQty - config.pricing.quantity} more to reach{' '}
+                  <strong>{formatCurrency(config.pricing.nextTier.pricePerUnit)}</strong> per unit.
+                </p>
+              )}
             </section>
 
             {/* Artwork — summarised here, edited in design mode. */}
@@ -268,8 +294,20 @@ export const ProductView: React.FC<ProductViewProps> = ({
                 {flash}
               </p>
             )}
+
+            <DeliveryEstimator
+              orderValue={config.pricing.total}
+              speed={config.deliverySpeed}
+              onSpeedChange={config.setDeliverySpeed}
+            />
           </div>
         </div>
+
+        <ProductDescription block={product.descriptionBlock} highlights={product.highlights} />
+
+        {product.accordions && product.accordions.length > 0 && (
+          <ProductAccordions sections={product.accordions} />
+        )}
 
         {relatedProducts.length > 0 && (
           <section className="cw-related">
@@ -281,7 +319,16 @@ export const ProductView: React.FC<ProductViewProps> = ({
             </div>
           </section>
         )}
+
+        <RecentlyViewed currentProductId={product.id} mode={config.mode} />
       </div>
+
+      <SizeGuideModal
+        isOpen={isSizeGuideOpen}
+        onClose={() => setSizeGuideOpen(false)}
+        productName={product.name}
+        chart={product.sizeChart}
+      />
 
       <Designer
         product={product}
