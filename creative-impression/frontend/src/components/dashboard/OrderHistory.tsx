@@ -41,7 +41,7 @@ export const OrderHistory: React.FC<OrderHistoryProps> = ({
       {orders.map((order) => (
         <Card
           key={order.id}
-          className="p-4 hover:shadow-lg transition-shadow cursor-pointer"
+          className="p-4 hover:border-primary-500 hover:shadow-brand transition-[border-color,box-shadow] cursor-pointer"
           onClick={() => onOrderClick?.(order.id)}
         >
           <div className="flex items-center justify-between">

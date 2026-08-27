@@ -272,7 +272,7 @@ export default function CheckoutPage() {
           }}
         />
 
-        <Card className="p-8">
+        <Card className="p-5">
           {currentStep === 'shipping' && (
             <div>
               <h2 className="text-2xl font-bold mb-6">Shipping Address</h2>
@@ -421,7 +421,7 @@ export default function CheckoutPage() {
 
               {orderError && <div className="alert alert-error mb-6">{orderError}</div>}
 
-              <div className="bg-gray-50 p-4 rounded mb-6">
+              <div className="border border-line p-4 rounded-control mb-6">
                 <h3 className="text-base font-semibold mb-3">Items</h3>
                 <div className="space-y-2 border-b pb-3 mb-3">
                   {cartItems.map((item) => (
@@ -457,7 +457,7 @@ export default function CheckoutPage() {
                 </div>
               </div>
 
-              <div className="bg-gray-50 p-4 rounded mb-6 text-sm">
+              <div className="border border-line p-4 rounded-control mb-6 text-sm">
                 <h3 className="text-base font-semibold mb-2">Delivery</h3>
                 <p className="font-medium">{form.fullName}</p>
                 <p>

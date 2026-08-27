@@ -1,5 +1,3 @@
-'use client';
-
 import React from 'react';
 import Link from 'next/link';
 import { Card } from '@/components/common';
@@ -42,15 +40,15 @@ export const CategoryShowcase: React.FC<CategoryShowcaseProps> = ({
   ],
 }) => {
   return (
-    <section className="py-12 md:py-16 lg:py-20 bg-gray-50">
+    <section className="py-8 md:py-10 lg:py-12 bg-white">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">Popular Categories</h2>
         <p className="text-center text-gray-600 mb-12">Explore our wide range of printing products</p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {categories.map((category) => (
             <Link key={category.id} href={category.link}>
-              <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
+              <Card className="overflow-hidden hover:border-primary-500 hover:shadow-brand transition-[border-color,box-shadow] cursor-pointer">
                 <div
                   className="h-48 bg-cover bg-center"
                   style={{ backgroundImage: `url('${category.image}')` }}

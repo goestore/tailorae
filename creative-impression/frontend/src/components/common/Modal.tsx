@@ -99,7 +99,7 @@ export const Modal: React.FC<ModalProps> = ({
         aria-labelledby={title ? titleId : undefined}
         aria-label={!title ? ariaLabel : undefined}
         className={cn(
-          'relative mx-4 w-full rounded-xl bg-white p-6 shadow-xl',
+          'relative mx-4 w-full rounded-xl bg-white p-4 shadow-xl',
           sizeClasses[size],
           className
         )}

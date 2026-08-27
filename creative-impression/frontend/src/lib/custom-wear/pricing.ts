@@ -7,8 +7,7 @@
 
 import type {
   CustomWearProduct,
-  CustomizationLocationId,
-  CustomizationMethodId,
+  CustomizationPlacement,
   PriceTier,
   QuantityPricing,
 } from '@/types/custom-wear';
@@ -16,8 +15,7 @@ import type {
 export interface PricingInput {
   product: CustomWearProduct;
   quantity: number;
-  method?: CustomizationMethodId | null;
-  locations?: CustomizationLocationId[];
+  placements?: CustomizationPlacement[];
 }
 
 export function findTier(tiers: PriceTier[] | undefined, quantity: number): PriceTier | undefined {
@@ -42,12 +40,10 @@ export function unitPriceForQuantity(product: CustomWearProduct, quantity: numbe
   const tier = findTier(product.priceTiers, quantity);
   return tier ? tier.pricePerUnit : product.basePrice;
 }
-
 export function calculatePricing({
   product,
   quantity,
-  method = null,
-  locations = [],
+  placements = [],
 }: PricingInput): QuantityPricing {
   const safeQuantity = Math.max(1, Math.floor(quantity) || 1);
   const tiers = product.priceTiers;
@@ -56,24 +52,38 @@ export function calculatePricing({
 
   const baseUnitPrice = tier ? tier.pricePerUnit : product.basePrice;
 
-  const methodOption = method
-    ? product.customizationMethods.find((entry) => entry.id === method && entry.supported)
-    : undefined;
+  /**
+   * Decoration is quoted per placement: each one is applied by its own method,
+   * and each print area beyond the first carries the area surcharge. Setup is
+   * charged once per distinct method — one screen burn covers every placement
+   * printed the same way.
+   */
+  const priced = placements
+    .map((placement) => ({
+      method: placement.method
+        ? product.customizationMethods.find(
+            (entry) => entry.id === placement.method && entry.supported
+          )
+        : undefined,
+      location: product.customizationLocations.find(
+        (entry) => entry.id === placement.location && entry.supported
+      ),
+    }))
+    .filter((entry) => entry.method);
 
-  const locationSurcharge = locations.reduce((sum, locationId) => {
-    const option = product.customizationLocations.find(
-      (entry) => entry.id === locationId && entry.supported
-    );
-    return sum + (option?.pricePerUnit ?? 0);
-  }, 0);
+  const methodPerUnit = priced.reduce((sum, entry) => sum + (entry.method?.pricePerUnit ?? 0), 0);
 
-  const methodPerUnit = methodOption?.pricePerUnit ?? 0;
-  // The first location is included in the method price; extras are charged.
-  const extraLocations = Math.max(0, locations.length - 1);
-  const customizationPerUnit =
-    (methodOption ? methodPerUnit : 0) + (extraLocations > 0 ? locationSurcharge : 0);
+  // The first area is included in the method price; the rest are surcharged.
+  const locationPerUnit = priced
+    .slice(1)
+    .reduce((sum, entry) => sum + (entry.location?.pricePerUnit ?? 0), 0);
 
-  const setupFee = methodOption?.setupFee ?? 0;
+  const customizationPerUnit = methodPerUnit + locationPerUnit;
+
+  const setupFee = Array.from(
+    new Map(priced.map((entry) => [entry.method!.id, entry.method!.setupFee ?? 0])).values()
+  ).reduce((sum, fee) => sum + fee, 0);
+
   const unitPrice = baseUnitPrice + customizationPerUnit;
   const subtotal = unitPrice * safeQuantity;
   const total = subtotal + setupFee;
@@ -111,10 +121,7 @@ export function formatPriceRange(product: CustomWearProduct, currencySymbol = '�
 }
 
 /** "From ₹399 each at 100+ units" — only when a genuine volume tier exists. */
-export function formatBulkTeaser(
-  product: CustomWearProduct,
-  currencySymbol = '₹'
-): string | null {
+export function formatBulkTeaser(product: CustomWearProduct, currencySymbol = '₹'): string | null {
   const tiers = product.priceTiers;
   if (!tiers || tiers.length < 2) return null;
   const best = tiers[tiers.length - 1];

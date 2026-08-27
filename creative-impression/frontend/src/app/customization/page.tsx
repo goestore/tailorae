@@ -178,10 +178,10 @@ export default function CustomizationPage() {
           Pick a product, choose your options, and add your custom piece to the cart.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* Product picker + options */}
           <div className="md:col-span-2 space-y-6">
-            <Card className="p-6">
+            <Card className="p-4">
               <h2 className="text-lg font-bold mb-4">1. Choose a Product</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {products.map((p) => (
@@ -206,7 +206,7 @@ export default function CustomizationPage() {
               </div>
             </Card>
 
-            <Card className="p-6">
+            <Card className="p-4">
               <h2 className="text-lg font-bold mb-4">2. Customize</h2>
               {detailLoading ? (
                 <LoadingSpinner className="py-10" />
@@ -244,7 +244,7 @@ export default function CustomizationPage() {
                             ))}
                           </select>
                         ) : isImage ? (
-                          <div className="rounded-lg border-2 border-dashed border-neutral-300 p-6 text-center">
+                          <div className="rounded-lg border-2 border-dashed border-neutral-300 p-4 text-center">
                             <p className="text-sm text-neutral-500">
                               Logo/artwork upload — coming soon.
                             </p>
@@ -273,7 +273,7 @@ export default function CustomizationPage() {
 
           {/* Summary */}
           <div>
-            <Card className="p-6 sticky top-24">
+            <Card className="p-4 sticky top-24">
               <h2 className="text-lg font-bold mb-4">Summary</h2>
               {detail && (
                 <>

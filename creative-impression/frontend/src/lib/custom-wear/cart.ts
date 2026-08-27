@@ -62,14 +62,22 @@ export function buildCartItem({
   customization,
   deliverySpeed,
 }: BuildCartItemInput): CartItem {
-  const configurationKey = [
-    colorId,
-    sizeId,
-    customization.method ?? 'none',
-    [...customization.locations].sort().join('+') || 'none',
-    customization.templateId ?? 'no-template',
-    customization.uploads.map((upload) => upload.name).join('|') || 'no-upload',
-  ].join('_');
+  // Every placement is in the key: two garments differing only by what is
+  // printed on the back are different products and must not merge into one line.
+  const placementKey =
+    customization.placements
+      .map((placement) =>
+        [
+          placement.location,
+          placement.method ?? 'no-method',
+          placement.templateId ?? placement.uploadId ?? 'no-art',
+          Math.round(placement.scale * 100),
+        ].join('-')
+      )
+      .sort()
+      .join('+') || 'plain';
+
+  const configurationKey = [colorId, sizeId, placementKey].join('_');
 
   const color = product.colors.find((entry) => entry.id === colorId);
   const variantImage = color?.imageId
@@ -87,9 +95,14 @@ export function buildCartItem({
       colorId,
       colorName: color?.name ?? colorId,
       sizeId,
-      method: customization.method,
-      locations: customization.locations,
-      templateId: customization.templateId,
+      placements: customization.placements.map((placement) => ({
+        location: placement.location,
+        method: placement.method,
+        templateId: placement.templateId,
+        designFileName:
+          customization.uploads.find((upload) => upload.id === placement.uploadId)?.name ?? null,
+        widthPercent: Math.round(placement.scale * 100),
+      })),
       designFileNames: customization.uploads.map((upload) => upload.name),
       notes: customization.notes,
       setupFee: pricing.setupFee,

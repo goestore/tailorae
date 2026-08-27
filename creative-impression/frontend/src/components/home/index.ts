@@ -3,6 +3,7 @@ export * from './CategoryShowcase';
 export * from './CategoryCarousel';
 export * from './DualPromoBanner';
 export * from './FeaturedProducts';
-export * from './FeaturedProductsSection';
 export * from './NewsletterSignup';
 export * from './BestSellingSlider';
+export * from './WhyChooseUs';
+export * from './OrderCta';

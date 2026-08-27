@@ -1,5 +1,3 @@
-'use client';
-
 import React from 'react';
 import Link from 'next/link';
 import { Card, Button } from '@/components/common';
@@ -34,7 +32,7 @@ export const CartSummary: React.FC<CartSummaryProps> = ({
   const amountToFreeShipping = FREE_SHIPPING_THRESHOLD - (subtotal - discount);
 
   return (
-    <Card className="p-6">
+    <Card className="p-4">
       <h2 className="text-2xl font-bold mb-4">Order Summary</h2>
 
       <div className="space-y-3 border-b pb-4 mb-4">

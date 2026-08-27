@@ -18,15 +18,15 @@ export const AuthToggleButtons: React.FC = () => {
   }, [pathname]);
 
   return (
-    <div className="flex items-center space-x-2">
+    <div className="flex items-center gap-2">
       <Link href="/auth/login">
         <button
           suppressHydrationWarning
           onClick={() => setActiveMode('signin')}
-          className={`px-4 py-2 rounded-full font-semibold transition-all ${
+          className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
             activeMode === 'signin'
-              ? 'bg-yellow-400 text-black font-bold'
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              ? 'bg-brand-gradient text-ink'
+              : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
           }`}
         >
           Sign In
@@ -36,10 +36,10 @@ export const AuthToggleButtons: React.FC = () => {
         <button
           suppressHydrationWarning
           onClick={() => setActiveMode('signup')}
-          className={`px-4 py-2 rounded-full font-semibold transition-all ${
+          className={`rounded-full px-3.5 py-1.5 text-sm font-semibold transition-colors ${
             activeMode === 'signup'
-              ? 'bg-yellow-400 text-black font-bold'
-              : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              ? 'bg-brand-gradient text-ink'
+              : 'border border-line text-ink-2 hover:border-ink-3 hover:text-ink'
           }`}
         >
           Sign Up

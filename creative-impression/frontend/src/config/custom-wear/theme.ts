@@ -72,17 +72,15 @@ export interface CustomWearTheme {
   radiusControl: string;
   radiusChip: string;
 
-  cardImageAspect: string;
   sidebarWidth: string;
-  contentMaxWidth: string;
 
   modeButton: CustomWearButtonTheme;
   ctaButton: CustomWearButtonTheme;
   typography: CustomWearTypographyTheme;
 }
 
-const HEADING_FONT = 'var(--font-playfair), Georgia, serif';
-const BODY_FONT = 'var(--font-montserrat), Inter, system-ui, sans-serif';
+const HEADING_FONT = 'var(--font-inter), system-ui, sans-serif';
+const BODY_FONT = 'var(--font-inter), system-ui, sans-serif';
 
 export const customWearTheme: CustomWearTheme = {
   primaryColor: '#FBB602',
@@ -94,23 +92,25 @@ export const customWearTheme: CustomWearTheme = {
   white: '#FFFFFF',
 
   ink: '#111111',
-  inkMuted: '#333333',
-  inkSubtle: '#666666',
+  inkMuted: '#3F3F46',
+  inkSubtle: '#71717A',
   surface: '#FFFFFF',
-  surfaceAlt: '#F5F5F5',
-  border: '#E5E5E5',
-  borderStrong: '#111111',
+  surfaceAlt: '#FAFAF9',
+  border: '#E7E5E4',
+  borderStrong: '#D6D3D1',
 
   success: '#1B7F4B',
   danger: '#C02626',
 
-  radiusCard: '14px',
-  radiusControl: '8px',
-  radiusChip: '6px',
+  /* Geometry matches the site design system in globals.css: cards and
+     controls are square (--r-card / --r-control are both 0), and only chips
+     and pills are rounded. Custom Wear used to run 14px rounded cards, which
+     read as a different site from the rest of the catalog. */
+  radiusCard: '0px',
+  radiusControl: '0px',
+  radiusChip: '999px',
 
-  cardImageAspect: '1 / 1',
-  sidebarWidth: '264px',
-  contentMaxWidth: '1560px',
+  sidebarWidth: '248px',
 
   /** Shop Now / Get Quote selector. */
   modeButton: {
@@ -128,7 +128,7 @@ export const customWearTheme: CustomWearTheme = {
     fontSizeMobile: '15px',
     fontWeight: 600,
     letterSpacing: '0.01em',
-    borderRadius: '8px',
+    borderRadius: '0px',
     borderWidth: '1px',
     paddingX: '28px',
     paddingY: '14px',
@@ -153,7 +153,7 @@ export const customWearTheme: CustomWearTheme = {
     fontSizeMobile: '14px',
     fontWeight: 600,
     letterSpacing: '0.01em',
-    borderRadius: '8px',
+    borderRadius: '0px',
     borderWidth: '1px',
     paddingX: '20px',
     paddingY: '12px',
@@ -166,9 +166,9 @@ export const customWearTheme: CustomWearTheme = {
     headingFontFamily: HEADING_FONT,
     bodyFontFamily: BODY_FONT,
     heroHeading: 'clamp(34px, 5.2vw, 68px)',
-    pageHeading: 'clamp(26px, 3.4vw, 44px)',
-    sectionHeading: 'clamp(20px, 2.4vw, 32px)',
-    productTitle: 'clamp(15px, 1.2vw, 18px)',
+    pageHeading: 'clamp(28px, 3.6vw, 46px)',
+    sectionHeading: 'clamp(18px, 1.8vw, 26px)',
+    productTitle: 'clamp(14px, 1vw, 16px)',
     body: 'clamp(14px, 1vw, 16px)',
     smallLabel: 'clamp(12px, 0.9vw, 14px)',
     microLabel: '12px',
@@ -223,8 +223,6 @@ export function customWearCssVariables(
     '--cw-radius-control': theme.radiusControl,
     '--cw-radius-chip': theme.radiusChip,
     '--cw-sidebar-width': theme.sidebarWidth,
-    '--cw-content-max': theme.contentMaxWidth,
-    '--cw-card-aspect': theme.cardImageAspect,
     '--cw-font-heading': theme.typography.headingFontFamily,
     '--cw-font-body': theme.typography.bodyFontFamily,
     '--cw-fs-hero': theme.typography.heroHeading,

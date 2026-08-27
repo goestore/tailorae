@@ -1,12 +1,10 @@
-'use client';
-
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { Icon } from '@/components/common';
+import { NewsletterForm } from './NewsletterForm';
 
 export const Footer: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
   const currentYear = new Date().getFullYear();
 
   const footerSections = [
@@ -22,11 +20,14 @@ export const Footer: React.FC = () => {
     {
       title: 'Shop',
       links: [
+        // Section routes, not ?category= slugs: these are the taxonomy in
+        // config/catalog.ts, and they are what the navbar links to as well.
         { name: 'All Products', href: '/products' },
-        { name: 'T-Shirts', href: '/products?category=t-shirts' },
-        { name: 'Hoodies & Sweatshirts', href: '/products?category=hoodies-sweatshirts' },
-        { name: 'Jerseys', href: '/products?category=jerseys' },
-        { name: 'Corporate Uniforms', href: '/products?category=corporate-uniforms' },
+        { name: "Women's", href: '/products/womens' },
+        { name: "Men's", href: '/products/mens' },
+        { name: 'Kids', href: '/products/kids' },
+        { name: 'New Arrivals', href: '/products/new-arrivals' },
+        { name: 'Sale', href: '/products/sale' },
       ],
     },
     {
@@ -80,10 +81,10 @@ export const Footer: React.FC = () => {
   ];
 
   return (
-    <footer className="bg-neutral-900 text-white">
+    <footer className="bg-white text-ink border-t border-line">
       {/* Main footer content */}
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-5">
+      <div className="container-max py-8">
+        <div className="grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-5">
           {/* Company info */}
           <div className="lg:col-span-2">
             <div className="flex items-center">
@@ -94,18 +95,18 @@ export const Footer: React.FC = () => {
                 height={32}
                 className="object-contain"
               />
-              <span className="ml-2 text-xl font-bold">Creative Impression</span>
+              <span className="ml-2 text-lg font-bold">Creative Impression</span>
             </div>
-            <p className="mt-4 text-neutral-300">
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-ink-3">
               Your trusted partner for custom printing and business solutions. From business cards
               to bulk orders, we deliver quality products with exceptional service.
             </p>
-            <div className="mt-6 flex space-x-4">
+            <div className="mt-4 flex space-x-3">
               {socialLinks.map((social) => (
                 <a
                   key={social.name}
                   href={social.href}
-                  className="text-neutral-400 hover:text-white"
+                  className="text-ink-3 hover:text-ink"
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -118,11 +119,11 @@ export const Footer: React.FC = () => {
           {/* Footer sections */}
           {footerSections.map((section) => (
             <div key={section.title}>
-              <h3 className="text-sm font-semibold uppercase tracking-wider">{section.title}</h3>
-              <ul className="mt-4 space-y-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-ink">{section.title}</h3>
+              <ul className="mt-3 space-y-1.5">
                 {section.links.map((link) => (
                   <li key={link.name}>
-                    <Link href={link.href} className="text-neutral-300 hover:text-white">
+                    <Link href={link.href} className="text-sm text-ink-3 hover:text-ink">
                       {link.name}
                     </Link>
                   </li>
@@ -134,60 +135,35 @@ export const Footer: React.FC = () => {
       </div>
 
       {/* Newsletter signup */}
-      <div className="border-t border-neutral-800">
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+      <div className="border-t border-line">
+        <div className="container-max py-8">
           <div className="md:flex md:items-center md:justify-between">
             <div className="md:flex-1">
-              <h3 className="text-lg font-medium">Stay updated</h3>
-              <p className="mt-1 text-neutral-300">
+              <h3 className="text-base font-semibold text-ink">Stay updated</h3>
+              <p className="mt-1 text-sm text-ink-3">
                 Get the latest updates on new products and exclusive offers.
               </p>
             </div>
-            <div className="mt-4 md:mt-0 md:ml-8">
-              <form
-                className="sm:flex"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  setIsLoading(true);
-                  // Handle newsletter signup here
-                  setTimeout(() => {
-                    setEmail('');
-                    setIsLoading(false);
-                  }, 1000);
-                }}
-              >
-                <input
-                  type="email"
-                  placeholder="Enter your email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full rounded-md border border-neutral-700 bg-neutral-800 px-4 py-2 text-white placeholder-neutral-400 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 sm:max-w-xs"
-                  suppressHydrationWarning={true}
-                  required
-                />
-                <button
-                  type="submit"
-                  disabled={isLoading}
-                  className="mt-3 w-full rounded-md bg-primary-600 px-4 py-2 font-medium text-white hover:bg-primary-700 sm:mt-0 sm:ml-3 sm:w-auto sm:flex-shrink-0 disabled:opacity-50"
-                  suppressHydrationWarning={true}
-                >
-                  {isLoading ? 'Loading...' : 'Subscribe'}
-                </button>
-              </form>
+            <div className="mt-4 md:ml-8 md:mt-0">
+              <NewsletterForm />
             </div>
           </div>
         </div>
       </div>
 
       {/* Bottom bar */}
-      <div className="border-t border-neutral-800">
-        <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+      <div className="border-t border-line">
+        <div className="container-max py-3">
           <div className="flex flex-col items-center justify-between space-y-4 md:flex-row md:space-y-0">
-            <div className="text-sm text-neutral-400">
+            <div className="text-xs text-ink-3">
               © {currentYear} Creative Impression. All rights reserved.
             </div>
-            <div className="flex items-center space-x-6 text-sm text-neutral-400">
-              <span>🇮🇳 Made with ❤️ in India</span>
+            <div className="flex items-center space-x-6 text-xs text-ink-3">
+              <span className="flex items-center gap-1.5">
+                Made with
+                <Icon name="heart" className="h-3.5 w-3.5 text-[var(--brand)]" />
+                in India
+              </span>
               <span>•</span>
               <span>Secure payments</span>
               <span>•</span>

@@ -1,5 +1,3 @@
-'use client';
-
 import React from 'react';
 import { Card, Button } from '@/components/common';
 
@@ -17,7 +15,7 @@ export const CustomizationPreview: React.FC<CustomizationPreviewProps> = ({
   price = 0,
 }) => {
   return (
-    <Card className="p-6">
+    <Card className="p-4">
       <h3 className="text-xl font-bold mb-4">Preview</h3>
 
       <div

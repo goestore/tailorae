@@ -1,6 +1,12 @@
 /**
- * Catalog categories (real slugs from the backend database).
- * Used by the header nav, footer links, and product filters.
+ * Catalog categories, matching the `Category.slug` values the backend actually
+ * stores. Used by the footer links and the product filters.
+ *
+ * These are the only three that exist. An earlier list here invented finer
+ * slugs ("t-shirts", "jerseys", "corporate-uniforms") that no Category row ever
+ * had, so every link and filter built from it returned an empty page. Anything
+ * finer-grained than these belongs in `config/catalog.ts`, which expresses
+ * subcategories as a parent category plus a keyword match.
  */
 export interface CatalogCategory {
   slug: string;
@@ -8,19 +14,7 @@ export interface CatalogCategory {
 }
 
 export const CATALOG_CATEGORIES: CatalogCategory[] = [
-  { slug: 't-shirts', name: 'T-Shirts' },
-  { slug: 'polo', name: 'Polo' },
-  { slug: 'round-neck', name: 'Round Neck' },
-  { slug: 'formal-shirts', name: 'Formal Shirts' },
-  { slug: 'casual-shirts', name: 'Casual Shirts' },
-  { slug: 'hoodies-sweatshirts', name: 'Hoodies & Sweatshirts' },
-  { slug: 'pullover-hoodies', name: 'Pullover Hoodies' },
-  { slug: 'zipper-hoodies', name: 'Zipper Hoodies' },
-  { slug: 'jerseys', name: 'Jerseys' },
-  { slug: 'corporate-uniforms', name: 'Corporate Uniforms' },
-  { slug: 'industrial-workwear', name: 'Industrial Workwear' },
-  { slug: 'caps', name: 'Caps' },
-  { slug: 'backpacks', name: 'Backpacks' },
-  { slug: 'tote-bags', name: 'Tote Bags' },
-  { slug: 'gift-sets', name: 'Gift Sets' },
+  { slug: 'womens', name: "Women's" },
+  { slug: 'mens', name: "Men's" },
+  { slug: 'kids', name: 'Kids' },
 ];

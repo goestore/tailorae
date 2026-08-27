@@ -1,5 +1,3 @@
-'use client';
-
 import React from 'react';
 import { Card } from '@/components/common';
 
@@ -46,13 +44,13 @@ export const FeaturedProducts: React.FC<FeaturedProductsProps> = ({
   ],
 }) => {
   return (
-    <section className="py-12 md:py-16 lg:py-20">
+    <section className="py-8 md:py-10 lg:py-12">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">Featured Products</h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {products.map((product) => (
-            <Card key={product.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+            <Card key={product.id} className="overflow-hidden hover:border-primary-500 hover:shadow-brand transition-[border-color,box-shadow]">
               <div
                 className="h-48 bg-cover bg-center"
                 style={{ backgroundImage: `url('${product.image}')` }}

@@ -1,11 +1,10 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
-import { CustomWearProductDetail, CustomWearThemeProvider } from '@/components/custom-wear';
+import { ProductView, CustomWearThemeProvider } from '@/components/custom-wear';
 import type { Crumb } from '@/components/custom-wear';
 import { getCategoryById } from '@/config/custom-wear/taxonomy';
 import {
   fetchAllCustomWearSlugs,
-  fetchAlsoViewedProducts,
   fetchCustomWearProductBySlug,
   fetchRelatedProducts,
 } from '@/lib/custom-wear/api';
@@ -86,11 +85,6 @@ export default async function CustomWearProductPage({ params }: PageProps) {
   if (!product) notFound();
 
   const relatedProducts = await fetchRelatedProducts(product, 6);
-  const alsoViewedProducts = await fetchAlsoViewedProducts(
-    product,
-    relatedProducts.map((entry) => entry.id),
-    6
-  );
 
   const category = getCategoryById(product.category);
   const breadcrumbs: Crumb[] = [
@@ -118,10 +112,9 @@ export default async function CustomWearProductPage({ params }: PageProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(buildBreadcrumbSchema(breadcrumbs)) }}
       />
-      <CustomWearProductDetail
+      <ProductView
         product={product}
         relatedProducts={relatedProducts}
-        alsoViewedProducts={alsoViewedProducts}
         breadcrumbs={breadcrumbs}
       />
     </CustomWearThemeProvider>

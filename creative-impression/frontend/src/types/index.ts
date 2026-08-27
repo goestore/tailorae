@@ -69,10 +69,13 @@ export interface Product {
 export interface BulkPricing {
   id: string;
   productId: string;
-  minQuantity: number;
-  maxQuantity?: number | null;
-  pricePerUnit?: number;
-  discountPercentage?: number;
+  minQty: number;
+  /** `null` means "and above". */
+  maxQty?: number | null;
+  /** Percentage off the base price. */
+  discount: number;
+  /** Final per-unit price, already discounted. */
+  price: number;
 }
 
 export interface ProductVariant {

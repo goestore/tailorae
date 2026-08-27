@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Metadata } from 'next';
-import { CustomWearCollection, CustomWearThemeProvider } from '@/components/custom-wear';
+import { CollectionBrowser, CustomWearThemeProvider } from '@/components/custom-wear';
 import type { Crumb } from '@/components/custom-wear';
 import { customWearContent } from '@/config/custom-wear/content';
 import {
@@ -45,11 +45,11 @@ export async function renderCollectionPage({
       ? `Custom ${group.possessive} Wear`
       : customWearContent.collection.defaultHeading;
 
-  const description = category
-    ? `Printed and embroidered ${category.label.toLowerCase()} for ${group?.label.toLowerCase() ?? 'every'} teams, businesses and events.`
-    : group
-      ? `Customizable ${group.possessive.toLowerCase()} apparel — polos, tees, hoodies, sweatshirts and sportswear.`
-      : customWearContent.collection.defaultDescription;
+  /*
+   * No visible blurb. It restated the category name in a sentence and read the
+   * same on every listing. `buildCollectionMetadata` keeps its own description
+   * for search engines and social cards, which is where that text belongs.
+   */
 
   const breadcrumbs: Crumb[] = [
     { label: 'Home', href: '/' },
@@ -66,19 +66,11 @@ export async function renderCollectionPage({
           __html: JSON.stringify(buildBreadcrumbSchema(breadcrumbs)),
         }}
       />
-      <CustomWearCollection
+      <CollectionBrowser
         result={result}
         defaults={defaults}
         heading={heading}
-        description={description}
         breadcrumbs={breadcrumbs}
-        heroContent={
-          category
-            ? { heading: category.fullLabel.replace('Customize ', 'Custom ') }
-            : group
-              ? { heading: `Custom ${group.possessive} Wear` }
-              : undefined
-        }
       />
     </CustomWearThemeProvider>
   );

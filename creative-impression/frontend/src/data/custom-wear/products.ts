@@ -38,18 +38,23 @@ import type {
 // IMAGE LIBRARY (files in /public/images)
 // ============================================
 
+/*
+ * Product photography only.
+ *
+ * `Male Model`, `Female Model`, `Banner Customize` and `WINTER` are marketing
+ * banners — half of each is a typeset advert panel ("CUSTOMIZE POLO T-SHIRTS",
+ * "SMART STYLE BLAZER", "WINTER JACKET"). They were being used as gallery and
+ * colour-variant images, so a product tile cropped to a portrait cell showed
+ * the ad copy instead of the garment. They stay available to the home page and
+ * the hero, where a banner is what is wanted, and are deliberately absent here.
+ */
 const IMG = {
-  mensPolo: '/images/Mens%20Polo%20T-Shirt.png',
-  roundNeck: '/images/Round%20Neck%20T-Shirt.png',
-  mensShirt: '/images/Mens%20Shirt.png',
-  womensPolo: '/images/Women%20Polo%20T-Shirt.png',
-  womensTop: '/images/Women%20Top.png',
-  boysPolo: '/images/Boys%20Polo%20T-Shirts.png',
-  winter: '/images/WINTER.jpg',
-  maleModel: '/images/Male%20Model.png',
-  femaleModel: '/images/Female%20Model.png',
-  fabric: '/images/tailor-cloth-f20a30ae-0b2d-4bd1-af6c-ca7ab7e2e22d.png',
-  customizing: '/images/Banner%20Customize.png',
+  mensPolo: '/images/Mens%20Polo%20T-Shirt.webp',
+  roundNeck: '/images/Round%20Neck%20T-Shirt.webp',
+  mensShirt: '/images/Mens%20Shirt.webp',
+  womensPolo: '/images/Women%20Polo%20T-Shirt.webp',
+  womensTop: '/images/Women%20Top.webp',
+  boysPolo: '/images/Boys%20Polo%20T-Shirts.webp',
 } as const;
 
 // ============================================
@@ -81,6 +86,12 @@ interface ProductSeed {
   tiers?: Array<[number, number | null, number]>;
   colors: string[];
   /** Per-colour front shot; falls back to the primary image when absent. */
+  /**
+   * Colour id -> photograph OF THAT COLOUR. Only map a colour when the asset
+   * genuinely shows the garment in it; a wrong entry is worse than none,
+   * because the gallery presents it as the colour the buyer selected. Anything
+   * left unmapped falls back to the generated colour view.
+   */
   colorImages?: Record<string, string>;
   sizes: readonly string[];
   sizeGroup: 'adult' | 'kids';
@@ -202,7 +213,18 @@ function buildImages(seed: ProductSeed): ProductImage[] {
     role: item.role,
   }));
 
+  /*
+   * A colour's shot is often one the gallery already carries — the lifestyle
+   * photo is frequently the navy variant, for instance. Tag the existing entry
+   * with the colour instead of appending the same file twice, or the gallery
+   * shows the identical picture in two slots.
+   */
   Object.entries(seed.colorImages ?? {}).forEach(([colorId, url]) => {
+    const existing = images.find((image) => image.url === url && !image.colorId);
+    if (existing) {
+      existing.colorId = colorId;
+      return;
+    }
     images.push({
       id: `${seed.id}-color-${colorId}`,
       url,
@@ -235,50 +257,6 @@ function buildAccordions(seed: ProductSeed) {
         { label: 'Weight', value: `${seed.gsm} GSM` },
         { label: 'Fit', value: seed.fit },
         { label: 'Finish', value: 'Bio-washed, pre-shrunk, colour-fast dyed' },
-      ],
-    },
-    {
-      id: 'specs-templates',
-      title: 'Specs & Templates',
-      paragraphs: [
-        'Download the artwork templates before you send files to production. Templates include print-area boundaries, safe margins and stitch limits.',
-      ],
-      templates: [
-        {
-          id: `${seed.id}-print-template`,
-          label: 'Print Template',
-          fileType: 'PDF',
-          url: `/downloads/custom-wear/${seed.slug}-print-template.pdf`,
-          description: 'Scaled print areas for every supported location.',
-        },
-        {
-          id: `${seed.id}-embroidery-template`,
-          label: 'Embroidery Template',
-          fileType: 'PDF',
-          url: `/downloads/custom-wear/${seed.slug}-embroidery-template.pdf`,
-          description: 'Stitch-count guidance and hoop placement.',
-        },
-        {
-          id: `${seed.id}-spec-sheet`,
-          label: 'Product Specification',
-          fileType: 'PDF',
-          url: `/downloads/custom-wear/${seed.slug}-specification.pdf`,
-          description: `${seed.gsm} GSM ${FABRIC_LABELS[seed.fabric].toLowerCase()} construction sheet.`,
-        },
-        {
-          id: `${seed.id}-size-guide`,
-          label: 'Size Guide',
-          fileType: 'PDF',
-          url: `/downloads/custom-wear/${seed.slug}-size-guide.pdf`,
-          description: 'Full measurement table in cm and inches.',
-        },
-        {
-          id: `${seed.id}-artwork-guidelines`,
-          label: 'Artwork Guidelines',
-          fileType: 'PDF',
-          url: '/downloads/custom-wear/artwork-guidelines.pdf',
-          description: 'File formats, colour modes and minimum resolution.',
-        },
       ],
     },
     {
@@ -403,14 +381,32 @@ function createProduct(seed: ProductSeed): CustomWearProduct {
 // SEEDS
 // ============================================
 
-const galleryFor = (front: string, lifestyle: string): GallerySeed[] => [
-  { url: front, role: 'front', caption: 'front view' },
-  { url: front, role: 'back', caption: 'back view' },
-  { url: lifestyle, role: 'lifestyle', caption: 'worn on model' },
-  { url: front, role: 'side', caption: 'side profile' },
-  { url: IMG.fabric, role: 'fabric', caption: 'fabric close-up' },
-  { url: IMG.customizing, role: 'customization', caption: 'branding locations' },
-];
+/**
+ * A product's gallery, from however many genuine photographs it has.
+ *
+ * It used to turn two images into six slides: the front shot repeated and
+ * captioned "back view" and "side profile", a stock fabric swatch captioned
+ * "fabric close-up", and a marketing banner captioned "branding locations".
+ * Each made a claim the image did not support. Only real shots ship, and a
+ * product with none falls through to the colour view rather than borrowing a
+ * banner. Add back and detail photography here as it is produced.
+ */
+const galleryFor = (...urls: Array<string | undefined>): GallerySeed[] => {
+  const seen = new Set<string>();
+  const unique: string[] = [];
+
+  urls.forEach((url) => {
+    if (!url || seen.has(url)) return;
+    seen.add(url);
+    unique.push(url);
+  });
+
+  return unique.map((url, index) => ({
+    url,
+    role: index === 0 ? ('front' as const) : ('lifestyle' as const),
+    caption: index === 0 ? 'front view' : 'worn on model',
+  }));
+};
 
 const PRODUCT_SEEDS: ProductSeed[] = [
   {
@@ -438,12 +434,12 @@ const PRODUCT_SEEDS: ProductSeed[] = [
       [100, null, 399],
     ],
     colors: ['black', 'white', 'navy', 'royal-blue', 'red', 'maroon', 'grey', 'bottle-green', 'yellow', 'orange'],
-    colorImages: { navy: IMG.maleModel, white: IMG.mensShirt },
+    colorImages: { white: IMG.mensShirt },
     sizes: ADULT_SIZES,
     sizeGroup: 'adult',
     methods: ['screen-printing', 'dtf', 'heat-transfer', 'embroidery', 'vinyl-printing'],
     locations: ['left-chest', 'right-chest', 'centre-front', 'upper-back', 'full-back', 'left-sleeve', 'right-sleeve'],
-    gallery: galleryFor(IMG.mensPolo, IMG.maleModel),
+    gallery: galleryFor(IMG.mensPolo),
     rating: 4.6,
     reviewCount: 134,
     badges: ['bestseller', 'no-moq'],
@@ -504,12 +500,12 @@ const PRODUCT_SEEDS: ProductSeed[] = [
     fit: 'Tailored fit',
     basePrice: 749,
     colors: ['black', 'white', 'navy', 'bottle-green', 'maroon', 'grey', 'beige'],
-    colorImages: { black: IMG.mensShirt },
+    colorImages: { white: IMG.mensShirt },
     sizes: ADULT_SIZES,
     sizeGroup: 'adult',
     methods: ['embroidery', 'screen-printing', 'vinyl-printing', 'heat-transfer'],
     locations: ['left-chest', 'right-chest', 'upper-back', 'left-sleeve', 'right-sleeve'],
-    gallery: galleryFor(IMG.mensShirt, IMG.maleModel),
+    gallery: galleryFor(IMG.mensShirt),
     rating: 4.8,
     reviewCount: 86,
     badges: ['premium'],
@@ -563,12 +559,12 @@ const PRODUCT_SEEDS: ProductSeed[] = [
     fit: 'Regular fit',
     basePrice: 349,
     colors: ['black', 'white', 'navy', 'royal-blue', 'sky-blue', 'red', 'maroon', 'green', 'grey', 'yellow', 'orange', 'purple'],
-    colorImages: { white: IMG.roundNeck, navy: IMG.maleModel },
+    colorImages: { red: IMG.roundNeck },
     sizes: ADULT_SIZES,
     sizeGroup: 'adult',
     methods: ['screen-printing', 'dtg', 'dtf', 'heat-transfer', 'puff-printing', 'vinyl-printing'],
     locations: ALL_LOCATIONS,
-    gallery: galleryFor(IMG.roundNeck, IMG.maleModel),
+    gallery: galleryFor(IMG.roundNeck),
     rating: 4.5,
     reviewCount: 262,
     badges: ['bestseller', 'no-moq'],
@@ -622,12 +618,11 @@ const PRODUCT_SEEDS: ProductSeed[] = [
     fit: 'Relaxed fit',
     basePrice: 499,
     colors: ['white', 'black', 'navy', 'beige', 'bottle-green', 'grey'],
-    colorImages: { beige: IMG.fabric },
     sizes: ADULT_SIZES,
     sizeGroup: 'adult',
     methods: ['screen-printing', 'dtg', 'embroidery'],
     locations: ['left-chest', 'centre-front', 'full-front', 'upper-back', 'full-back'],
-    gallery: galleryFor(IMG.roundNeck, IMG.maleModel),
+    gallery: galleryFor(IMG.roundNeck),
     rating: 4.7,
     reviewCount: 58,
     badges: ['eco-friendly', 'premium'],
@@ -680,12 +675,11 @@ const PRODUCT_SEEDS: ProductSeed[] = [
     fit: 'Regular fit',
     basePrice: 1249,
     colors: ['black', 'navy', 'grey', 'maroon', 'bottle-green', 'beige'],
-    colorImages: { grey: IMG.winter },
     sizes: ADULT_SIZES,
     sizeGroup: 'adult',
     methods: ['embroidery', 'screen-printing', 'dtf', 'puff-printing', 'vinyl-printing'],
     locations: ['left-chest', 'centre-front', 'full-front', 'upper-back', 'full-back', 'left-sleeve', 'right-sleeve'],
-    gallery: galleryFor(IMG.winter, IMG.maleModel),
+    gallery: galleryFor(),
     rating: 4.7,
     reviewCount: 97,
     badges: ['premium', 'new-options'],
@@ -743,7 +737,7 @@ const PRODUCT_SEEDS: ProductSeed[] = [
     sizeGroup: 'adult',
     methods: ['screen-printing', 'embroidery', 'dtf', 'puff-printing'],
     locations: ['left-chest', 'centre-front', 'full-front', 'upper-back', 'full-back'],
-    gallery: galleryFor(IMG.winter, IMG.maleModel),
+    gallery: galleryFor(),
     rating: 4.5,
     reviewCount: 74,
     minOrderQuantity: 10,
@@ -795,12 +789,12 @@ const PRODUCT_SEEDS: ProductSeed[] = [
     fit: 'Athletic fit',
     basePrice: 649,
     colors: ['black', 'white', 'royal-blue', 'red', 'green', 'yellow', 'orange', 'navy', 'sky-blue'],
-    colorImages: { 'royal-blue': IMG.roundNeck },
+    colorImages: { red: IMG.roundNeck },
     sizes: ADULT_SIZES,
     sizeGroup: 'adult',
     methods: ['sublimation', 'heat-transfer', 'vinyl-printing', 'dtf'],
     locations: ['centre-front', 'full-front', 'upper-back', 'full-back', 'left-sleeve', 'right-sleeve'],
-    gallery: galleryFor(IMG.roundNeck, IMG.maleModel),
+    gallery: galleryFor(IMG.roundNeck),
     rating: 4.6,
     reviewCount: 143,
     badges: ['bestseller'],
@@ -854,12 +848,12 @@ const PRODUCT_SEEDS: ProductSeed[] = [
     fit: 'Contoured fit',
     basePrice: 549,
     colors: ['black', 'white', 'navy', 'sky-blue', 'red', 'maroon', 'pink', 'grey', 'bottle-green'],
-    colorImages: { white: IMG.womensPolo, pink: IMG.femaleModel },
+    colorImages: { pink: IMG.womensPolo },
     sizes: ADULT_SIZES,
     sizeGroup: 'adult',
     methods: ['screen-printing', 'dtf', 'heat-transfer', 'embroidery', 'vinyl-printing'],
     locations: ['left-chest', 'right-chest', 'upper-back', 'full-back', 'left-sleeve', 'right-sleeve'],
-    gallery: galleryFor(IMG.womensPolo, IMG.femaleModel),
+    gallery: galleryFor(IMG.womensPolo),
     rating: 4.6,
     reviewCount: 118,
     badges: ['bestseller', 'no-moq'],
@@ -912,12 +906,12 @@ const PRODUCT_SEEDS: ProductSeed[] = [
     fit: 'Relaxed fit',
     basePrice: 379,
     colors: ['white', 'black', 'beige', 'pink', 'sky-blue', 'navy', 'grey', 'purple', 'yellow'],
-    colorImages: { beige: IMG.womensTop, pink: IMG.femaleModel },
+    colorImages: { purple: IMG.womensTop },
     sizes: ADULT_SIZES,
     sizeGroup: 'adult',
     methods: ['dtg', 'dtf', 'screen-printing', 'heat-transfer', 'puff-printing'],
     locations: ['left-chest', 'centre-front', 'full-front', 'upper-back', 'full-back'],
-    gallery: galleryFor(IMG.womensTop, IMG.femaleModel),
+    gallery: galleryFor(IMG.womensTop),
     rating: 4.4,
     reviewCount: 91,
     badges: ['no-moq'],
@@ -970,12 +964,11 @@ const PRODUCT_SEEDS: ProductSeed[] = [
     fit: 'Relaxed fit',
     basePrice: 1199,
     colors: ['black', 'grey', 'beige', 'pink', 'navy', 'bottle-green', 'purple'],
-    colorImages: { beige: IMG.winter },
     sizes: ADULT_SIZES,
     sizeGroup: 'adult',
     methods: ['embroidery', 'screen-printing', 'dtf', 'puff-printing'],
     locations: ['left-chest', 'centre-front', 'full-front', 'upper-back', 'full-back', 'left-sleeve'],
-    gallery: galleryFor(IMG.winter, IMG.femaleModel),
+    gallery: galleryFor(),
     rating: 4.7,
     reviewCount: 64,
     badges: ['new'],
@@ -1032,7 +1025,7 @@ const PRODUCT_SEEDS: ProductSeed[] = [
     sizeGroup: 'adult',
     methods: ['screen-printing', 'embroidery', 'dtf', 'puff-printing'],
     locations: ['left-chest', 'centre-front', 'full-front', 'upper-back', 'full-back'],
-    gallery: galleryFor(IMG.womensTop, IMG.femaleModel),
+    gallery: galleryFor(IMG.womensTop),
     rating: 4.5,
     reviewCount: 47,
     badges: ['new-options'],
@@ -1085,12 +1078,11 @@ const PRODUCT_SEEDS: ProductSeed[] = [
     fit: 'Athletic fit',
     basePrice: 699,
     colors: ['black', 'white', 'pink', 'sky-blue', 'purple', 'grey', 'royal-blue'],
-    colorImages: { black: IMG.femaleModel },
     sizes: ADULT_SIZES,
     sizeGroup: 'adult',
     methods: ['sublimation', 'heat-transfer', 'vinyl-printing', 'dtf'],
     locations: ['left-chest', 'centre-front', 'full-front', 'upper-back', 'full-back'],
-    gallery: galleryFor(IMG.womensTop, IMG.femaleModel),
+    gallery: galleryFor(IMG.womensTop),
     rating: 4.6,
     reviewCount: 52,
     badges: ['eco-friendly', 'new'],
@@ -1143,12 +1135,12 @@ const PRODUCT_SEEDS: ProductSeed[] = [
     fit: 'Regular fit',
     basePrice: 429,
     colors: ['white', 'navy', 'sky-blue', 'red', 'bottle-green', 'yellow', 'black', 'maroon'],
-    colorImages: { white: IMG.boysPolo },
+    colorImages: { 'sky-blue': IMG.boysPolo },
     sizes: KIDS_SIZES,
     sizeGroup: 'kids',
     methods: ['embroidery', 'screen-printing', 'heat-transfer', 'vinyl-printing'],
     locations: ['left-chest', 'right-chest', 'upper-back', 'left-sleeve'],
-    gallery: galleryFor(IMG.boysPolo, IMG.boysPolo),
+    gallery: galleryFor(IMG.boysPolo),
     rating: 4.5,
     reviewCount: 76,
     badges: ['bestseller'],
@@ -1201,12 +1193,12 @@ const PRODUCT_SEEDS: ProductSeed[] = [
     fit: 'Regular fit',
     basePrice: 289,
     colors: ['white', 'yellow', 'sky-blue', 'red', 'green', 'orange', 'pink', 'navy', 'black'],
-    colorImages: { yellow: IMG.boysPolo },
+    colorImages: { 'sky-blue': IMG.boysPolo },
     sizes: KIDS_SIZES,
     sizeGroup: 'kids',
     methods: ['screen-printing', 'dtg', 'dtf', 'heat-transfer'],
     locations: ['left-chest', 'centre-front', 'full-front', 'upper-back', 'full-back'],
-    gallery: galleryFor(IMG.boysPolo, IMG.boysPolo),
+    gallery: galleryFor(IMG.boysPolo),
     rating: 4.4,
     reviewCount: 103,
     badges: ['no-moq'],
@@ -1259,12 +1251,11 @@ const PRODUCT_SEEDS: ProductSeed[] = [
     fit: 'Regular fit',
     basePrice: 899,
     colors: ['navy', 'grey', 'black', 'red', 'bottle-green', 'pink', 'sky-blue'],
-    colorImages: { navy: IMG.winter },
     sizes: KIDS_SIZES,
     sizeGroup: 'kids',
     methods: ['embroidery', 'screen-printing', 'dtf', 'heat-transfer'],
     locations: ['left-chest', 'centre-front', 'full-front', 'upper-back', 'full-back'],
-    gallery: galleryFor(IMG.winter, IMG.boysPolo),
+    gallery: galleryFor(IMG.boysPolo),
     rating: 4.6,
     reviewCount: 41,
     badges: ['new'],
@@ -1321,7 +1312,7 @@ const PRODUCT_SEEDS: ProductSeed[] = [
     sizeGroup: 'kids',
     methods: ['embroidery', 'screen-printing', 'heat-transfer', 'vinyl-printing'],
     locations: ['left-chest', 'centre-front', 'upper-back'],
-    gallery: galleryFor(IMG.winter, IMG.boysPolo),
+    gallery: galleryFor(IMG.boysPolo),
     rating: 4.5,
     reviewCount: 68,
     minOrderQuantity: 25,
@@ -1373,12 +1364,12 @@ const PRODUCT_SEEDS: ProductSeed[] = [
     fit: 'Athletic fit',
     basePrice: 479,
     colors: ['red', 'royal-blue', 'yellow', 'green', 'white', 'black', 'orange', 'sky-blue'],
-    colorImages: { red: IMG.boysPolo },
+    colorImages: { 'sky-blue': IMG.boysPolo },
     sizes: KIDS_SIZES,
     sizeGroup: 'kids',
     methods: ['sublimation', 'heat-transfer', 'vinyl-printing'],
     locations: ['centre-front', 'full-front', 'upper-back', 'full-back'],
-    gallery: galleryFor(IMG.boysPolo, IMG.boysPolo),
+    gallery: galleryFor(IMG.boysPolo),
     rating: 4.5,
     reviewCount: 55,
     minOrderQuantity: 10,

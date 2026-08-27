@@ -77,9 +77,9 @@ export default function B2BPage() {
     if (bulk.length === 0) return DEFAULT_TIERS;
     return [...bulk]
       .map((bp) => ({
-        quantity: bp.minQuantity,
-        discount: Math.round(bp.discountPercentage ?? 0),
-        pricePerUnit: bp.pricePerUnit ?? detail?.price ?? 0,
+        quantity: bp.minQty,
+        discount: Math.round(bp.discount ?? 0),
+        pricePerUnit: bp.price ?? detail?.price ?? 0,
       }))
       .sort((a, b) => a.quantity - b.quantity);
   }, [detail]);
@@ -126,20 +126,20 @@ export default function B2BPage() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <h1 className="text-4xl font-bold mb-8">B2B Bulk Orders</h1>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
-          <Card className="p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-12">
+          <Card className="p-4">
             <h3 className="text-xl font-bold mb-4">💰 Best Pricing</h3>
             <p className="text-neutral-600">
               Get the most competitive rates for bulk orders with volume discounts.
             </p>
           </Card>
-          <Card className="p-6">
+          <Card className="p-4">
             <h3 className="text-xl font-bold mb-4">🚚 Fast Delivery</h3>
             <p className="text-neutral-600">
               Express delivery options available for urgent bulk orders.
             </p>
           </Card>
-          <Card className="p-6">
+          <Card className="p-4">
             <h3 className="text-xl font-bold mb-4">👥 Dedicated Support</h3>
             <p className="text-neutral-600">
               Get personalized support from our B2B team for your orders.
@@ -147,7 +147,7 @@ export default function B2BPage() {
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <div className="md:col-span-2">
             {submitted ? (
               <Card className="p-10 text-center">
@@ -164,7 +164,7 @@ export default function B2BPage() {
                 </Button>
               </Card>
             ) : (
-              <Card className="p-6">
+              <Card className="p-4">
                 <h2 className="text-2xl font-bold mb-6">Request Bulk Quote</h2>
                 {loading ? (
                   <LoadingSpinner className="py-10" />

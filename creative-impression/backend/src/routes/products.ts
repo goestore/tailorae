@@ -37,11 +37,28 @@ const recomputeProductRating = async (productId: string): Promise<void> => {
 // @access  Public
 router.get('/', optionalAuth, async (req: Request, res: Response) => {
   try {
-    const { search, category, minPrice, maxPrice, featured, sortBy } = req.query;
+    const { search, category, minPrice, maxPrice, featured, onSale, sortBy, ids } = req.query;
     const { page, limit, skip } = parsePagination(req.query as Record<string, unknown>, 12, 50);
+
+    /**
+     * `?ids=a,b,c` fetches an explicit set, in the order asked for.
+     *
+     * This is what curated homepage sections read: the admin stores the ids it
+     * chose, and the order of that list is the order on the page. Prisma
+     * cannot order by an arbitrary list, so the sort happens below, after the
+     * rows come back.
+     */
+    const requestedIds =
+      typeof ids === 'string' && ids.trim() !== ''
+        ? [...new Set(ids.split(',').map((id) => id.trim()).filter(Boolean))].slice(0, 50)
+        : null;
 
     // 1. Build query based on filters
     const where: Prisma.ProductWhereInput = { status: 'ACTIVE' };
+
+    if (requestedIds) {
+      where.id = { in: requestedIds };
+    }
 
     if (typeof search === 'string' && search.trim().length > 0) {
       where.OR = [
@@ -69,6 +86,11 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       where.isFeatured = true;
     }
 
+    // Sale = discounted, i.e. a strictly higher original price is recorded.
+    if (onSale === 'true') {
+      where.discountPercentage = { gt: 0 };
+    }
+
     let orderBy: Prisma.ProductOrderByWithRelationInput = { createdAt: 'desc' };
     switch (sortBy) {
       case 'price_asc':
@@ -91,8 +113,10 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       prisma.product.findMany({
         where,
         orderBy,
-        skip,
-        take: limit,
+        // An explicit id list is already bounded and its order is meaningful,
+        // so paginating it would silently truncate a curated section.
+        skip: requestedIds ? 0 : skip,
+        take: requestedIds ? requestedIds.length : limit,
         include: {
           category: { select: { id: true, name: true, slug: true } },
         },
@@ -100,12 +124,20 @@ router.get('/', optionalAuth, async (req: Request, res: Response) => {
       prisma.product.count({ where }),
     ]);
 
+    // Restore the caller's order. A product that no longer exists or is no
+    // longer ACTIVE simply drops out rather than leaving a gap.
+    const ordered = requestedIds
+      ? (requestedIds
+          .map((id) => products.find((product) => product.id === id))
+          .filter(Boolean) as typeof products)
+      : products;
+
     // 3. Return products with metadata
     res.json({
       success: true,
       message: 'Products fetched',
       data: {
-        products,
+        products: ordered,
         pagination: {
           page,
           limit,

@@ -27,14 +27,18 @@ export const DualPromoBanner: React.FC<DualPromoBannerProps> = ({
 }) => {
   const renderBanner = (item: BannerItem, index: number) => {
     const imageElement = (
-      <div className={`relative w-full ${aspectRatio} overflow-hidden group`}>
+      <div className={`relative w-full ${aspectRatio} overflow-hidden`}>
+        {/* No hover transform here: this is the LCP element, and scaling it
+            forces a composited layer for the largest paint on the page. */}
         <Image
           src={item.image}
           alt={item.alt || ''}
           width={1200}
           height={675}
-          className="w-full h-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.02]"
+          sizes="(max-width: 768px) 100vw, 50vw"
+          className="h-full w-full object-cover"
           priority={index === 0}
+          fetchPriority={index === 0 ? 'high' : 'auto'}
         />
       </div>
     );
@@ -62,7 +66,9 @@ export const DualPromoBanner: React.FC<DualPromoBannerProps> = ({
   };
 
   return (
-    <section className={`w-full ${className}`}>
+    // Edge-to-edge on phones, but capped at the site content width so it lines
+    // up with every other band on a large monitor instead of sprawling.
+    <section className={`mx-auto w-full max-w-content ${className}`}>
       <div
         className="flex flex-col md:flex-row"
         style={{ gap: divider }}

@@ -91,7 +91,7 @@ export const AuthToggle: React.FC<AuthToggleProps> = ({
   return (
     <main className="min-h-screen flex items-center justify-center py-8 md:py-12">
       <div className="w-full max-w-md">
-        <Card className="p-8">
+        <Card className="p-5">
           {/* Toggle Buttons */}
           <div className="flex gap-4 mb-8">
             <button

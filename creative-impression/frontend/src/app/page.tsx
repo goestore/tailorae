@@ -1,174 +1,37 @@
 import { Metadata } from 'next';
-import Link from 'next/link';
-import Image from 'next/image';
-import { Button, Card } from '@/components/common';
-import {
-  DualPromoBanner,
-  CategoryCarousel,
-  BestSellingSlider,
-  FeaturedProductsSection,
-} from '@/components/home';
+import { HOME_SECTION_IDS, type HomeSectionId } from '@/config/home-sections';
+import { HOME_SECTION_COMPONENTS } from '@/components/home/sections';
+import { resolveOrder } from '@/content/field';
+import { homeContent } from '@/content/schema/home';
+import { loadContent } from '@/content/source';
 
 export const metadata: Metadata = {
   title: 'Home | Creative Impression',
   description: 'Welcome to Creative Impression - Premium Fashion & Custom Apparel Platform',
 };
 
-export default function Home() {
+/**
+ * The home page, composed from the published section order.
+ *
+ * The page no longer decides what comes after what — `content/schema/home.ts`
+ * does, and the admin edits it. `resolveOrder` guarantees the result is always
+ * a complete, duplicate-free list of sections that exist, whatever is stored,
+ * so a stale or partial order still renders a whole page.
+ *
+ * With nothing published this is byte-for-byte the order the page shipped with.
+ */
+export default async function Home() {
+  const content = await loadContent(homeContent);
+  const order = resolveOrder(content.sections.order, HOME_SECTION_IDS) as readonly HomeSectionId[];
+
   return (
-    <div className="min-h-screen">
-      {/* Hero Banner - Edit images in the DualPromoBanner props below */}
-      <DualPromoBanner
-        left={{
-          image: '/images/Female Model.png',
-          alt: 'Creative Impression Female Model',
-        }}
-        right={{
-          image: '/images/Male Model.png',
-          alt: 'Creative Impression Male Model',
-          href: '/b2b',
-        }}
-        divider={1}
-        aspectRatio="aspect-video"
-      />
-
-      <div className="mt-5">
-        <CategoryCarousel />
-      </div>
-
-      <div className="mt-5">
-        <BestSellingSlider />
-      </div>
-
-      {/* Featured Products (live from the catalog) */}
-      <div className="mt-5">
-        <FeaturedProductsSection />
-      </div>
-
-      <div className="mt-5">
-        {/* Features Section */}
-        <section className="py-20 px-4 bg-white dark:bg-neutral-900">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-4xl font-serif font-bold text-center mb-16 text-neutral-900 dark:text-neutral-50">
-            Why Choose Creative Impression?
-          </h2>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            {[
-              {
-                title: 'Premium Quality',
-                description: 'Highest quality fabrics and printing techniques for your custom apparel needs',
-                icon: '✨',
-              },
-              {
-                title: 'Fast Delivery',
-                description: 'Quick turnaround times with reliable shipping partners across India',
-                icon: '🚀',
-              },
-              {
-                title: 'Competitive Pricing',
-                description: 'Best prices with bulk discounts, special offers, and wholesale pricing',
-                icon: '💰',
-              },
-              {
-                title: 'Fashion Manufacturing',
-                description: 'Made Easy Design It. Choose It. Receive It. From sketches to finished products, we manage every step.',
-                icon: '/images/tailor-cloth-f20a30ae-0b2d-4bd1-af6c-ca7ab7e2e22d.png',
-                
-              },
-            ].map((feature, index) => (
-              <Card key={index} hover className="text-center p-8">
-                {feature.icon.endsWith('.png') ? (
-                  <div className="flex w-full justify-center items-center gap-2 mb-4">
-                    <Image src={feature.icon} alt={feature.title} width={48} height={48} className="object-contain" />
-                  </div>
-                ) : (
-                  <div className="text-4xl mb-4">{feature.icon}</div>
-                )}
-                <h3 className="text-2xl font-bold mb-3 text-neutral-900 dark:text-neutral-50">{feature.title}</h3>
-                <p className="text-neutral-600 dark:text-neutral-400">{feature.description}</p>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-      </div>
-
-      {/* Services Section */}
-      <section className="py-20 px-4 bg-neutral-50 dark:bg-neutral-800">
-        <div className="max-w-7xl mx-auto">
-          <h2 className="text-4xl font-serif font-bold text-center mb-16 text-neutral-900 dark:text-neutral-50">
-            Our Services
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {[
-              {
-                title: 'Custom Printing',
-                description: 'Screen printing, DTG, embroidery, and heat transfer services',
-                icon: '🖨️',
-                href: '/customization',
-              },
-              {
-                title: 'B2B Wholesale',
-                description: 'Bulk orders with special pricing for businesses and resellers',
-                icon: '🏢',
-                href: '/b2b',
-              },
-              {
-                title: 'Ready-to-Wear',
-                description: 'Premium fashion apparel for retail customers',
-                icon: '👕',
-                href: '/products',
-              },
-              {
-                title: 'Design Services',
-                description: 'Professional design assistance for your custom projects',
-                icon: '🎨',
-                href: '/b2b',
-              },
-            ].map((service, index) => (
-              <Link key={index} href={service.href}>
-                <Card hover className="text-center p-6 h-full">
-                  {service.icon.endsWith('.png') ? (
-                    <div className="flex justify-center mb-4">
-                      <Image src={service.icon} alt={service.title} width={48} height={48} className="object-contain" />
-                    </div>
-                  ) : (
-                    <div className="text-3xl mb-4">{service.icon}</div>
-                  )}
-                  <h3 className="text-xl font-bold mb-3 text-neutral-900 dark:text-neutral-50">{service.title}</h3>
-                  <p className="text-neutral-600 dark:text-neutral-400 text-sm">{service.description}</p>
-                </Card>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="bg-primary-500 text-neutral-900 py-16 px-4">
-        <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-4xl font-serif font-bold mb-6">
-            Ready to Start Your Order?
-          </h2>
-          <p className="text-lg mb-8 text-neutral-800">
-            Join thousands of satisfied customers who trust Creative Impression for their fashion and printing needs.
-          </p>
-          <div className="flex gap-4 justify-center flex-wrap">
-            <Link href="/products">
-              <Button size="lg" className="bg-neutral-900 text-white hover:bg-neutral-800">
-                Shop Products
-              </Button>
-            </Link>
-            <Link href="/info/contact">
-              <Button variant="outline" size="lg" className="border-neutral-900 text-neutral-900 hover:bg-neutral-900 hover:text-white">
-                Get Quote
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
+    // Whichever band lands first should not draw a rule against the header:
+    // the separator belongs between sections, not above the page.
+    <div className="min-h-screen [&>*:first-child]:border-t-0">
+      {order.map((id) => {
+        const Section = HOME_SECTION_COMPONENTS[id];
+        return <Section key={id} content={content} />;
+      })}
     </div>
   );
 }

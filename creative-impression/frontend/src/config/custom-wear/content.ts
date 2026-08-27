@@ -69,7 +69,6 @@ export interface CustomWearContent {
   collection: {
     /** Fallback H1 when no category is selected. */
     defaultHeading: string;
-    defaultDescription: string;
     /** Grid columns per breakpoint. */
     columns: { base: number; sm: number; lg: number; xl: number; '2xl': number };
   };
@@ -82,6 +81,15 @@ export interface CustomWearContent {
     stickySummary: boolean;
     stickyTopOffset: string;
     galleryThumbnailCount: number;
+    /**
+     * What the gallery shows for a colour that has no photograph of its own.
+     * `photo` is always preferred when one exists; this only decides the
+     * fallback. `silhouette` draws the garment outline in the exact colour;
+     * `tint` re-colours the existing photo; `none` leaves the gallery alone.
+     */
+    colorFallback: 'silhouette' | 'tint' | 'none';
+    /** Opacity of the `tint` overlay, 0–1. */
+    colorTintStrength: number;
   };
 
   quote: {
@@ -111,7 +119,7 @@ export const customWearContent: CustomWearContent = {
     heading: 'Custom Wear',
     description:
       'Create apparel your way. Shop customizable styles or request a quote for bulk and business orders.',
-    backgroundImage: '/images/Banner%20Customize.png',
+    backgroundImage: '/images/Banner%20Customize.webp',
     backgroundWidth: 1983,
     backgroundHeight: 793,
     backgroundPositionMobile: '68% center',
@@ -159,8 +167,6 @@ export const customWearContent: CustomWearContent = {
 
   collection: {
     defaultHeading: 'Custom Wear',
-    defaultDescription:
-      'Printed and embroidered apparel for teams, businesses and events — order one piece or thousands.',
     columns: { base: 2, sm: 2, lg: 3, xl: 4, '2xl': 4 },
   },
 
@@ -168,7 +174,6 @@ export const customWearContent: CustomWearContent = {
     accordionOrder: [
       'product-details',
       'fabric-construction',
-      'specs-templates',
       'size-dimensions',
       'printing-embroidery',
       'shipping-delivery',
@@ -177,14 +182,24 @@ export const customWearContent: CustomWearContent = {
     ],
     defaultOpenAccordionId: 'product-details',
     /**
-     * Off by default: the configurator panel is taller than the viewport, and
-     * a sticky element that tall pins at the top offset and never scrolls, so
-     * the buyer could not reach the CTA at its bottom. Turn on only if the
-     * panel is shortened.
+     * On: the ordering rail is short enough to sit still while the stage
+     * scrolls. It was switched off when the rail also carried the design tool
+     * and ran taller than the viewport, which pinned it at the top offset and
+     * put its own CTA out of reach. The design tool now lives in the stage.
      */
-    stickySummary: false,
+    stickySummary: true,
     stickyTopOffset: '96px',
     galleryThumbnailCount: 8,
+    /**
+     * `silhouette` by default because it is the only option that is always
+     * truthful. `tint` multiplies the colour over the product photo, which
+     * reads well on mid and dark shades but cannot lighten a garment — white
+     * and yellow come out muddy, and it stains white collar trim and prints
+     * along with the fabric. Switch to `tint` to compare, or to `none` once
+     * real per-colour photography exists for every shade.
+     */
+    colorFallback: 'silhouette',
+    colorTintStrength: 0.72,
   },
 
   quote: {

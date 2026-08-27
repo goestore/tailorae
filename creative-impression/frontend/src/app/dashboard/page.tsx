@@ -113,7 +113,7 @@ function DashboardContent() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <h1 className="text-4xl font-bold mb-8">My Account</h1>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
           <div className="md:col-span-1">
             <DashboardMenu activeSection={activeSection} onSectionChange={handleSectionChange} />
           </div>
@@ -164,18 +164,18 @@ function OverviewPanel({
 
   return (
     <div className="space-y-6">
-      <Card className="p-6">
+      <Card className="p-4">
         <h2 className="text-2xl font-bold mb-1">
           Welcome back, {user.firstName || user.email}
         </h2>
         <p className="text-neutral-500">Here&apos;s a quick look at your account.</p>
       </Card>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-        <Card className="p-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <Card className="p-4">
           <h3 className="text-neutral-500 text-sm font-semibold mb-2">Total Orders</h3>
           <p className="text-3xl font-bold">{orderCount ?? '—'}</p>
         </Card>
-        <Card className="p-6">
+        <Card className="p-4">
           <h3 className="text-neutral-500 text-sm font-semibold mb-2">Account Type</h3>
           <p className="text-3xl font-bold capitalize">
             {user.role.replace('_', ' ').toLowerCase()}
@@ -293,7 +293,7 @@ function ProfilePanel({ user }: { user: User }) {
   };
 
   return (
-    <Card className="p-6">
+    <Card className="p-4">
       <h2 className="text-2xl font-bold mb-6">Profile Information</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Input label="First Name" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
@@ -348,7 +348,7 @@ function SettingsPanel({ user }: { user: User }) {
   };
 
   return (
-    <Card className="p-6">
+    <Card className="p-4">
       <h2 className="text-2xl font-bold mb-6">Account Settings</h2>
       <label className="flex items-center gap-3">
         <input

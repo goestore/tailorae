@@ -27,27 +27,27 @@ function SessionInit() {
 
     let cancelled = false;
 
-    apiClient
-      .get('/auth/me')
-      .then((res) => {
+    // Both requests only need the token, which we already have — so fire them
+    // together rather than nesting /cart inside /auth/me's callback. That
+    // nesting made session restore take two serial round-trips.
+    const mePromise = apiClient.get('/auth/me');
+    const cartPromise = apiClient.get('/cart').catch(() => null);
+
+    mePromise
+      .then(async (res) => {
         if (cancelled) return;
         const user = res.data?.data?.user;
-        if (user) {
-          dispatch(restoreSession({ user, token }));
-          // Hydrate the cart so the header badge is live.
-          apiClient
-            .get('/cart')
-            .then((cartRes) => {
-              if (cancelled) return;
-              const cart = cartRes.data?.data?.cart;
-              if (cart) dispatch(loadCart(cart as unknown as Cart));
-            })
-            .catch(() => {
-              /* non-fatal */
-            });
-        } else {
+        if (!user) {
           dispatch(sessionInitialized());
+          return;
         }
+        dispatch(restoreSession({ user, token }));
+
+        // Hydrate the cart so the header badge is live.
+        const cartRes = await cartPromise;
+        if (cancelled) return;
+        const cart = cartRes?.data?.data?.cart;
+        if (cart) dispatch(loadCart(cart as unknown as Cart));
       })
       .catch(() => {
         if (!cancelled) dispatch(sessionInitialized());

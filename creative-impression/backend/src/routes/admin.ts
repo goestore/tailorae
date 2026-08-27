@@ -536,6 +536,75 @@ router.patch('/products/:id/featured', async (req: Request, res: Response) => {
 });
 
 /**
+ * @route GET /admin/categories
+ * @description Categories, for the product form's category picker
+ * @access Admin only
+ */
+router.get('/categories', async (_req: Request, res: Response) => {
+  try {
+    const categories = await prisma.category.findMany({
+      orderBy: [{ displayOrder: 'asc' }, { name: 'asc' }],
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        isActive: true,
+        _count: { select: { products: true } },
+      },
+    });
+
+    res.json({ success: true, message: 'Categories fetched', data: { categories } });
+  } catch (error) {
+    console.error('[ADMIN] categories list failed:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch categories' });
+  }
+});
+
+/**
+ * @route POST /admin/categories
+ * @description Create a category
+ * @access Admin only
+ */
+router.post('/categories', async (req: Request, res: Response) => {
+  try {
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const name = typeof body.name === 'string' ? body.name.trim() : '';
+    const slug = typeof body.slug === 'string' ? body.slug.trim() : '';
+
+    if (!name || !slug) {
+      res.status(400).json({ success: false, message: 'name and slug are required' });
+      return;
+    }
+    // The slug reaches the storefront as a URL segment.
+    if (!/^[a-z0-9-]+$/.test(slug)) {
+      res.status(400).json({
+        success: false,
+        message: 'slug must be lowercase letters, digits and hyphens',
+      });
+      return;
+    }
+
+    const category = await prisma.category.create({
+      data: {
+        name,
+        slug,
+        description: typeof body.description === 'string' ? body.description : null,
+        image: typeof body.image === 'string' ? body.image : null,
+      },
+    });
+
+    res.status(201).json({ success: true, message: 'Category created', data: { category } });
+  } catch (error) {
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      res.status(409).json({ success: false, message: 'A category with this name or slug already exists' });
+      return;
+    }
+    console.error('[ADMIN] category create failed:', error);
+    res.status(500).json({ success: false, message: 'Failed to create category' });
+  }
+});
+
+/**
  * @route GET /admin/orders
  * @description Get all orders with filtering
  * @access Admin only

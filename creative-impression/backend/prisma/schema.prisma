@@ -2,7 +2,7 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
   previewFeatures = ["fullTextIndex"]
 }
 
@@ -53,16 +53,18 @@ model User {
   subscribeToNewsletter Boolean    @default(false)
 
   // Relations
-  addresses         Address[]
-  cart              Cart?
-  wishlist          Wishlist[]
-  orders            Order[]
-  reviews           Review[]
-  b2bProfile        B2BProfile?
-  vendorProfile     VendorProfile?
-  notifications     Notification[]
-  auditLogs         AuditLog[]
-  authSessions      AuthSession[]
+  addresses     Address[]
+  cart          Cart?
+  wishlist      Wishlist[]
+  orders        Order[]
+  reviews       Review[]
+  b2bProfile    B2BProfile?
+  vendorProfile VendorProfile?
+  notifications Notification[]
+  auditLogs     AuditLog[]
+  mediaAssets   MediaAsset[]
+  contentEdits  ContentValue[]
+  authSessions  AuthSession[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -73,16 +75,16 @@ model User {
 }
 
 model AuthSession {
-  id            String    @id @default(cuid())
-  userId        String
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  token         String    @unique
-  tokenType     String    @default("Bearer")
-  expiresAt     DateTime
-  deviceInfo    String?
-  ipAddress     String?
-  isRevoked     Boolean   @default(false)
-  revokedAt     DateTime?
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token      String    @unique
+  tokenType  String    @default("Bearer")
+  expiresAt  DateTime
+  deviceInfo String?
+  ipAddress  String?
+  isRevoked  Boolean   @default(false)
+  revokedAt  DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -120,8 +122,8 @@ model B2BProfile {
   referralCount         Int      @default(0)
 
   // Relations
-  rfqs              RFQ[]
-  bulkOrders        BulkOrder[]
+  rfqs               RFQ[]
+  bulkOrders         BulkOrder[]
   creditTransactions CreditTransaction[]
 
   createdAt DateTime @default(now())
@@ -132,11 +134,11 @@ model B2BProfile {
 }
 
 model VendorProfile {
-  id                String   @id @default(cuid())
-  userId            String   @unique
-  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String  @id @default(cuid())
+  userId            String  @unique
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   shopName          String
-  shopSlug          String   @unique
+  shopSlug          String  @unique
   shopDescription   String?
   shopImage         String?
   shopBanner        String?
@@ -146,16 +148,16 @@ model VendorProfile {
   bankName          String?
   businessLicense   String?
   taxId             String?
-  isVerified        Boolean  @default(false)
-  isActive          Boolean  @default(true)
-  commissionRate    Float    @default(10)
-  totalEarnings     Float    @default(0)
-  totalOrders       Int      @default(0)
-  rating            Float    @default(0)
-  ratingCount       Int      @default(0)
+  isVerified        Boolean @default(false)
+  isActive          Boolean @default(true)
+  commissionRate    Float   @default(10)
+  totalEarnings     Float   @default(0)
+  totalOrders       Int     @default(0)
+  rating            Float   @default(0)
+  ratingCount       Int     @default(0)
 
   // Relations
-  products          Product[]
+  products           Product[]
   withdrawalRequests WithdrawalRequest[]
 
   createdAt DateTime @default(now())
@@ -208,17 +210,17 @@ enum ProductStatus {
 }
 
 model Category {
-  id          String    @id @default(cuid())
-  name        String    @unique
-  slug        String    @unique
-  description String?
-  icon        String?
-  image       String?
-  parentId    String?
-  parent      Category? @relation("ParentCategory", fields: [parentId], references: [id], onDelete: SetNull)
-  children    Category[] @relation("ParentCategory")
-  isActive    Boolean   @default(true)
-  displayOrder Int     @default(0)
+  id           String     @id @default(cuid())
+  name         String     @unique
+  slug         String     @unique
+  description  String?
+  icon         String?
+  image        String?
+  parentId     String?
+  parent       Category?  @relation("ParentCategory", fields: [parentId], references: [id], onDelete: SetNull)
+  children     Category[] @relation("ParentCategory")
+  isActive     Boolean    @default(true)
+  displayOrder Int        @default(0)
 
   // Relations
   products Product[]
@@ -231,59 +233,59 @@ model Category {
 }
 
 model Product {
-  id                    String      @id @default(cuid())
-  name                  String
-  slug                  String      @unique
-  description           String?
-  shortDescription      String?
-  status                ProductStatus @default(DRAFT)
-  vendorId              String?
-  vendor                VendorProfile? @relation(fields: [vendorId], references: [id], onDelete: SetNull)
-  categoryId            String
-  category              Category    @relation(fields: [categoryId], references: [id])
-  price                 Float
-  costPrice             Float?
-  originalPrice         Float?
-  discountPercentage    Float       @default(0)
-  sku                   String      @unique
-  barcode               String?
-  quantity              Int         @default(0)
-  minOrderQuantity      Int         @default(1)
-  maxOrderQuantity      Int?
-  isFeatured            Boolean     @default(false)
-  isCustomizable        Boolean     @default(false)
-  allowBulkOrders       Boolean     @default(true)
-  weight                Float?      // in kg
-  dimensions            String?     // length x width x height
-  material              String?
-  color                 String?
-  sizeGuide             String?
+  id                 String         @id @default(cuid())
+  name               String
+  slug               String         @unique
+  description        String?
+  shortDescription   String?
+  status             ProductStatus  @default(DRAFT)
+  vendorId           String?
+  vendor             VendorProfile? @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  categoryId         String
+  category           Category       @relation(fields: [categoryId], references: [id])
+  price              Float
+  costPrice          Float?
+  originalPrice      Float?
+  discountPercentage Float          @default(0)
+  sku                String         @unique
+  barcode            String?
+  quantity           Int            @default(0)
+  minOrderQuantity   Int            @default(1)
+  maxOrderQuantity   Int?
+  isFeatured         Boolean        @default(false)
+  isCustomizable     Boolean        @default(false)
+  allowBulkOrders    Boolean        @default(true)
+  weight             Float? // in kg
+  dimensions         String? // length x width x height
+  material           String?
+  color              String?
+  sizeGuide          String?
 
   // Media
-  thumbnail             String?
-  images                String[]
-  videoUrl              String?
+  thumbnail String?
+  images    String[]
+  videoUrl  String?
 
   // Ratings & Reviews
-  rating                Float       @default(0)
-  ratingCount           Int         @default(0)
-  reviewCount           Int         @default(0)
+  rating      Float @default(0)
+  ratingCount Int   @default(0)
+  reviewCount Int   @default(0)
 
   // SEO
-  metaTitle             String?
-  metaDescription       String?
-  metaKeywords          String?
+  metaTitle       String?
+  metaDescription String?
+  metaKeywords    String?
 
   // Relations
-  variants              ProductVariant[]
-  customizations        ProductCustomization[]
-  inventoryTracking     InventoryTracking[]
-  orderItems            OrderItem[]
-  cartItems             CartItem[]
-  wishlistItems         Wishlist[]
-  reviews               Review[]
-  bulkPricings          BulkPricing[]
-  comparisons           ProductComparison[]
+  variants          ProductVariant[]
+  customizations    ProductCustomization[]
+  inventoryTracking InventoryTracking[]
+  orderItems        OrderItem[]
+  cartItems         CartItem[]
+  wishlistItems     Wishlist[]
+  reviews           Review[]
+  bulkPricings      BulkPricing[]
+  comparisons       ProductComparison[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -295,22 +297,22 @@ model Product {
 }
 
 model ProductVariant {
-  id          String  @id @default(cuid())
-  productId   String
-  product     Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  name        String  // e.g., "Red - M", "Blue - L"
-  sku         String  @unique
-  size        String?
-  color       String?
-  material    String?
-  price       Float?  // Override price if different
-  quantity    Int     @default(0)
-  weight      Float?
-  images      String[]
-  isDefault   Boolean @default(false)
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String // e.g., "Red - M", "Blue - L"
+  sku       String   @unique
+  size      String?
+  color     String?
+  material  String?
+  price     Float? // Override price if different
+  quantity  Int      @default(0)
+  weight    Float?
+  images    String[]
+  isDefault Boolean  @default(false)
 
   // Relations
-  cartItems CartItem[]
+  cartItems  CartItem[]
   orderItems OrderItem[]
 
   createdAt DateTime @default(now())
@@ -321,17 +323,17 @@ model ProductVariant {
 }
 
 model ProductCustomization {
-  id                String  @id @default(cuid())
-  productId         String
-  product           Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  name              String  // e.g., "Print Location", "Text"
-  type              String  // text, color, image, embroidery
-  isRequired        Boolean @default(false)
-  options           String? // JSON string of available options
-  additionalCost    Float   @default(0)
-  maxCharacters     Int?
-  allowedFileTypes  String?
-  maxFileSize       Int?    // in KB
+  id               String  @id @default(cuid())
+  productId        String
+  product          Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name             String // e.g., "Print Location", "Text"
+  type             String // text, color, image, embroidery
+  isRequired       Boolean @default(false)
+  options          String? // JSON string of available options
+  additionalCost   Float   @default(0)
+  maxCharacters    Int?
+  allowedFileTypes String?
+  maxFileSize      Int? // in KB
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -340,13 +342,13 @@ model ProductCustomization {
 }
 
 model BulkPricing {
-  id         String  @id @default(cuid())
-  productId  String
-  product    Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  minQty     Int
-  maxQty     Int?
-  discount   Float   // percentage
-  price      Float   // final price after discount
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  minQty    Int
+  maxQty    Int?
+  discount  Float // percentage
+  price     Float // final price after discount
 
   createdAt DateTime @default(now())
 
@@ -354,13 +356,13 @@ model BulkPricing {
 }
 
 model InventoryTracking {
-  id          String  @id @default(cuid())
-  productId   String
-  product     Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  quantity    Int
-  type        String  // "stock_in", "stock_out", "adjustment", "return"
-  reference   String? // Order ID, RFQ ID, etc.
-  notes       String?
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int
+  type      String // "stock_in", "stock_out", "adjustment", "return"
+  reference String? // Order ID, RFQ ID, etc.
+  notes     String?
 
   createdAt DateTime @default(now())
 
@@ -403,9 +405,9 @@ model ProductComparison {
 // ============================================
 
 model Cart {
-  id    String @id @default(cuid())
+  id     String @id @default(cuid())
   userId String @unique
-  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Relations
   items CartItem[]
@@ -417,18 +419,18 @@ model Cart {
 }
 
 model CartItem {
-  id               String           @id @default(cuid())
-  cartId           String
-  cart             Cart             @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  productId        String
-  product          Product          @relation(fields: [productId], references: [id])
-  variantId        String?
-  variant          ProductVariant?  @relation(fields: [variantId], references: [id], onDelete: SetNull)
-  quantity         Int
-  price            Float
-  customization    Json? // Store custom choices
-  mockupImage      String?
-  isBulkOrder      Boolean          @default(false)
+  id            String          @id @default(cuid())
+  cartId        String
+  cart          Cart            @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product         @relation(fields: [productId], references: [id])
+  variantId     String?
+  variant       ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  quantity      Int
+  price         Float
+  customization Json? // Store custom choices
+  mockupImage   String?
+  isBulkOrder   Boolean         @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -442,20 +444,20 @@ model CartItem {
 // ============================================
 
 model Review {
-  id        String  @id @default(cuid())
-  userId    String
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  orderId   String?
-  rating    Int // 1-5
-  title     String?
-  comment   String?
-  images    String[]
-  isVerified Boolean @default(false) // Purchased this product
-  helpful   Int     @default(0)
-  notHelpful Int    @default(0)
-  isPublished Boolean @default(true)
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderId     String?
+  rating      Int // 1-5
+  title       String?
+  comment     String?
+  images      String[]
+  isVerified  Boolean  @default(false) // Purchased this product
+  helpful     Int      @default(0)
+  notHelpful  Int      @default(0)
+  isPublished Boolean  @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -501,54 +503,54 @@ enum PaymentMethod {
 }
 
 model Order {
-  id                    String        @id @default(cuid())
-  orderNumber           String        @unique
-  userId                String
-  user                  User          @relation(fields: [userId], references: [id])
-  status                OrderStatus   @default(PENDING)
-  paymentStatus         PaymentStatus @default(PENDING)
-  paymentMethod         PaymentMethod?
-  isBulkOrder           Boolean       @default(false)
-  isB2B                 Boolean       @default(false)
-  
+  id            String         @id @default(cuid())
+  orderNumber   String         @unique
+  userId        String
+  user          User           @relation(fields: [userId], references: [id])
+  status        OrderStatus    @default(PENDING)
+  paymentStatus PaymentStatus  @default(PENDING)
+  paymentMethod PaymentMethod?
+  isBulkOrder   Boolean        @default(false)
+  isB2B         Boolean        @default(false)
+
   // Shipping Info
-  shippingAddressId     String?
-  shippingAddress       Address?      @relation("ShippingAddress", fields: [shippingAddressId], references: [id])
-  billingAddressId      String?
-  billingAddress        Address?      @relation("BillingAddress", fields: [billingAddressId], references: [id])
-  
+  shippingAddressId String?
+  shippingAddress   Address? @relation("ShippingAddress", fields: [shippingAddressId], references: [id])
+  billingAddressId  String?
+  billingAddress    Address? @relation("BillingAddress", fields: [billingAddressId], references: [id])
+
   // Amount Details
-  subtotal              Float
-  discount              Float         @default(0)
-  discountCode          String?
-  tax                   Float         @default(0)
-  shippingCost          Float         @default(0)
-  total                 Float
-  gstAmount             Float         @default(0)
-  gstNumber             String?       // For B2B
-  
+  subtotal     Float
+  discount     Float   @default(0)
+  discountCode String?
+  tax          Float   @default(0)
+  shippingCost Float   @default(0)
+  total        Float
+  gstAmount    Float   @default(0)
+  gstNumber    String? // For B2B
+
   // Tracking
-  trackingNumber        String?
-  carrier               String?
-  estimatedDelivery     DateTime?
-  actualDelivery        DateTime?
-  
+  trackingNumber    String?
+  carrier           String?
+  estimatedDelivery DateTime?
+  actualDelivery    DateTime?
+
   // Notes
-  notes                 String?
-  adminNotes            String?
-  
+  notes      String?
+  adminNotes String?
+
   // Payment Info
-  paymentId             String?       // Payment gateway transaction ID
-  receiptUrl            String?
-  invoiceUrl            String?
-  
+  paymentId  String? // Payment gateway transaction ID
+  receiptUrl String?
+  invoiceUrl String?
+
   // Return Info
-  returnRequest         ReturnRequest?
+  returnRequest ReturnRequest?
 
   // Relations
-  items                 OrderItem[]
-  timeline              OrderTimeline[]
-  notifications         Notification[]
+  items         OrderItem[]
+  timeline      OrderTimeline[]
+  notifications Notification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -560,19 +562,19 @@ model Order {
 }
 
 model OrderItem {
-  id               String          @id @default(cuid())
-  orderId          String
-  order            Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId        String
-  product          Product         @relation(fields: [productId], references: [id])
-  variantId        String?
-  variant          ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
-  quantity         Int
-  price            Float           // Price at time of order
-  discount         Float           @default(0)
-  customization    Json?           // Store custom choices
-  mockupImage      String?
-  sku              String
+  id            String          @id @default(cuid())
+  orderId       String
+  order         Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product         @relation(fields: [productId], references: [id])
+  variantId     String?
+  variant       ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  quantity      Int
+  price         Float // Price at time of order
+  discount      Float           @default(0)
+  customization Json? // Store custom choices
+  mockupImage   String?
+  sku           String
 
   createdAt DateTime @default(now())
 
@@ -581,12 +583,12 @@ model OrderItem {
 }
 
 model OrderTimeline {
-  id        String   @id @default(cuid())
+  id        String  @id @default(cuid())
   orderId   String
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   status    String
   message   String?
-  createdBy String?  // Admin user ID or system
+  createdBy String? // Admin user ID or system
 
   createdAt DateTime @default(now())
 
@@ -594,14 +596,14 @@ model OrderTimeline {
 }
 
 model ReturnRequest {
-  id           String   @id @default(cuid())
-  orderId      String   @unique
-  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id           String    @id @default(cuid())
+  orderId      String    @unique
+  order        Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   reason       String
   description  String?
   images       String[]
   quantity     Int?
-  status       String   @default("PENDING") // PENDING, APPROVED, REJECTED, COMPLETED
+  status       String    @default("PENDING") // PENDING, APPROVED, REJECTED, COMPLETED
   refundAmount Float?
   refundDate   DateTime?
   notes        String?
@@ -617,23 +619,23 @@ model ReturnRequest {
 // ============================================
 
 model RFQ {
-  id               String @id @default(cuid())
-  rfqNumber        String @unique
-  b2bProfileId     String
-  b2bProfile       B2BProfile @relation(fields: [b2bProfileId], references: [id], onDelete: Cascade)
-  productId        String
-  quantity         Int
-  desiredPrice     Float?
-  deliveryDate     DateTime?
+  id                  String     @id @default(cuid())
+  rfqNumber           String     @unique
+  b2bProfileId        String
+  b2bProfile          B2BProfile @relation(fields: [b2bProfileId], references: [id], onDelete: Cascade)
+  productId           String
+  quantity            Int
+  desiredPrice        Float?
+  deliveryDate        DateTime?
   specialRequirements String?
-  
-  status           String @default("PENDING") // PENDING, QUOTED, ACCEPTED, REJECTED, EXPIRED
-  quotedPrice      Float?
-  quotedDate       DateTime?
-  quotedBy         String? // Admin user ID
-  notes            String?
-  documents        String[]
-  expiryDate       DateTime?
+
+  status      String    @default("PENDING") // PENDING, QUOTED, ACCEPTED, REJECTED, EXPIRED
+  quotedPrice Float?
+  quotedDate  DateTime?
+  quotedBy    String? // Admin user ID
+  notes       String?
+  documents   String[]
+  expiryDate  DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -643,23 +645,23 @@ model RFQ {
 }
 
 model BulkOrder {
-  id               String @id @default(cuid())
-  orderNumber      String @unique
-  b2bProfileId     String
-  b2bProfile       B2BProfile @relation(fields: [b2bProfileId], references: [id], onDelete: Cascade)
-  productId        String
-  quantity         Int
-  unitPrice        Float
-  totalPrice       Float
-  
-  status           String @default("PENDING") // PENDING, CONFIRMED, PROCESSING, SHIPPED, DELIVERED
-  expectedDelivery DateTime?
+  id           String     @id @default(cuid())
+  orderNumber  String     @unique
+  b2bProfileId String
+  b2bProfile   B2BProfile @relation(fields: [b2bProfileId], references: [id], onDelete: Cascade)
+  productId    String
+  quantity     Int
+  unitPrice    Float
+  totalPrice   Float
+
+  status              String    @default("PENDING") // PENDING, CONFIRMED, PROCESSING, SHIPPED, DELIVERED
+  expectedDelivery    DateTime?
   specialRequirements String?
-  paymentTerms     String? // e.g., "Net 30"
-  
-  customInvoice    String?
-  purchaseOrder    String?
-  documents        String[]
+  paymentTerms        String? // e.g., "Net 30"
+
+  customInvoice String?
+  purchaseOrder String?
+  documents     String[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -669,15 +671,15 @@ model BulkOrder {
 }
 
 model CreditTransaction {
-  id               String @id @default(cuid())
-  b2bProfileId     String
-  b2bProfile       B2BProfile @relation(fields: [b2bProfileId], references: [id], onDelete: Cascade)
-  orderId          String?
-  type             String // CREDIT_ISSUED, PAYMENT_RECEIVED, ADJUSTMENT
-  amount           Float
-  balance          Float
-  description      String?
-  reference        String?
+  id           String     @id @default(cuid())
+  b2bProfileId String
+  b2bProfile   B2BProfile @relation(fields: [b2bProfileId], references: [id], onDelete: Cascade)
+  orderId      String?
+  type         String // CREDIT_ISSUED, PAYMENT_RECEIVED, ADJUSTMENT
+  amount       Float
+  balance      Float
+  description  String?
+  reference    String?
 
   createdAt DateTime @default(now())
 
@@ -689,22 +691,22 @@ model CreditTransaction {
 // ============================================
 
 model Coupon {
-  id             String   @id @default(cuid())
-  code           String   @unique
-  description    String?
-  discountType   String   // PERCENTAGE, FIXED_AMOUNT
-  discountValue  Float
-  minOrderAmount Float    @default(0)
-  maxDiscount    Float?   // For percentage discount
-  usageLimit     Int?
-  usageCount     Int      @default(0)
-  perUserLimit   Int      @default(1)
-  startDate      DateTime
-  endDate        DateTime
-  isActive       Boolean  @default(true)
+  id                   String   @id @default(cuid())
+  code                 String   @unique
+  description          String?
+  discountType         String // PERCENTAGE, FIXED_AMOUNT
+  discountValue        Float
+  minOrderAmount       Float    @default(0)
+  maxDiscount          Float? // For percentage discount
+  usageLimit           Int?
+  usageCount           Int      @default(0)
+  perUserLimit         Int      @default(1)
+  startDate            DateTime
+  endDate              DateTime
+  isActive             Boolean  @default(true)
   applicableCategories String[] // category IDs
   applicableProducts   String[] // product IDs
-  requireB2B     Boolean  @default(false)
+  requireB2B           Boolean  @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -717,38 +719,38 @@ model Coupon {
 // ============================================
 
 model Banner {
-  id           String  @id @default(cuid())
+  id           String    @id @default(cuid())
   title        String
   subtitle     String?
   image        String
   imageAlt     String?
   link         String?
-  position     String  @default("HOMEPAGE") // HOMEPAGE, CATEGORY, PRODUCT
-  type         String  @default("HERO") // HERO, CATEGORY, PROMOTIONAL
-  displayOrder Int     @default(0)
+  position     String    @default("HOMEPAGE") // HOMEPAGE, CATEGORY, PRODUCT
+  type         String    @default("HERO") // HERO, CATEGORY, PROMOTIONAL
+  displayOrder Int       @default(0)
   startDate    DateTime?
   endDate      DateTime?
-  isActive     Boolean @default(true)
+  isActive     Boolean   @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model BlogPost {
-  id             String   @id @default(cuid())
-  title          String
-  slug           String   @unique
-  content        String
-  excerpt        String?
-  featuredImage  String?
-  authorId       String
-  category       String
-  tags           String[]
-  metaTitle      String?
+  id              String    @id @default(cuid())
+  title           String
+  slug            String    @unique
+  content         String
+  excerpt         String?
+  featuredImage   String?
+  authorId        String
+  category        String
+  tags            String[]
+  metaTitle       String?
   metaDescription String?
-  views          Int      @default(0)
-  isPublished    Boolean  @default(false)
-  publishedAt    DateTime?
+  views           Int       @default(0)
+  isPublished     Boolean   @default(false)
+  publishedAt     DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -762,17 +764,17 @@ model BlogPost {
 // ============================================
 
 model WithdrawalRequest {
-  id            String   @id @default(cuid())
-  vendorId      String
-  vendor        VendorProfile @relation(fields: [vendorId], references: [id], onDelete: Cascade)
-  amount        Float
-  status        String   @default("PENDING") // PENDING, APPROVED, REJECTED, COMPLETED
-  bankDetails   String?
-  transactionId String?
+  id              String        @id @default(cuid())
+  vendorId        String
+  vendor          VendorProfile @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  amount          Float
+  status          String        @default("PENDING") // PENDING, APPROVED, REJECTED, COMPLETED
+  bankDetails     String?
+  transactionId   String?
   rejectionReason String?
-  approvedBy    String?
-  approvedAt    DateTime?
-  completedAt   DateTime?
+  approvedBy      String?
+  approvedAt      DateTime?
+  completedAt     DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -786,19 +788,19 @@ model WithdrawalRequest {
 // ============================================
 
 model Notification {
-  id        String  @id @default(cuid())
-  userId    String
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  orderId   String?
-  order     Order?  @relation(fields: [orderId], references: [id], onDelete: SetNull)
-  title     String
-  message   String
-  type      String  // ORDER, PROMOTION, ACCOUNT, SYSTEM
-  relatedId String? // Order ID, Product ID, etc.
+  id          String    @id @default(cuid())
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId     String?
+  order       Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  title       String
+  message     String
+  type        String // ORDER, PROMOTION, ACCOUNT, SYSTEM
+  relatedId   String? // Order ID, Product ID, etc.
   relatedType String? // Order, Product, etc.
-  isRead    Boolean @default(false)
-  readAt    DateTime?
-  link      String?
+  isRead      Boolean   @default(false)
+  readAt      DateTime?
+  link        String?
 
   createdAt DateTime @default(now())
 
@@ -810,17 +812,94 @@ model Notification {
 // AUDIT & LOGGING
 // ============================================
 
+/// One editable storefront value, addressed by namespace + JSON pointer.
+///
+/// Stored per field rather than as a document per namespace. Two admins
+/// editing different fields cannot clobber each other, the audit trail names
+/// the exact value that changed, and a rollback can undo one field instead of
+/// a whole page. Paths are validated against the frontend content registry
+/// before a row is written, so an unknown path is never persisted.
+///
+/// Absence is normal: the storefront falls back to its compiled defaults, so
+/// an empty table renders the site exactly as it ships.
+model ContentValue {
+  id        String @id @default(cuid())
+  namespace String // "brand", "custom-wear"
+  path      String // JSON pointer, e.g. "/announcement/message"
+  value     Json
+
+  /// DRAFT is visible only in preview; PUBLISHED is what the storefront reads.
+  status  String @default("DRAFT")
+  version Int    @default(1)
+
+  /// Set from the registry's `field.private` when the value is written, and
+  /// filtered out of the public read.
+  ///
+  /// The flag has to live on the row because only the writer knows it: the
+  /// registry that declares which fields are sensitive is a frontend module,
+  /// so the public endpoint cannot look it up. Filtering on the client would
+  /// be theatre — by then the value has already been sent.
+  isPrivate Boolean @default(false)
+
+  updatedById String?
+  updatedBy   User?   @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  /// One row per field per version, so history is append-only rather than
+  /// overwritten in place.
+  @@unique([namespace, path, version])
+  @@index([namespace, status])
+  @@index([updatedById])
+}
+
+/// An uploaded image, normalised and stored on disk.
+///
+/// The row is the record; the file on disk is derived from it. Every upload is
+/// re-encoded to webp and named by the hash of its bytes, which makes the same
+/// image uploaded twice one row and one file rather than two of each.
+model MediaAsset {
+  id String @id @default(cuid())
+
+  /// Content hash of the stored bytes. Also the filename stem, so the URL is
+  /// immutable and safe to cache forever.
+  hash String @unique
+
+  /// Public path the storefront uses, e.g. "/uploads/ab12….webp".
+  url String
+
+  /// What the uploader called it. Shown in the picker; never used as a path.
+  filename String
+
+  /// Description for screen readers. Empty until someone fills it in.
+  alt String @default("")
+
+  width  Int
+  height Int
+  bytes  Int
+
+  uploadedById String?
+  uploadedBy   User?   @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([uploadedById])
+}
+
 model AuditLog {
-  id        String  @id @default(cuid())
-  userId    String?
-  user      User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
-  action    String  // CREATE, UPDATE, DELETE
-  resource  String  // Product, Order, User, etc.
+  id         String  @id @default(cuid())
+  userId     String?
+  user       User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String // CREATE, UPDATE, DELETE
+  resource   String // Product, Order, User, etc.
   resourceId String?
-  oldValue  Json?
-  newValue  Json?
-  ipAddress String?
-  userAgent String?
+  oldValue   Json?
+  newValue   Json?
+  ipAddress  String?
+  userAgent  String?
 
   createdAt DateTime @default(now())
 

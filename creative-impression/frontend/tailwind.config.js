@@ -1,4 +1,29 @@
 /** @type {import('tailwindcss').Config} */
+
+/**
+ * Global text size multiplier. 1 = the reference scale below; the site currently
+ * runs deliberately small. Change this one number to resize all text.
+ */
+const TEXT_SCALE = 0.74;
+
+// 10px floor so the smallest steps (badges, captions) stay legible.
+const px = (n) => `${Math.max(10, Math.round(n * TEXT_SCALE))}px`;
+
+/** [font-size, line-height] pairs, all derived from TEXT_SCALE. */
+const SIZES = {
+  xs: [px(14), px(19)],
+  sm: [px(16), px(22)],
+  base: [px(18), px(26)],
+  lg: [px(21), px(29)],
+  xl: [px(24), px(32)],
+  '2xl': [px(28), px(36)],
+  '3xl': [px(34), px(42)],
+  '4xl': [px(40), px(48)],
+  '5xl': [px(48), px(56)],
+  '6xl': [px(58), px(66)],
+  '7xl': [px(72), px(80)],
+};
+
 module.exports = {
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
@@ -51,45 +76,60 @@ module.exports = {
           copper: '#b87333',
         },
         neutral: {
-          50: '#fafafa',
-          100: '#f5f5f5',
-          200: '#eeeeee',
-          300: '#e0e0e0',
-          400: '#bdbdbd',
-          500: '#9e9e9e',
-          600: '#757575',
-          700: '#616161',
-          800: '#424242',
-          900: '#212121',
+          50: '#fafaf9',
+          100: '#f5f5f4',
+          200: '#e7e5e4',
+          300: '#d6d3d1',
+          400: '#a8a29e',
+          500: '#78716c',
+          600: '#57534e',
+          700: '#44403c',
+          800: '#292524',
+          900: '#1c1917',
+        },
+        // Token aliases so utilities and CSS variables never drift apart.
+        ink: {
+          DEFAULT: 'var(--ink)',
+          2: 'var(--ink-2)',
+          3: 'var(--ink-3)',
+        },
+        surface: {
+          DEFAULT: 'var(--surface)',
+          2: 'var(--surface-2)',
+        },
+        line: {
+          DEFAULT: 'var(--border)',
+          strong: 'var(--border-strong)',
         },
       },
+      maxWidth: {
+        content: 'var(--content-max)',
+      },
       fontFamily: {
-        sans: ['var(--font-montserrat)', 'system-ui', 'sans-serif'],
-        serif: ['var(--font-playfair)', 'serif'],
-        playfair: ['var(--font-playfair)', 'serif'],
-        montserrat: ['var(--font-montserrat)', 'sans-serif'],
+        // Single site-wide font (Inter). Legacy aliases kept so existing
+        // font-serif / font-playfair / font-montserrat usages resolve to it.
+        sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
+        serif: ['var(--font-inter)', 'system-ui', 'sans-serif'],
+        playfair: ['var(--font-inter)', 'system-ui', 'sans-serif'],
+        montserrat: ['var(--font-inter)', 'system-ui', 'sans-serif'],
       },
-      fontSize: {
-        xs: ['12px', '16px'],
-        sm: ['14px', '20px'],
-        base: ['16px', '24px'],
-        lg: ['18px', '28px'],
-        xl: ['20px', '28px'],
-        '2xl': ['24px', '32px'],
-        '3xl': ['30px', '36px'],
-        '4xl': ['36px', '40px'],
-        '5xl': ['48px', '48px'],
-        '6xl': ['60px', '60px'],
-        '7xl': ['72px', '72px'],
-      },
+      // Compact scale. TEXT_SCALE below is the single knob for global text
+      // size — lower it to shrink every font step on the site at once.
+      fontSize: SIZES,
       boxShadow: {
-        sm: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
-        base: '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
-        md: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
-        lg: '0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05)',
-        xl: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-        luxury: '0 20px 40px rgba(0, 0, 0, 0.15)',
-        'inner-md': 'inset 0 2px 4px 0 rgba(0, 0, 0, 0.06)',
+        // Token-backed scale — use these for anything new.
+        1: 'var(--shadow-1)',
+        2: 'var(--shadow-2)',
+        3: 'var(--shadow-3)',
+        sm: 'var(--shadow-1)',
+        base: 'var(--shadow-1)',
+        md: 'var(--shadow-2)',
+        lg: 'var(--shadow-2)',
+        xl: 'var(--shadow-3)',
+        luxury: 'var(--shadow-3)',
+        // The yellow hover glow — pair with hover:border-primary-500.
+        brand: 'var(--shadow-brand)',
+        'inner-md': 'inset 0 2px 4px 0 rgba(17, 17, 17, 0.06)',
       },
       spacing: {
         '128': '32rem',
@@ -97,48 +137,20 @@ module.exports = {
       },
       borderRadius: {
         none: '0',
-        sm: '0.375rem',
-        base: '0.5rem',
-        md: '0.75rem',
-        lg: '1rem',
-        xl: '1.5rem',
+        // Token-backed: every card lands on --r-card, every control on --r-control.
+        card: 'var(--r-card)',
+        control: 'var(--r-control)',
+        sm: 'var(--r-sm)',
+        base: 'var(--r-sm)',
+        md: 'var(--r-md)',
+        lg: 'var(--r-lg)',
+        xl: 'var(--r-lg)',
         '2xl': '2rem',
         '3xl': '3rem',
-        full: '9999px',
-      },
-      animation: {
-        'fade-in': 'fadeIn 0.3s ease-in-out',
-        'fade-out': 'fadeOut 0.3s ease-in-out',
-        'slide-in-up': 'slideInUp 0.4s ease-out',
-        'slide-in-down': 'slideInDown 0.4s ease-out',
-        'scale-in': 'scaleIn 0.3s ease-out',
-        'pulse-subtle': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1)',
-      },
-      keyframes: {
-        fadeIn: {
-          '0%': { opacity: '0' },
-          '100%': { opacity: '1' },
-        },
-        fadeOut: {
-          '0%': { opacity: '1' },
-          '100%': { opacity: '0' },
-        },
-        slideInUp: {
-          '0%': { transform: 'translateY(1rem)', opacity: '0' },
-          '100%': { transform: 'translateY(0)', opacity: '1' },
-        },
-        slideInDown: {
-          '0%': { transform: 'translateY(-1rem)', opacity: '0' },
-          '100%': { transform: 'translateY(0)', opacity: '1' },
-        },
-        scaleIn: {
-          '0%': { transform: 'scale(0.95)', opacity: '0' },
-          '100%': { transform: 'scale(1)', opacity: '1' },
-        },
+        full: 'var(--r-pill)',
       },
       transitionTimingFunction: {
         'smooth': 'cubic-bezier(0.4, 0, 0.2, 1)',
-        'luxury': 'cubic-bezier(0.25, 0.46, 0.45, 0.94)',
       },
       zIndex: {
         hide: '-1',
@@ -159,7 +171,10 @@ module.exports = {
   plugins: [
     require('@tailwindcss/forms'),
     require('@tailwindcss/typography'),
-    require('@tailwindcss/aspect-ratio'),
+    // NOTE: @tailwindcss/aspect-ratio is deliberately NOT loaded. It is the
+    // deprecated aspect-w-*/aspect-h-* plugin, and it overrides Tailwind's core
+    // aspect-* utilities — with it enabled, aspect-square / aspect-video /
+    // aspect-[4/5] all silently emit nothing. Nothing here uses the old API.
     require('@tailwindcss/container-queries'),
   ],
   darkMode: 'class',

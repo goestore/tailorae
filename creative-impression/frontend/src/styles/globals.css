@@ -3,25 +3,115 @@
 @tailwind utilities;
 
 /* ============================================
+   DESIGN TOKENS
+   60% surface / 30% ink / 10% brand yellow
+   ============================================ */
+
+:root {
+  /* Single site-wide font. Legacy variables alias to Inter so every
+     inline fontFamily reference resolves to the same face. */
+  --font-playfair: var(--font-inter), system-ui, sans-serif;
+  --font-montserrat: var(--font-inter), system-ui, sans-serif;
+
+  /* Ink & surface — the 90% */
+  --ink: #111111;
+  --ink-2: #3f3f46;
+  --ink-3: #71717a;
+  --surface: #ffffff;
+  --surface-2: #fafaf9;
+  --border: #e7e5e4;
+  --border-strong: #d6d3d1;
+
+  /* Brand — the 10% */
+  --brand: #fbb602;
+  --brand-600: #e5a502;
+  --brand-700: #c48e03;
+  --brand-soft: rgba(251, 182, 2, 0.1);
+
+  /* Gradients — multi-stop so they never band */
+  --grad-brand: linear-gradient(135deg, #ffd24a 0%, #fbb602 52%, #e09a00 100%);
+  --grad-brand-hover: linear-gradient(135deg, #fbb602 0%, #e5a502 52%, #c48e03 100%);
+  --grad-ink: linear-gradient(160deg, #1c1c1f 0%, #111113 100%);
+  --grad-warm: linear-gradient(180deg, #fffdf6 0%, #ffffff 100%);
+  --glow-brand: radial-gradient(60% 100% at 50% 0%, rgba(251, 182, 2, 0.14), transparent 70%);
+
+  /* Geometry — cards and controls are both square. */
+  --r-card: 0px;
+  --r-control: 0px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 16px;
+  --r-pill: 999px;
+
+  --shadow-1: 0 1px 2px rgba(17, 17, 17, 0.06);
+  --shadow-2: 0 4px 12px rgba(17, 17, 17, 0.08);
+  --shadow-3: 0 12px 28px rgba(17, 17, 17, 0.1);
+  /* Hover glow for product cards — the edge lights up brand yellow. */
+  --shadow-brand: 0 4px 16px rgba(251, 182, 2, 0.45);
+
+  /* Product card standard — one ratio, and one width shared by the grids and
+     the carousels. The width IS the grid column: 2-up on phones, 3-up from sm
+     and 4-up from lg, so a full-width row holds exactly four cards. */
+  --card-ratio: 3 / 4;
+  --card-cols: 2;
+  --card-gap: 0.75rem;
+  --card-row-gap: 1.25rem;
+  --card-w: calc((100% - (var(--card-cols) - 1) * var(--card-gap)) / var(--card-cols));
+  /* Phones run the carousel card a hair past half the port so the next card
+     peeks past the edge — the arrows are hidden below md. */
+  --card-w-sm: 46vw;
+  /* Category tiles are a smaller, rounder object than a product card. */
+  --cat-w: 28vw;
+  --sale: #d92d20;
+
+  /* Rhythm */
+  --section-y: clamp(28px, 3.4vw, 56px);
+  /* The page frame. Content runs edge to edge with a gutter that grows with
+     the viewport; `--content-max` stays a token so a single page can still opt
+     into a narrower measure where long-form text needs one. */
+  --gutter: clamp(16px, 2.4vw, 48px);
+  --content-max: none;
+  /* Comfortable reading measure for prose that should not span a 4K display. */
+  --prose-max: 78ch;
+}
+
+/* The card ladder. Everything that lays out cards — .pgrid and .pcard-fixed —
+   reads these, so a row never has to restate its own column count. */
+@media (min-width: 640px) {
+  :root {
+    --card-cols: 3;
+    --card-gap: 1rem;
+    --card-row-gap: 1.75rem;
+    --cat-w: 140px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --card-cols: 4;
+  }
+}
+
+/* ============================================
    BASE STYLES
    ============================================ */
 
 html,
 body {
   width: 100%;
-  overflow-x: hidden;
 }
 
-* {
-  @apply transition-colors duration-200;
-}
-
-html {
-  scroll-behavior: smooth;
+/* The UA rule for [hidden] is a bare attribute selector, so any display
+   utility on the same element (`flex`, `grid`, `block`) outranks it and the
+   element stays visible. Collapsible panels rely on the `hidden` attribute, so
+   make it win. */
+[hidden] {
+  display: none !important;
 }
 
 body {
   @apply bg-white text-black;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* ============================================
@@ -34,79 +124,167 @@ h3,
 h4,
 h5,
 h6 {
-  @apply font-playfair font-semibold tracking-tight;
+  @apply font-sans font-semibold tracking-tight;
+  /* Inherit, don't hard-set: headings sit on dark surfaces too (footer, CTA
+     band), and a fixed ink colour makes them invisible there. */
+  color: inherit;
 }
 
 h1 {
-  @apply text-5xl md:text-6xl;
+  font-size: clamp(1.26rem, 0.9rem + 1.68vw, 1.92rem);
+  line-height: 1.15;
 }
 
 h2 {
-  @apply text-4xl md:text-5xl;
+  font-size: clamp(1.08rem, 0.86rem + 1.02vw, 1.44rem);
+  line-height: 1.2;
 }
 
 h3 {
-  @apply text-3xl md:text-4xl;
+  font-size: clamp(0.96rem, 0.86rem + 0.48vw, 1.14rem);
+  line-height: 1.28;
 }
 
 h4 {
-  @apply text-2xl md:text-3xl;
+  font-size: clamp(0.9rem, 0.84rem + 0.3vw, 1.02rem);
+  line-height: 1.3;
 }
 
 h5 {
-  @apply text-xl md:text-2xl;
+  @apply text-base md:text-lg;
 }
 
 h6 {
-  @apply text-lg md:text-xl;
+  @apply text-sm md:text-base;
 }
 
 p {
-  @apply text-base leading-relaxed font-sans;
+  @apply text-base font-sans;
+  line-height: 1.5;
+}
+
+/* ============================================
+   LAYOUT PRIMITIVES
+   ============================================ */
+
+/* One container for the whole site — header, sections and footer alike. */
+.container-max {
+  width: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+/* Full-bleed row: spans the viewport with only edge padding, no max-width cap.
+   Used by the header and announcement bar so the chrome reaches both edges
+   while page content stays capped by .container-max. */
+.container-fluid {
+  width: 100%;
+  padding-inline: clamp(14px, 2.2vw, 40px);
+}
+
+.section-y {
+  padding-block: var(--section-y);
+}
+
+.section-padding {
+  padding-inline: var(--gutter);
+  padding-block: var(--section-y);
+}
+
+/* Section heading — plain type, no accent rule. Every band is already fenced
+   off by its own border, so a line under the title just adds noise. */
+.heading-rule {
+  font-size: clamp(0.95rem, 0.86rem + 0.42vw, 1.2rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.heading-rule-center {
+  text-align: center;
 }
 
 /* ============================================
    BUTTONS
+   Layered so per-instance utilities can override.
    ============================================ */
 
-.btn {
-  @apply inline-flex items-center justify-center px-4 py-3 font-medium rounded-lg transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
-}
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center px-3.5 font-medium cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+    border-radius: var(--r-control);
+    min-height: 38px; /* touch target */
+    transition:
+      background-color 0.18s ease,
+      border-color 0.18s ease,
+      color 0.18s ease,
+      box-shadow 0.18s ease;
+  }
 
-.btn-primary {
-  @apply bg-primary-600 text-black hover:bg-primary-700 active:bg-yellow-400;
-}
+  .btn-primary {
+    color: var(--ink);
+    background: var(--grad-brand);
+    box-shadow: var(--shadow-1);
+  }
 
-.btn-secondary {
-  @apply bg-secondary-600 text-black hover:bg-secondary-700 active:bg-yellow-400;
-}
+  .btn-primary:hover {
+    background: var(--grad-brand-hover);
+    box-shadow: var(--shadow-brand);
+  }
 
-.btn-outline {
-  @apply bg-white text-black hover:bg-neutral-50 active:bg-yellow-400;
-}
+  .btn-secondary {
+    color: var(--surface);
+    background: var(--ink);
+  }
 
-.btn-ghost {
-  @apply bg-white text-black hover:bg-neutral-100 active:bg-yellow-400;
-}
+  .btn-secondary:hover {
+    background: var(--ink-2);
+  }
 
-.btn-danger {
-  @apply bg-red-600 text-black hover:bg-red-700 active:bg-yellow-400;
-}
+  .btn-outline {
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+  }
 
-.btn-success {
-  @apply bg-green-600 text-black hover:bg-green-700 active:bg-yellow-400;
-}
+  .btn-outline:hover {
+    background: var(--surface-2);
+    border-color: var(--ink-3);
+  }
 
-.btn-sm {
-  @apply px-3 py-2 text-sm;
-}
+  .btn-ghost {
+    color: var(--ink);
+    background: transparent;
+  }
 
-.btn-lg {
-  @apply px-6 py-4 text-lg;
-}
+  .btn-ghost:hover {
+    background: var(--surface-2);
+  }
 
-.btn-block {
-  @apply w-full;
+  .btn-danger {
+    @apply bg-red-600 text-white hover:bg-red-700;
+  }
+
+  .btn-success {
+    @apply bg-green-600 text-white hover:bg-green-700;
+  }
+
+  .btn-sm {
+    @apply px-2.5 text-sm;
+    min-height: 30px;
+  }
+
+  .btn-lg {
+    @apply px-5 text-base;
+    min-height: 44px;
+  }
+
+  .btn-block {
+    @apply w-full;
+  }
 }
 
 /* ============================================
@@ -116,20 +294,34 @@ p {
 input,
 textarea,
 select {
-  @apply w-full rounded-lg border border-neutral-300 bg-white px-4 py-3 text-black placeholder-neutral-500 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-opacity-50;
+  @apply w-full bg-white px-3 py-2 text-black placeholder-neutral-500 focus:outline-none;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-control);
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-soft);
 }
 
 input[type='checkbox'],
 input[type='radio'] {
-  @apply h-4 w-4 rounded;
+  @apply h-4 w-4;
+  width: 1rem;
 }
 
 label {
-  @apply block text-sm font-medium text-black;
+  @apply block text-sm font-medium;
+  color: var(--ink);
 }
 
 .form-group {
-  @apply mb-4 flex flex-col gap-2;
+  @apply mb-3 flex flex-col gap-1.5;
 }
 
 .form-error {
@@ -137,35 +329,282 @@ label {
 }
 
 .form-help {
-  @apply text-sm text-neutral-500;
+  @apply text-sm;
+  color: var(--ink-3);
 }
 
 /* ============================================
-   CARDS
+   CARDS — one geometry for every card on the site
    ============================================ */
 
-.card {
-  @apply rounded-xl border border-neutral-200 bg-white p-6 shadow-sm;
-}
+/* Inside @layer components so per-instance utilities (p-0, rounded-*, bg-*)
+   can override these. Outside the layer they beat utilities on source order,
+   which silently left card images inset by the default padding. */
+@layer components {
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-1);
+    padding: 1rem;
+  }
 
-.card-hover {
-  @apply transition-all duration-300 hover:shadow-lg hover:border-neutral-300;
+  .card-hover {
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+
+  .card-hover:hover {
+    border-color: var(--brand);
+    box-shadow: var(--shadow-brand);
+  }
+
+  /* Media well: a faint ground so white/pale products don't dissolve into the
+     card on an all-white page. Editorial cards have no border of their own, so
+     the well also carries a hairline to define the image edge against it. */
+  .card-media {
+    position: relative;
+    overflow: hidden;
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px rgba(17, 17, 17, 0.05);
+  }
 }
 
 /* ============================================
    BADGE
    ============================================ */
 
-.badge {
-  @apply inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold;
+@layer components {
+  .badge {
+    @apply inline-flex items-center px-1.5 py-[3px] text-[13px] font-semibold leading-none tracking-wide;
+    border-radius: var(--r-pill);
+  }
+
+  .badge-primary {
+    background: var(--brand);
+    color: var(--ink);
+  }
+
+  .badge-secondary {
+    background: rgba(17, 17, 17, 0.82);
+    color: var(--surface);
+    backdrop-filter: blur(4px);
+  }
 }
 
-.badge-primary {
-  @apply bg-primary-100 text-primary-800;
-}
+/* ============================================
+   PRODUCT CARD — the single standard
+   ============================================ */
 
-.badge-secondary {
-  @apply bg-secondary-100 text-secondary-800;
+@layer components {
+  .pcard {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-card);
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+
+  .pcard:hover {
+    border-color: var(--brand);
+    box-shadow: var(--shadow-brand);
+  }
+
+  /* Fixed ratio for every product image on the site. */
+  .pcard-media {
+    position: relative;
+    width: 100%;
+    aspect-ratio: var(--card-ratio);
+    overflow: hidden;
+    background: var(--surface-2);
+    flex-shrink: 0;
+  }
+
+  .pcard-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .pcard-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    padding: 0.625rem 0.75rem 0.75rem;
+  }
+
+  /* The media is a link that fills the well, so it is also the positioned
+     parent next/image needs for `fill`. */
+  .pcard-media-link {
+    position: absolute;
+    inset: 0;
+    display: block;
+  }
+
+  /* Stand-in when a product has no photograph. */
+  .pcard-garment {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16%;
+    background: var(--surface-2);
+  }
+
+  .pcard-garment svg {
+    height: 100%;
+    width: auto;
+    max-width: 100%;
+  }
+
+  /* Wrapper that carries the view-transition name; the image fills it. */
+  .pcard-img-frame {
+    position: absolute;
+    inset: 0;
+    display: block;
+  }
+
+  .pcard-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition:
+      transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1),
+      opacity 0.35s ease;
+  }
+
+  .pcard:hover .pcard-img {
+    transform: scale(1.045);
+  }
+
+  /* Second shot cross-fades over the first on hover. */
+  .pcard-img--alt {
+    opacity: 0;
+  }
+
+  .pcard:hover .pcard-img--alt {
+    opacity: 1;
+  }
+
+  /* An unavailable product is dimmed rather than stamped — the card image
+     carries no printed labels at all. */
+  .pcard-veil {
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.62);
+  }
+
+  .pcard-title {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.3;
+    text-decoration: none;
+  }
+
+  .pcard-title:hover {
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+
+  /* Pinned to the bottom so prices line up across a row however long the names
+     above them run. */
+  .pcard-price {
+    margin: auto 0 0;
+    padding-top: 6px;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  .pcard-compare {
+    margin-left: 6px;
+    color: var(--ink-3);
+    font-size: 11px;
+    font-weight: 400;
+    text-decoration: line-through;
+  }
+
+  .pcard-off {
+    margin-left: 6px;
+    color: var(--sale);
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .pcard-oos {
+    color: var(--ink-3);
+    font-weight: 600;
+  }
+
+  /* Carousel items are exactly one grid column wide, so a card is the same
+     size in the carousels and in the grids below them. */
+  .pcard-fixed {
+    width: var(--card-w-sm);
+    flex-shrink: 0;
+  }
+
+  @media (min-width: 640px) {
+    .pcard-fixed {
+      width: var(--card-w);
+    }
+  }
+
+  /* CATEGORY TILE — deliberately not a card. A round photo with the name
+     beneath it, no box and no border, so a category never reads as a product. */
+  .ctile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    width: var(--cat-w);
+    text-align: center;
+  }
+
+  .ctile-media {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: var(--r-pill);
+    overflow: hidden;
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px rgba(17, 17, 17, 0.06);
+    transition: box-shadow 0.2s ease;
+  }
+
+  .ctile-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* Same yellow hover glow as every other surface, shaped to the circle. */
+  .ctile:hover .ctile-media {
+    box-shadow:
+      0 0 0 2px var(--brand),
+      var(--shadow-brand);
+  }
+
+  /* Product grids read the same ladder, so neither the column count nor the
+     gap is ever restated at a call site. */
+  .pgrid {
+    display: grid;
+    grid-template-columns: repeat(var(--card-cols), minmax(0, 1fr));
+    gap: var(--card-row-gap) var(--card-gap);
+  }
 }
 
 .badge-success {
@@ -189,7 +628,8 @@ label {
    ============================================ */
 
 .alert {
-  @apply rounded-lg border px-4 py-3;
+  @apply border px-4 py-3;
+  border-radius: var(--r-sm);
 }
 
 .alert-success {
@@ -205,20 +645,12 @@ label {
 }
 
 .alert-info {
-  @apply border-blue-400 bg-blue-50 text-blue-800 dark:border-blue-700 dark:bg-blue-900/20 dark:text-blue-200;
+  @apply border-blue-400 bg-blue-50 text-blue-800;
 }
 
 /* ============================================
    UTILITIES
    ============================================ */
-
-.container-max {
-  @apply max-w-7xl;
-}
-
-.section-padding {
-  @apply px-4 py-12 md:px-8 md:py-16 lg:px-12 lg:py-20;
-}
 
 .text-truncate {
   @apply overflow-hidden text-ellipsis whitespace-nowrap;
@@ -229,80 +661,76 @@ label {
 }
 
 .glass-effect {
-  @apply bg-white/30 backdrop-blur-md dark:bg-neutral-900/30;
+  @apply bg-white/70 backdrop-blur-md;
 }
 
 .gradient-text {
-  @apply bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent;
+  @apply bg-clip-text text-transparent;
+  background-image: var(--grad-brand);
+}
+
+.bg-brand-gradient {
+  background: var(--grad-brand);
+}
+
+.bg-ink-gradient {
+  background: var(--grad-ink);
+}
+
+/* Dark band with a warm glow — the premium CTA treatment. */
+.bg-ink-glow {
+  background:
+    var(--glow-brand),
+    var(--grad-ink);
+}
+
+/* Near-white warm wash for alternating sections. */
+.bg-brand-soft {
+  background: var(--grad-warm);
 }
 
 .divider {
-  @apply border-t border-neutral-200 dark:border-neutral-800;
+  border-top: 1px solid var(--border);
 }
 
 /* ============================================
-   ANIMATIONS
+   ANNOUNCEMENT TICKER
    ============================================ */
 
-@keyframes shimmer {
-  0% {
-    background-position: -1000px 0;
+/* The track carries two copies of the message, so translating by exactly half
+   its width loops seamlessly. Transform-only, so it runs on the compositor. */
+@keyframes announce-scroll {
+  from {
+    transform: translate3d(0, 0, 0);
   }
-  100% {
-    background-position: 1000px 0;
+  to {
+    transform: translate3d(-50%, 0, 0);
   }
 }
 
-.animate-shimmer {
-  animation: shimmer 2s infinite;
-  background: linear-gradient(
-    to right,
-    rgba(255, 255, 255, 0) 0%,
-    rgba(255, 255, 255, 0.2) 20%,
-    rgba(255, 255, 255, 0) 40%
-  );
-  background-size: 1000px 100%;
+.announce-track {
+  animation-name: announce-scroll;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
 }
 
-/* ============================================
-   RESPONSIVE
-   ============================================ */
-
-@media (max-width: 640px) {
-  body {
-    @apply text-sm;
-  }
-
-  h1 {
-    @apply text-3xl;
-  }
-
-  h2 {
-    @apply text-2xl;
-  }
-
-  h3 {
-    @apply text-xl;
-  }
-
-  .section-padding {
-    @apply px-4 py-8;
-  }
-}
-
-/* ============================================
-   DARK MODE
-   ============================================ */
-
-@media (prefers-color-scheme: dark) {
-  body {
-    color-scheme: dark;
+/* No motion preference: hold the message still and let it wrap normally. */
+@media (prefers-reduced-motion: reduce) {
+  .announce-track {
+    animation: none !important;
+    transform: none !important;
   }
 }
 
 /* ============================================
    ACCESSIBILITY
    ============================================ */
+
+:where(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
 
 @media (prefers-reduced-motion: reduce) {
   *,
@@ -311,6 +739,7 @@ label {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -333,9 +762,1716 @@ label {
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-neutral-100 dark:bg-neutral-900;
+  background: var(--surface-2);
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply rounded-full bg-neutral-400 hover:bg-neutral-500 dark:bg-neutral-700 dark:hover:bg-neutral-600;
+  border-radius: var(--r-pill);
+  background: var(--border-strong);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-3);
+}
+
+/* ============================================
+   CUSTOM WEAR — shared controls, design canvas and artwork inspector
+   Used by the product page and by design mode.
+   ============================================ */
+
+.cw-canvas {
+  border: 1px solid var(--cw-border);
+  background: var(--cw-white);
+}
+
+.cw-canvas-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--cw-border);
+}
+
+.cw-canvas-views {
+  display: flex;
+  gap: 2px;
+}
+
+.cw-canvas-view {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-family: var(--cw-font-body);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cw-ink-subtle);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.cw-canvas-view:hover {
+  color: var(--cw-ink);
+}
+
+.cw-canvas-view[data-active="true"] {
+  color: var(--cw-ink);
+  background: var(--cw-surface-alt);
+  border-color: var(--cw-border);
+}
+
+.cw-canvas-view-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--cw-radius-chip);
+  background: var(--cw-primary);
+  color: var(--cw-on-primary);
+  font-size: 9px;
+  letter-spacing: 0;
+}
+
+.cw-canvas-colour {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--cw-font-body);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cw-ink-subtle);
+}
+
+.cw-canvas-dot {
+  height: 11px;
+  width: 11px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+/* The stage centres the garment; it does not size it. */
+.cw-canvas-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: var(--cw-surface-alt);
+}
+
+/*
+ * The garment is bound by the viewport, not by a fixed ratio.
+ *
+ * Sizing it purely by aspect ratio made it ~840px tall in a 670px column, so on
+ * a 1080px screen it ran past the fold — and because the canvas is sticky, the
+ * cut-off bottom could never be scrolled to. Deriving the width from the height
+ * budget keeps the whole garment on screen at any window size, and the print
+ * zones sit on this box rather than the stage, so they track the artwork
+ * exactly however it scales.
+ *
+ * 0.781 is 100/128, the garment viewBox ratio.
+ */
+.cw-canvas-figure {
+  position: relative;
+  aspect-ratio: 100 / 128;
+  width: min(100%, calc((100vh - 330px) * 0.781));
+  min-width: 220px;
+}
+
+.cw-canvas-svg {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  width: 100%;
+}
+
+/* Print zones: dashed while empty, brand-outlined once filled. */
+.cw-zone {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px dashed;
+  border-radius: 3px;
+  background: transparent;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  container-type: inline-size;
+}
+
+.cw-zone:hover {
+  background: rgba(251, 182, 2, 0.16);
+}
+
+.cw-zone[data-filled="true"] {
+  border-style: solid;
+}
+
+.cw-zone[data-active="true"] {
+  box-shadow: 0 0 0 2px var(--cw-primary);
+  background: var(--cw-primary-soft);
+}
+
+.cw-zone-plus {
+  font-family: var(--cw-font-body);
+  font-size: 15px;
+  color: var(--cw-ink-subtle);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.cw-zone:hover .cw-zone-plus {
+  opacity: 1;
+}
+
+.cw-zone-tag {
+  font-family: var(--cw-font-body);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--cw-ink-subtle);
+}
+
+.cw-mark {
+  container-type: inline-size;
+  height: 100%;
+  width: 100%;
+}
+
+.cw-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cw-swatch-lg {
+  position: relative;
+  height: 32px;
+  width: 32px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.cw-swatch-lg:hover {
+  transform: scale(1.08);
+}
+
+.cw-swatch-lg[data-active="true"] {
+  box-shadow: 0 0 0 2px var(--cw-white), 0 0 0 4px var(--cw-primary);
+}
+
+.cw-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cw-chip {
+  min-width: 46px;
+  padding: 9px 12px;
+  font-family: var(--cw-font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--cw-ink);
+  background: var(--cw-white);
+  border: 1px solid var(--cw-border);
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.cw-chip:hover:not(:disabled) {
+  border-color: var(--cw-ink);
+}
+
+.cw-chip[data-active="true"] {
+  background: var(--cw-ink);
+  border-color: var(--cw-ink);
+  color: var(--cw-white);
+}
+
+.cw-chip:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.cw-qty-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cw-stepper {
+  display: inline-flex;
+  align-self: flex-start;
+  border: 1px solid var(--cw-border);
+}
+
+.cw-stepper button {
+  width: 42px;
+  height: 42px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--cw-ink);
+  transition: background 0.15s ease;
+}
+
+.cw-stepper button:hover:not(:disabled) {
+  background: var(--cw-surface-alt);
+}
+
+.cw-stepper button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.cw-scope .cw-stepper input {
+  width: 74px;
+  height: 42px;
+  text-align: center;
+  border: 0;
+  border-inline: 1px solid var(--cw-border);
+  border-radius: 0;
+  font-weight: 700;
+  font-size: var(--cw-fs-body);
+  padding: 0;
+}
+
+.cw-tiers {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.cw-tiers::-webkit-scrollbar {
+  display: none;
+}
+
+.cw-tier {
+  flex: 1 0 78px;
+}
+
+.cw-tier {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 10px;
+  text-align: left;
+  border: 1px solid var(--cw-border);
+  background: var(--cw-white);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.cw-tier:hover {
+  border-color: var(--cw-ink);
+}
+
+.cw-tier[data-active="true"] {
+  border-color: var(--cw-primary);
+  background: var(--cw-primary-soft);
+}
+
+.cw-tier-qty {
+  font-family: var(--cw-font-body);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cw-ink-subtle);
+}
+
+.cw-tier-price {
+  font-family: var(--cw-font-body);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cw-ink);
+}
+
+.cw-art {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cw-art-empty,
+.cw-art-hint {
+  margin: 0;
+  font-family: var(--cw-font-body);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--cw-ink-subtle);
+}
+
+.cw-art-error {
+  margin: 0;
+  font-family: var(--cw-font-body);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--cw-danger);
+}
+
+.cw-art-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cw-art-item {
+  border: 1px solid var(--cw-border);
+  background: var(--cw-white);
+}
+
+.cw-art-item[data-active="true"] {
+  border-color: var(--cw-primary);
+}
+
+.cw-art-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 9px 11px;
+  text-align: left;
+}
+
+.cw-art-thumb {
+  position: relative;
+  height: 38px;
+  width: 38px;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: var(--cw-surface-alt);
+  container-type: inline-size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cw-art-thumb img {
+  height: 100%;
+  width: 100%;
+  object-fit: contain;
+}
+
+.cw-art-thumb-empty {
+  color: var(--cw-ink-subtle);
+  font-size: 14px;
+}
+
+.cw-art-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.cw-art-where {
+  font-family: var(--cw-font-body);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cw-ink);
+}
+
+.cw-art-what {
+  font-family: var(--cw-font-body);
+  font-size: 11.5px;
+  color: var(--cw-ink-subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Drawn from borders, like the chevrons on the browse filter bar — the "⌄"
+   character rendered off the text baseline and matched nothing else. Keyed off
+   aria-expanded so the visual state cannot drift from the accessible one. */
+.cw-art-head::after {
+  content: '';
+  flex: none;
+  width: 5px;
+  height: 5px;
+  margin-top: -3px;
+  border-right: 1.4px solid var(--cw-ink-subtle);
+  border-bottom: 1.4px solid var(--cw-ink-subtle);
+  transform: rotate(45deg);
+  opacity: 0.6;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out);
+}
+
+.cw-art-head:hover::after {
+  opacity: 1;
+}
+
+.cw-art-head[aria-expanded='true']::after {
+  margin-top: 2px;
+  transform: rotate(-135deg);
+  opacity: 1;
+}
+
+.cw-art-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 11px 13px;
+  border-top: 1px solid var(--cw-border);
+}
+
+.cw-art-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.cw-art-field > span {
+  font-family: var(--cw-font-body);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cw-ink-subtle);
+}
+
+.cw-art-library {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 6px;
+}
+
+.cw-art-tpl {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  container-type: inline-size;
+  border: 1px solid var(--cw-border);
+  transition: border-color 0.15s ease;
+}
+
+.cw-art-tpl:hover {
+  border-color: var(--cw-ink);
+}
+
+.cw-art-tpl[data-active="true"] {
+  border-color: var(--cw-primary);
+  box-shadow: 0 0 0 1px var(--cw-primary);
+}
+
+.cw-art-remove {
+  align-self: flex-start;
+  font-family: var(--cw-font-body);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cw-danger);
+  text-decoration: underline;
+}
+
+.cw-art-files {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cw-art-limit {
+  margin: 0;
+  text-align: center;
+  font-family: var(--cw-font-body);
+  font-size: 10.5px;
+  color: var(--cw-ink-subtle);
+}
+
+.cw-art-files-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cw-art-files-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 9px;
+  background: var(--cw-surface-alt);
+  font-family: var(--cw-font-body);
+  font-size: 11.5px;
+}
+
+.cw-art-file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cw-ink);
+}
+
+.cw-art-file-size {
+  color: var(--cw-ink-subtle);
+  font-size: 10.5px;
+}
+
+.cw-art-file-x {
+  color: var(--cw-ink-subtle);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.cw-art-file-x:hover {
+  color: var(--cw-danger);
+}
+
+.cw-related {
+  margin-top: 44px;
+  padding-top: 24px;
+  border-top: 1px solid var(--cw-border);
+}
+
+.cw-related-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--card-row-gap) var(--card-gap);
+  margin-top: 14px;
+}
+
+@media (min-width: 900px) {
+  .cw-related-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.cw-quote {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.cw-quote-summary {
+  margin: 0;
+  padding: 9px 11px;
+  background: var(--cw-surface-alt);
+  font-family: var(--cw-font-body);
+  font-size: 11.5px;
+  color: var(--cw-ink-muted);
+  line-height: 1.5;
+}
+
+.cw-quote-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 11px;
+}
+
+.cw-quote-done {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cw-quote-done p {
+  margin: 0;
+  font-family: var(--cw-font-body);
+  font-size: var(--cw-fs-small);
+  color: var(--cw-ink-muted);
+  line-height: 1.6;
+}
+
+.cw-quote-ref {
+  font-family: var(--cw-font-body);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--cw-ink) !important;
+}
+
+/* ============================================
+   CUSTOM WEAR BROWSE — the collection page
+   No sidebar: categories read as one line of links and every filter collapses
+   behind its own button, so the grid gets the full page width.
+   ============================================ */
+
+.cw-browse {
+  padding-bottom: 56px;
+}
+
+.cw-browse-inner {
+  width: 100%;
+  padding: 22px var(--gutter) 0;
+}
+
+.cw-browse-head {
+  margin-bottom: 18px;
+}
+
+.cw-browse-head h1 {
+  margin: 0;
+  font-family: var(--cw-font-heading);
+  font-size: clamp(24px, 3vw, 40px);
+  font-weight: 600;
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+  color: var(--cw-ink);
+}
+
+.cw-browse-head p {
+  margin: 9px 0 0;
+  max-width: 78ch;
+  font-family: var(--cw-font-body);
+  font-size: var(--cw-fs-small);
+  line-height: 1.6;
+  color: var(--cw-ink-muted);
+}
+
+/* ---- Categories ---- */
+/* Categories read as a line of tabs. Six bordered pills in a row made the top
+   of the page a wall of identical boxes; an underline marks the current one
+   without drawing another rectangle. */
+.cw-cats {
+  display: flex;
+  gap: 26px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--cw-border);
+  scrollbar-width: none;
+}
+
+.cw-cats::-webkit-scrollbar {
+  display: none;
+}
+
+.cw-cat {
+  position: relative;
+  flex-shrink: 0;
+  padding: 0 0 13px;
+  font-family: var(--cw-font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--cw-ink-subtle);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 0.15s ease;
+}
+
+.cw-cat::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--cw-primary);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.2s ease;
+}
+
+.cw-cat:hover {
+  color: var(--cw-ink);
+}
+
+.cw-cat[data-active="true"] {
+  color: var(--cw-ink);
+  font-weight: 600;
+}
+
+.cw-cat[data-active="true"]::after {
+  transform: scaleX(1);
+}
+
+/* ---- Filter bar ---- */
+.cw-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 22px;
+  padding: 16px 0 14px;
+}
+
+/* Underlined field rather than a boxed one — one rule instead of four. */
+.cw-bar-search {
+  position: relative;
+  flex: 0 1 220px;
+  min-width: 150px;
+}
+
+.cw-scope .cw-bar-search input {
+  width: 100%;
+  height: 34px;
+  padding: 0 0 0 26px;
+  border: 0;
+  border-bottom: 1px solid var(--cw-border);
+  border-radius: 0;
+  background: transparent;
+  font-size: 13px;
+}
+
+.cw-scope .cw-bar-search input:focus {
+  border-bottom-color: var(--cw-ink);
+  box-shadow: none;
+}
+
+.cw-bar-search svg {
+  position: absolute;
+  left: 1px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 14px;
+  width: 14px;
+  color: var(--cw-ink-subtle);
+  pointer-events: none;
+}
+
+.cw-bar-menus {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 20px;
+}
+
+.cw-bar-sort {
+  position: relative;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+.cw-bar-sort::after {
+  content: '';
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin-top: -5px;
+  border-right: 1.5px solid var(--cw-ink-subtle);
+  border-bottom: 1.5px solid var(--cw-ink-subtle);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.cw-scope .cw-bar-sort select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: auto;
+  height: auto;
+  line-height: 1.4;
+  padding: 5px 20px 5px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-family: var(--cw-font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cw-ink);
+  cursor: pointer;
+}
+
+.cw-scope .cw-bar-sort select:focus {
+  box-shadow: none;
+}
+
+.cw-bar-sort-label {
+  margin-right: 8px;
+  font-family: var(--cw-font-body);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cw-ink-subtle);
+}
+
+/* ---- Filter menu ---- */
+.cw-fm {
+  position: relative;
+}
+
+.cw-fm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0;
+  font-family: var(--cw-font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--cw-ink-muted);
+  background: transparent;
+  border: 0;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+/*
+ * The chevron is drawn from two borders rather than typed as a "⌄" character.
+ * The glyph rendered small, sat below the text baseline and read as a typo;
+ * this is optically centred, scales with the label and matches the Sort
+ * control on the same bar.
+ */
+.cw-fm-btn::after {
+  content: '';
+  width: 5px;
+  height: 5px;
+  margin-top: -3px;
+  border-right: 1.4px solid currentColor;
+  border-bottom: 1.4px solid currentColor;
+  transform: rotate(45deg);
+  transform-origin: center;
+  opacity: 0.55;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out);
+}
+
+.cw-fm-btn:hover {
+  color: var(--cw-ink);
+}
+
+.cw-fm-btn:hover::after {
+  opacity: 1;
+}
+
+/* Points up while its panel is open. */
+.cw-fm-btn[aria-expanded='true'] {
+  color: var(--cw-ink);
+}
+
+.cw-fm-btn[aria-expanded='true']::after {
+  margin-top: 2px;
+  transform: rotate(-135deg);
+  opacity: 1;
+}
+
+/* An active filter is marked by its count, not by a second border. */
+.cw-fm-btn[data-active="true"] {
+  color: var(--cw-ink);
+  font-weight: 600;
+}
+
+.cw-fm-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--cw-radius-chip);
+  background: var(--cw-primary);
+  color: var(--cw-on-primary);
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.cw-fm-panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 5px);
+  left: 0;
+  min-width: 208px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 10px;
+  background: var(--cw-white);
+  border: 1px solid var(--cw-border);
+  box-shadow: 0 12px 28px -14px rgba(0, 0, 0, 0.35);
+}
+
+.cw-fm-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cw-fm-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 4px;
+  font-family: var(--cw-font-body);
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--cw-ink-muted);
+  cursor: pointer;
+}
+
+.cw-fm-row:hover {
+  color: var(--cw-ink);
+}
+
+.cw-fm-row input {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  accent-color: var(--cw-primary);
+}
+
+.cw-fm-swatches {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.cw-fm-swatch {
+  height: 26px;
+  width: 26px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.cw-fm-swatch:hover {
+  transform: scale(1.1);
+}
+
+.cw-fm-swatch[data-active="true"] {
+  box-shadow: 0 0 0 2px var(--cw-white), 0 0 0 4px var(--cw-primary);
+}
+
+/* ---- Applied row ---- */
+.cw-applied {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0 18px;
+  border-top: 1px solid var(--cw-border);
+}
+
+.cw-applied-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.cw-applied-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px;
+  border-radius: var(--cw-radius-chip);
+  background: var(--cw-primary-soft);
+  border: 1px solid var(--cw-border);
+  font-family: var(--cw-font-body);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--cw-ink);
+}
+
+.cw-applied-chip:hover {
+  border-color: var(--cw-ink);
+}
+
+.cw-applied-clear {
+  font-family: var(--cw-font-body);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--cw-ink-muted);
+  text-decoration: underline;
+}
+
+.cw-applied-count {
+  margin: 0 0 0 auto;
+  font-family: var(--cw-font-body);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cw-ink-subtle);
+  transition: opacity 0.2s ease;
+}
+
+.cw-applied-count[data-pending="true"] {
+  opacity: 0.45;
+}
+
+/* ---- Grid ---- */
+.cw-browse-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--card-row-gap) var(--card-gap);
+  transition: opacity 0.2s ease;
+}
+
+.cw-browse-grid[data-pending="true"] {
+  opacity: 0.5;
+}
+
+@media (min-width: 700px) {
+  .cw-browse-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1000px) {
+  .cw-browse-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1360px) {
+  .cw-browse-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.cw-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 64px 20px;
+  border: 1px solid var(--cw-border);
+  background: var(--cw-surface-alt);
+}
+
+.cw-empty p {
+  margin: 0;
+  font-family: var(--cw-font-body);
+  font-size: var(--cw-fs-body);
+  color: var(--cw-ink-muted);
+}
+
+.cw-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 28px;
+}
+
+.cw-more .cw-cta {
+  min-width: 200px;
+}
+
+/* ============================================
+   CUSTOM WEAR PRODUCT PAGE — photo-led
+   ============================================ */
+
+.cw-pdp {
+  padding-bottom: 60px;
+}
+
+.cw-pdp-inner {
+  width: 100%;
+  padding: 22px var(--gutter) 0;
+}
+
+.cw-pdp-grid {
+  display: grid;
+  gap: 28px;
+}
+
+@media (min-width: 1000px) {
+  .cw-pdp-grid {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    column-gap: clamp(32px, 3.4vw, 56px);
+    align-items: start;
+  }
+
+  /*
+   * A 2:3 gallery is taller than the viewport on a wide screen, so it is the
+   * column that scrolls — a sticky element taller than the window pins with
+   * its lower half permanently out of reach. The buy column is short, so that
+   * is what holds still.
+   */
+  .cw-pdp-buy {
+    position: sticky;
+    top: 88px;
+    width: 100%;
+    /* Capped so the controls keep a usable line length on a wide display. */
+    max-width: 560px;
+  }
+}
+
+/* ---- Gallery ----
+   One tall portrait frame and a thumbnail grid, following the 9 Impression
+   storefront. Garment photography is shot portrait: the wide frames tried here
+   before cropped the model to a band across the chest, and no amount of
+   object-position fixes a frame that is the wrong shape. */
+.cw-gal-main {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  background: var(--cw-surface-alt);
+  border: 1px solid var(--cw-border);
+}
+
+.cw-gal-drawn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  padding: 12%;
+}
+
+.cw-gal-drawn svg {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+}
+
+.cw-gal-tag {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 11px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid var(--cw-border);
+  font-family: var(--cw-font-body);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cw-ink);
+}
+
+.cw-gal-tag > span[aria-hidden] {
+  height: 11px;
+  width: 11px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+.cw-gal-tag em {
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--cw-ink-subtle);
+}
+
+/* Scrolls on a phone, grid on a desktop. */
+.cw-gal-thumbs {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.cw-gal-thumbs::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .cw-gal-thumbs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    overflow: visible;
+  }
+}
+
+.cw-gal-thumb {
+  position: relative;
+  flex: none;
+  width: 22vw;
+  min-width: 68px;
+  max-width: 104px;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  background: var(--cw-surface-alt);
+  border: 1px solid var(--cw-border);
+  transition: border-color 0.15s ease;
+}
+
+@media (min-width: 768px) {
+  .cw-gal-thumb {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+  }
+}
+
+.cw-gal-thumb:hover {
+  border-color: var(--cw-ink-subtle);
+}
+
+.cw-gal-thumb[data-active='true'] {
+  border-color: var(--cw-ink);
+}
+
+/* ---- Buy column ---- */
+.cw-pdp-buy h1 {
+  margin: 0;
+  font-family: var(--cw-font-heading);
+  font-size: clamp(23px, 2.4vw, 32px);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.028em;
+  color: var(--cw-ink);
+}
+
+.cw-pdp-spec {
+  margin: 9px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--cw-font-body);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cw-ink-subtle);
+}
+
+.cw-pdp-rating {
+  color: var(--cw-ink);
+}
+
+.cw-pdp-price {
+  margin: 13px 0 0;
+  font-family: var(--cw-font-body);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--cw-ink);
+}
+
+.cw-pdp-price span {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--cw-ink-subtle);
+}
+
+.cw-field {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid var(--cw-border);
+}
+
+.cw-field h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 9px;
+  margin: 0 0 9px;
+  font-family: var(--cw-font-body);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cw-ink);
+}
+
+.cw-field h2 > span {
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--cw-ink-subtle);
+}
+
+.cw-field h2 > em {
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-size: 11.5px;
+  color: var(--cw-danger);
+}
+
+/* ---- Artwork entry ---- */
+.cw-design-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 15px 16px;
+  text-align: left;
+  background: var(--cw-surface-alt);
+  border: 1px dashed var(--cw-border-strong);
+  font-family: var(--cw-font-body);
+  font-size: 13px;
+  color: var(--cw-ink);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.cw-design-btn:hover {
+  border-color: var(--cw-primary);
+  background: var(--cw-primary-soft);
+}
+
+.cw-design-btn-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cw-ink);
+  white-space: nowrap;
+}
+
+/* ---- Total + actions ---- */
+.cw-pdp-total {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 15px;
+  border-top: 1px solid var(--cw-border);
+  font-family: var(--cw-font-body);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cw-ink-subtle);
+}
+
+.cw-pdp-total strong {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--cw-ink);
+}
+
+.cw-pdp-save {
+  letter-spacing: 0.04em;
+  text-transform: none;
+  font-weight: 600;
+  color: var(--cw-success);
+}
+
+.cw-pdp-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.cw-pdp-actions .cw-cta {
+  padding-block: 14px;
+}
+
+.cw-pdp-flash {
+  margin: 10px 0 0;
+  padding: 9px 12px;
+  background: var(--cw-surface-alt);
+  font-family: var(--cw-font-body);
+  font-size: 11.5px;
+  color: var(--cw-ink-muted);
+}
+
+/* ============================================
+   DESIGN MODE
+   ============================================ */
+
+.cw-designer {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: var(--cw-white);
+}
+
+.cw-designer-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--cw-border);
+  flex-shrink: 0;
+}
+
+.cw-designer-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--cw-font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--cw-ink-muted);
+}
+
+.cw-designer-back:hover {
+  color: var(--cw-ink);
+}
+
+.cw-designer-title {
+  margin: 0;
+  font-family: var(--cw-font-body);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cw-ink);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cw-designer-title span {
+  color: var(--cw-ink-subtle);
+}
+
+.cw-designer-done {
+  padding: 9px 22px;
+  flex-shrink: 0;
+}
+
+.cw-designer-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 1fr auto;
+}
+
+@media (min-width: 900px) {
+  .cw-designer-body {
+    grid-template-rows: none;
+    grid-template-columns: minmax(0, 1fr) 360px;
+  }
+}
+
+.cw-designer-stage {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: var(--cw-surface-alt);
+}
+
+.cw-designer-stage .cw-canvas {
+  border: 0;
+  background: transparent;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.cw-designer-stage .cw-canvas-stage {
+  min-height: 0;
+  flex: 1;
+  background: transparent;
+}
+
+/* In design mode the window height is the budget, not the page. Only the
+   header and footer sit outside the stage, so the garment gets nearly all of
+   it — a bigger garment is a print area you can actually aim at. */
+.cw-designer-stage .cw-canvas-figure {
+  width: min(100%, calc((100vh - 200px) * 0.781));
+}
+
+.cw-designer-side {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px;
+  border-top: 1px solid var(--cw-border);
+}
+
+@media (min-width: 900px) {
+  .cw-designer-side {
+    border-top: 0;
+    border-left: 1px solid var(--cw-border);
+  }
+}
+
+.cw-designer-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--cw-border);
+  flex-shrink: 0;
+  font-family: var(--cw-font-body);
+}
+
+.cw-designer-count {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cw-ink-subtle);
+}
+
+.cw-designer-price {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--cw-ink);
+}
+
+.cw-designer-price span {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--cw-ink-subtle);
+}
+
+/* ============================================
+   MOTION
+   One easing vocabulary and one set of durations, so nothing on the site
+   animates at a speed nobody chose.
+   ============================================ */
+
+:root {
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  --dur-fast: 140ms;
+  --dur: 220ms;
+  --dur-slow: 380ms;
+
+  /* View transitions: exit quickly, enter after it, move for longer. */
+  --vt-exit: 150ms;
+  --vt-enter: 220ms;
+  --vt-move: 420ms;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* ---- Route transitions ---- */
+
+/* Shared element: a product image morphs from its card into the page hero, so
+   the two read as one object moving rather than two swapping. */
+::view-transition-group(.morph) {
+  animation-duration: var(--vt-move);
+  animation-timing-function: var(--ease-out);
+}
+
+::view-transition-image-pair(.morph) {
+  animation-name: vt-blur;
+}
+
+/* A touch of blur hides pixel interpolation while the crop changes shape. */
+@keyframes vt-blur {
+  30% {
+    filter: blur(3px);
+  }
+}
+
+/* Everything that is not the shared element crossfades under it. */
+::view-transition-old(root) {
+  animation: var(--vt-exit) var(--ease-out) both vt-fade-out;
+}
+
+::view-transition-new(root) {
+  animation: var(--vt-enter) var(--ease-out) var(--vt-exit) both vt-fade-in;
+}
+
+@keyframes vt-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes vt-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ---- Entrances ---- */
+
+@keyframes cw-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes cw-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Design mode is a whole new surface; it arrives rather than appears. */
+.cw-designer {
+  animation: cw-rise var(--dur-slow) var(--ease-out) both;
+}
+
+.cw-designer-side,
+.cw-designer-stage {
+  animation: cw-fade var(--dur-slow) var(--ease-out) 60ms both;
+}
+
+/* A filter menu should open from its button, not blink into place. */
+.cw-fm-panel {
+  animation: cw-rise var(--dur-fast) var(--ease-out) both;
+  transform-origin: top left;
+}
+
+/* ---- Pending states ----
+   A hard opacity drop reads as a flicker. Fading and softening together makes
+   a filter change feel like the grid is settling rather than blinking. */
+.cw-browse-grid,
+.cw-shots {
+  transition:
+    opacity var(--dur) var(--ease-out),
+    filter var(--dur) var(--ease-out);
+}
+
+.cw-browse-grid[data-pending='true'] {
+  opacity: 0.55;
+  filter: blur(1.5px);
+}
+
+/* ---- Controls ----
+   These already transitioned, but each at its own hand-picked duration. */
+.cw-chip,
+.cw-tier,
+.cw-swatch-lg,
+.cw-cat,
+.cw-fm-btn,
+.cw-gal-thumb,
+.cw-design-btn,
+.pcard,
+.pcard-img,
+.cw-cta {
+  transition-timing-function: var(--ease-out);
+}
+
+.cw-swatch-lg,
+.cw-gal-thumb {
+  transition-duration: var(--dur-fast);
+}
+
+/* ---- Reduced motion ----
+   Honour the OS setting site-wide, not just inside the Custom Wear scope. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-image-pair(*) {
+    animation: none !important;
+  }
 }

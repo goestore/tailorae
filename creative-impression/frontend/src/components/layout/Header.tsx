@@ -15,8 +15,8 @@ import { AnnouncementBar } from './AnnouncementBar';
 /** Edit these values to change nav menu link styling (Home, Products, etc.). */
 export const NAV_MENU_STYLES = {
   color: '#000000',
-  fontSize: '14px',
-  mobileFontSize: '15px',
+  fontSize: '13px',
+  mobileFontSize: '14px',
   fontFamily: 'var(--font-montserrat)',
   fontWeight: 500,
 };
@@ -78,7 +78,21 @@ export const HEADER_NAVIGATION: NavCategory[] = [
   },
 ];
 
-export const Header: React.FC = () => {
+export interface HeaderProps {
+  /**
+   * The announcement bar's editable content, from the `brand` namespace.
+   * Omitted entirely (server layout aside) the bar falls back to the defaults
+   * compiled into `AnnouncementBar`.
+   */
+  announcement?: {
+    enabled: boolean;
+    message: string;
+    scroll: boolean;
+    speedSeconds: number;
+  };
+}
+
+export const Header: React.FC<HeaderProps> = ({ announcement }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
@@ -198,18 +212,25 @@ export const Header: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-white shadow-sm">
-      <AnnouncementBar />
+    <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
+      {announcement?.enabled !== false && (
+        <AnnouncementBar
+          message={announcement?.message}
+          scroll={announcement?.scroll}
+          speed={announcement?.speedSeconds}
+        />
+      )}
 
       {/* Main header */}
-      <div className="w-full border-b border-neutral-200">
-        <div className="mx-auto w-full max-w-full px-2 sm:px-4 md:px-6 lg:px-8">
-          <div className="relative flex h-14 md:h-16 items-center gap-2 md:gap-4">
-            {/* Left: mobile menu + desktop navigation */}
-            <div className="flex flex-1 items-center gap-2 lg:flex-none">
+      <div className="w-full border-b border-line">
+        <div className="container-fluid">
+          <div className="flex h-12 items-center gap-3 md:h-[56px] md:gap-6">
+            {/* Left: mobile menu trigger. flex-1 on mobile so the logo centres
+                between it and the action cluster. */}
+            <div className="flex flex-1 items-center xl:hidden">
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="lg:hidden p-1 md:p-2 text-neutral-600 hover:text-primary-600 flex-shrink-0"
+                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-control text-ink-2 hover:bg-surface-2 xl:hidden"
                 aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
                 suppressHydrationWarning={true}
               >
@@ -237,7 +258,29 @@ export const Header: React.FC = () => {
                 </svg>
               </button>
 
-              <nav className="hidden lg:flex lg:items-center lg:space-x-6">
+            </div>
+
+            {/* Center: logo. A normal flex item, not absolutely positioned — the
+                old `absolute left-1/2` centred it on the viewport regardless of
+                the nav clusters, so on a narrow phone it overlapped the search
+                button and swallowed its taps. */}
+            <div className="flex min-w-0 flex-shrink-0 justify-center xl:flex-1 xl:justify-start">
+              <Link href="/" className="group/logo flex min-w-0 items-center gap-2 md:gap-2.5">
+                <Image
+                  src="/images/IX%20Logo.JPG"
+                  alt="Creative Impression Logo"
+                  width={32}
+                  height={32}
+                  className="h-[22px] w-[22px] flex-shrink-0 object-contain md:h-[26px] md:w-[26px]"
+                  priority
+                />
+                <span className="truncate text-[12px] font-semibold leading-none tracking-tight text-ink sm:text-[13px] md:text-[15px] xl:text-base">
+                  Creative Impression
+                </span>
+              </Link>
+            </div>
+
+              <nav className="hidden flex-shrink-0 items-center justify-center gap-x-6 xl:flex 2xl:gap-x-8">
                 {HEADER_NAVIGATION.map((item) => {
                   const hasDropdown = item.subcategories && item.subcategories.length > 0;
                   const isDropdownOpen = activeDropdown === item.name;
@@ -255,7 +298,7 @@ export const Header: React.FC = () => {
                       <Link
                         key={item.name}
                         href={item.href}
-                        className="whitespace-nowrap hover:text-primary-600 transition-colors duration-200"
+                        className="relative inline-flex items-center whitespace-nowrap uppercase tracking-[0.08em] py-3 transition-colors hover:text-ink after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:origin-left after:scale-x-0 after:bg-[var(--brand)] after:transition-transform after:duration-200 hover:after:scale-x-100"
                         style={navItemStyle}
                       >
                         {item.name}
@@ -281,30 +324,17 @@ export const Header: React.FC = () => {
                           e.preventDefault();
                           handleDropdownClick(item.name);
                         }}
-                        className="whitespace-nowrap hover:text-primary-600 transition-colors duration-200 inline-flex items-center gap-1"
+                        className="relative inline-flex items-center whitespace-nowrap uppercase tracking-[0.08em] py-3 transition-colors hover:text-ink after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:origin-left after:scale-x-0 after:bg-[var(--brand)] after:transition-transform after:duration-200 hover:after:scale-x-100"
                         style={navItemStyle}
                         aria-expanded={isDropdownOpen}
                         aria-haspopup="true"
                       >
                         {item.name}
-                        <svg
-                          className={`h-3 w-3 transition-transform duration-200 ${isDropdownOpen ? 'rotate-180' : ''}`}
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
                       </button>
 
                       {isDropdownOpen && (
                         <div
-                          className={`absolute top-full left-0 pt-2 transition-all duration-200 ease-out ${
+                          className={`absolute top-full left-1/2 -translate-x-1/2 pt-2 transition-all duration-200 ease-out ${
                             isAnimating ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'
                           }`}
                           onMouseEnter={() => openDropdown(item.name)}
@@ -312,16 +342,16 @@ export const Header: React.FC = () => {
                           style={{ zIndex: 50 }}
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <div className="min-w-[200px] rounded-lg border border-neutral-200 bg-white py-2 shadow-lg">
+                          <div className="min-w-[220px] overflow-hidden rounded-card border border-line bg-white py-2 shadow-3">
                             {item.subcategories?.map((sub) => (
                               <Link
                                 key={sub.name}
                                 href={sub.href}
-                                className="block px-4 py-2 text-sm text-neutral-700 hover:bg-neutral-50 hover:text-primary-600 transition-colors duration-150"
+                                className="block px-4 py-2 text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
                                 style={{
                                   fontFamily: NAV_MENU_STYLES.fontFamily,
                                   fontWeight: NAV_MENU_STYLES.fontWeight,
-                                  fontSize: '13px',
+                                  fontSize: '12px',
                                 }}
                                 onClick={() => {
                                   closeDropdown(item.name, 0);
@@ -337,67 +367,13 @@ export const Header: React.FC = () => {
                   );
                 })}
               </nav>
-            </div>
 
-            {/* Center: logo (true viewport center via absolute positioning) */}
-            <div className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
-              <Link href="/" className="pointer-events-auto flex items-center gap-1 md:gap-2">
-                <Image
-                  src="/images/IX%20Logo.JPG"
-                  alt="Creative Impression Logo"
-                  width={28}
-                  height={28}
-                  className="h-7 w-7 md:h-8 md:w-8 object-contain"
-                  priority
-                />
-                <span
-                  className="text-xs sm:text-sm md:text-lg font-semibold text-black whitespace-nowrap"
-                  style={{ fontFamily: 'var(--font-playfair)' }}
-                >
-                  Creative Impression
-                </span>
-              </Link>
-            </div>
 
-            {/* Right: search, cart, auth */}
-            <div className="ml-auto flex flex-1 items-center justify-end gap-2 md:gap-3 lg:flex-none">
-              <div className="hidden lg:flex lg:max-w-sm lg:px-4">
-                <form onSubmit={handleSearch} className="w-full">
-                  <div className="relative">
-                    <input
-                      type="text"
-                      placeholder="Search products..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      className="w-full rounded-lg border border-neutral-300 bg-white py-2 pl-4 pr-10 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
-                      suppressHydrationWarning={true}
-                    />
-                    <button
-                      type="submit"
-                      className="absolute inset-y-0 right-0 flex items-center pr-3"
-                      suppressHydrationWarning={true}
-                    >
-                      <svg
-                        className="h-5 w-5 text-neutral-400"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                        />
-                      </svg>
-                    </button>
-                  </div>
-                </form>
-              </div>
-
+            {/* Right: actions */}
+            <div className="flex flex-1 items-center justify-end gap-1 md:gap-1.5">
               <button
                 onClick={() => setIsSearchOpen(!isSearchOpen)}
-                className="lg:hidden p-1 md:p-2 text-neutral-600 hover:text-primary-600"
+                className="flex h-9 w-9 items-center justify-center rounded-control text-ink-2 transition-colors hover:bg-surface-2"
                 aria-label="Toggle search"
                 suppressHydrationWarning={true}
               >
@@ -418,17 +394,30 @@ export const Header: React.FC = () => {
 
               <Link
                 href="/cart"
-                className="relative p-1 md:p-2 text-neutral-600 hover:text-primary-600 flex-shrink-0"
+                className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-control text-ink-2 hover:bg-surface-2"
+                aria-label="Cart"
               >
-                <Image
-                  src="/images/wishlist%2Bcart.png"
-                  alt="Cart"
-                  width={24}
-                  height={24}
-                  className="h-5 w-5 md:h-6 md:w-6 object-contain"
-                />
+                {/* Plain line-art cart, matching the menu/search/account icons.
+                    Replaces a cartoon PNG that was stylistically out of place. */}
+                <svg
+                  className="h-5 w-5 md:h-6 md:w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth={1.75}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M2.5 3h1.6a1 1 0 0 1 .98.8L5.4 6m0 0 1.5 7.2a1.5 1.5 0 0 0 1.47 1.2h7.9a1.5 1.5 0 0 0 1.47-1.18L19.2 6H5.4Z" />
+                  <circle cx="9" cy="19" r="1.4" />
+                  <circle cx="17" cy="19" r="1.4" />
+                </svg>
                 {cartItemCount > 0 && (
-                  <span className="absolute -top-1 -right-1 flex h-4 w-4 md:h-5 md:w-5 items-center justify-center rounded-full bg-primary-500 text-xs font-semibold text-black">
+                  <span
+                    className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full text-[13px] font-bold text-ink md:h-5 md:w-5 md:text-xs"
+                    style={{ background: 'var(--brand)' }}
+                  >
                     {cartItemCount > 9 ? '9+' : cartItemCount}
                   </span>
                 )}
@@ -491,7 +480,8 @@ export const Header: React.FC = () => {
                   )}
                 </div>
               ) : (
-                <div className="hidden sm:flex sm:items-center sm:gap-1 md:gap-2 flex-shrink-0">
+                <div className="hidden flex-shrink-0 items-center sm:flex sm:gap-2 sm:pl-1.5 md:pl-2.5">
+                  <span aria-hidden="true" className="mr-1 h-5 w-px bg-line md:mr-1.5" />
                   <AuthToggleButtons />
                 </div>
               )}
@@ -499,9 +489,10 @@ export const Header: React.FC = () => {
           </div>
         </div>
 
-        {/* Mobile search bar */}
+
+        {/* Expanding search bar */}
         {isSearchOpen && (
-          <div className="w-full border-t border-neutral-200 px-2 py-2 md:px-4 sm:py-3 lg:hidden">
+          <div className="w-full border-t border-line py-2 sm:py-3"><div className="container-fluid">
             <form onSubmit={handleSearch}>
               <div className="relative">
                 <input
@@ -509,16 +500,17 @@ export const Header: React.FC = () => {
                   placeholder="Search products..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-lg border border-neutral-300 bg-white py-2 pl-4 pr-10 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
+                  className="w-full rounded-full border-line bg-surface-2 py-2 pl-4 pr-10 text-sm focus:bg-white"
                   suppressHydrationWarning={true}
                 />
                 <button
                   type="submit"
                   className="absolute inset-y-0 right-0 flex items-center pr-3"
+                  aria-label="Search"
                   suppressHydrationWarning={true}
                 >
                   <svg
-                    className="h-5 w-5 text-neutral-400"
+                    className="h-5 w-5 text-ink-3"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -533,13 +525,14 @@ export const Header: React.FC = () => {
                 </button>
               </div>
             </form>
+            </div>
           </div>
         )}
 
         {/* Mobile menu */}
         {isMobileMenuOpen && (
-          <div className="w-full border-t border-neutral-200 lg:hidden">
-            <nav className="px-2 py-2 md:px-4 sm:py-3">
+          <div className="w-full border-t border-line xl:hidden">
+            <nav className="container-fluid py-2 sm:py-3">
               <div className="space-y-1">
                 {HEADER_NAVIGATION.map((item) => {
                   const hasSubcategories = item.subcategories && item.subcategories.length > 0;
@@ -607,7 +600,7 @@ export const Header: React.FC = () => {
                               style={{
                                 fontFamily: NAV_MENU_STYLES.fontFamily,
                                 fontWeight: NAV_MENU_STYLES.fontWeight,
-                                fontSize: '14px',
+                                fontSize: '13px',
                               }}
                               onClick={() => {
                                 setExpandedMobileSubmenu(null);

@@ -369,23 +369,37 @@ export interface DesignTemplateCategory {
   label: string;
 }
 
+/**
+ * One decorated area: which print location, what artwork goes there, and how it
+ * is applied. A garment carries a list of these — a logo on the left chest and a
+ * different graphic across the back is the commonest team and corporate order,
+ * and one design shared by every location could not express it.
+ */
 export interface CustomizationPlacement {
+  /** Stable across edits, so React keys and the preview do not thrash. */
+  id: string;
   location: CustomizationLocationId;
-  method: CustomizationMethodId;
-  designId?: string;
-  templateId?: string;
+  method: CustomizationMethodId | null;
+  /** Stock design, when the artwork came from the library. */
+  templateId: string | null;
+  /** Uploaded file, when the artwork is the customer's own. */
+  uploadId: string | null;
+  /** Artwork width as a fraction of the location's printable width. */
+  scale: number;
 }
 
 /**
- * Selection state shared by the shop flow and the quote flow. The future
- * canvas editor is expected to produce this same object, so nothing downstream
- * has to change when it lands.
+ * Selection state shared by the shop flow and the quote flow. The future canvas
+ * editor is expected to produce this same object, so nothing downstream has to
+ * change when it lands.
+ *
+ * `uploads` is the file pool for the whole garment; a placement points into it
+ * by id, so one uploaded logo can be printed in several locations without being
+ * uploaded twice.
  */
 export interface CustomizationSelection {
-  method: CustomizationMethodId | null;
-  locations: CustomizationLocationId[];
+  placements: CustomizationPlacement[];
   uploads: DesignUpload[];
-  templateId: string | null;
   notes: string;
 }
 
@@ -434,6 +448,15 @@ export interface CustomWearCartItem {
   currency: string;
 }
 
+export interface QuotePlacement {
+  location: CustomizationLocationId;
+  method: CustomizationMethodId | null;
+  templateId: string | null;
+  designFileName: string | null;
+  /** Artwork width as a percentage of the print area. */
+  widthPercent: number;
+}
+
 export interface QuoteRequestPayload {
   productId: string;
   productSlug: string;
@@ -443,8 +466,8 @@ export interface QuoteRequestPayload {
   colorName: string | null;
   sizes: string[];
   quantity: number;
-  method: CustomizationMethodId | null;
-  locations: CustomizationLocationId[];
+  /** One entry per decorated area — what goes where, and how. */
+  placements: QuotePlacement[];
   designFileNames: string[];
   notes: string;
 
@@ -482,6 +505,7 @@ export type CustomWearAnalyticsEvent =
   | 'custom_wear_size_selected'
   | 'custom_wear_quantity_changed'
   | 'custom_wear_design_uploaded'
+  | 'custom_wear_placement_added'
   | 'custom_wear_quote_started'
   | 'custom_wear_quote_submitted'
   | 'custom_wear_add_to_cart'

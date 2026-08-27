@@ -18,3 +18,8 @@ export type { LoadingSpinnerProps, SkeletonProps, SkeletonTextProps } from './Lo
 
 export { Alert } from './Alert';
 export type { AlertProps } from './Alert';
+export { ScrollRail } from './ScrollRail';
+export type { ScrollRailProps } from './ScrollRail';
+
+export { Icon } from './Icon';
+export type { IconProps } from './Icon';

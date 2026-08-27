@@ -35,11 +35,11 @@ export const NewsletterSignup: React.FC<NewsletterSignupProps> = ({
   };
 
   return (
-    <section className="py-12 md:py-16 bg-primary-600 text-white">
+    <section className="py-8 md:py-10 bg-white border-t border-line">
       <div className="mx-auto max-w-2xl px-4 sm:px-6 lg:px-8">
         <div className="text-center">
-          <h2 className="text-3xl font-bold mb-2">{title}</h2>
-          <p className="text-primary-100 mb-8">{subtitle}</p>
+          <h2 className="mb-2 text-ink">{title}</h2>
+          <p className="mb-8 text-ink-3">{subtitle}</p>
 
           <form onSubmit={handleSubmit} className="flex gap-2">
             <input
@@ -48,11 +48,11 @@ export const NewsletterSignup: React.FC<NewsletterSignupProps> = ({
               onChange={(e) => setEmail(e.target.value)}
               placeholder={placeholder}
               required
-              className="flex-1 px-4 py-3 rounded-lg text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-300"
+              className="flex-1 px-4 py-3"
             />
             <Button
               type="submit"
-              variant="secondary"
+              variant="primary"
               size="lg"
               disabled={isLoading}
             >

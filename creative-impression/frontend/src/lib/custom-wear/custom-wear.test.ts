@@ -5,7 +5,12 @@ import { calculatePricing, formatTierRange, unitPriceForQuantity } from './prici
 import { EMPTY_FILTERS, buildActiveChips, clearAllFilters, queryProducts } from './filters';
 import { parseFilters, serializeFilters } from './url-state';
 import { estimateDelivery, isValidPostcode } from './shipping';
-import type { CustomWearFilterState } from '@/types/custom-wear';
+import type {
+  CustomWearFilterState,
+  CustomizationLocationId,
+  CustomizationMethodId,
+  CustomizationPlacement,
+} from '@/types/custom-wear';
 
 const polo = CUSTOM_WEAR_PRODUCTS.find((p) => p.id === 'cw-men-polo-classic')!;
 
@@ -34,13 +39,25 @@ describe('pricing', () => {
     expect(pricing.nextTier?.minQty).toBe(100);
   });
 
+  /** Terse placement builder — the tests care about method and location only. */
+  const at = (
+    location: CustomizationLocationId,
+    method: CustomizationMethodId | null
+  ): CustomizationPlacement => ({
+    id: `${location}-${method ?? 'none'}`,
+    location,
+    method,
+    templateId: null,
+    uploadId: null,
+    scale: 0.8,
+  });
+
   it('adds the customization method surcharge and setup fee', () => {
     const plain = calculatePricing({ product: polo, quantity: 50 });
     const embroidered = calculatePricing({
       product: polo,
       quantity: 50,
-      method: 'embroidery',
-      locations: ['left-chest'],
+      placements: [at('left-chest', 'embroidery')],
     });
 
     expect(embroidered.unitPrice).toBe(plain.unitPrice + 85);
@@ -52,20 +69,52 @@ describe('pricing', () => {
     const one = calculatePricing({
       product: polo,
       quantity: 10,
-      method: 'embroidery',
-      locations: ['left-chest'],
+      placements: [at('left-chest', 'embroidery')],
     });
     const two = calculatePricing({
       product: polo,
       quantity: 10,
-      method: 'embroidery',
-      locations: ['left-chest', 'full-back'],
+      placements: [at('left-chest', 'embroidery'), at('full-back', 'embroidery')],
     });
     expect(two.unitPrice).toBeGreaterThan(one.unitPrice);
   });
 
+  it('prices each placement by its own method', () => {
+    // A chest embroidery plus a printed back costs both methods per unit, which
+    // one shared method for the whole garment could not express.
+    const mixed = calculatePricing({
+      product: polo,
+      quantity: 10,
+      placements: [at('left-chest', 'embroidery'), at('full-back', 'screen-printing')],
+    });
+    const embroideryOnly = calculatePricing({
+      product: polo,
+      quantity: 10,
+      placements: [at('left-chest', 'embroidery')],
+    });
+    expect(mixed.customizationPerUnit).toBeGreaterThan(embroideryOnly.customizationPerUnit);
+  });
+
+  it('charges setup once per method, not once per placement', () => {
+    const single = calculatePricing({
+      product: polo,
+      quantity: 10,
+      placements: [at('left-chest', 'embroidery')],
+    });
+    const double = calculatePricing({
+      product: polo,
+      quantity: 10,
+      placements: [at('left-chest', 'embroidery'), at('full-back', 'embroidery')],
+    });
+    expect(double.setupFee).toBe(single.setupFee);
+  });
+
   it('ignores methods the product does not support', () => {
-    const unsupported = calculatePricing({ product: polo, quantity: 10, method: 'sublimation' });
+    const unsupported = calculatePricing({
+      product: polo,
+      quantity: 10,
+      placements: [at('left-chest', 'sublimation')],
+    });
     expect(unsupported.customizationPerUnit).toBe(0);
     expect(unsupported.setupFee).toBe(0);
   });

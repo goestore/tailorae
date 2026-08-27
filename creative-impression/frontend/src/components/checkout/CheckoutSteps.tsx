@@ -21,7 +21,7 @@ export const CheckoutSteps: React.FC<CheckoutStepsProps> = ({
   const currentStepIndex = steps.findIndex((s) => s.id === currentStep);
 
   return (
-    <Card className="p-6 mb-6">
+    <Card className="p-4 mb-6">
       <div className="flex items-center justify-between">
         {steps.map((step, index) => (
           <React.Fragment key={step.id}>

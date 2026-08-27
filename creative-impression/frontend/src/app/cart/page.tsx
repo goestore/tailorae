@@ -164,9 +164,9 @@ export default function CartPage() {
             </Link>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {/* Cart Items */}
-            <div className="md:col-span-2 bg-white p-6 rounded-lg shadow">
+            <div className="md:col-span-2 bg-white p-4 rounded-lg shadow">
               <div className="space-y-4">
                 {items.map((item) => (
                   <div key={item.id} className="flex gap-4 pb-4 border-b last:border-b-0">
