@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -8,13 +10,9 @@
    ============================================ */
 
 :root {
-  /* Self-hosting is not required: this stable system stack keeps every route
-     on one typeface and lets builds succeed without an external font request. */
-  --font-inter: Arial, Helvetica, sans-serif;
-  /* Single site-wide font. Legacy variables alias to Inter so every
-     inline fontFamily reference resolves to the same face. */
-  --font-playfair: var(--font-inter), system-ui, sans-serif;
-  --font-montserrat: var(--font-inter), system-ui, sans-serif;
+  --font-inter: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  --font-playfair: var(--font-inter);
+  --font-montserrat: var(--font-inter);
 
   /* Ink & surface — the 90% */
   --ink: #111111;
@@ -809,16 +807,39 @@ label {
   min-height: 100vh;
   background: #f5f5f7;
   color: #1d1d1f;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.admin-shell,
+.admin-shell * {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important;
+  letter-spacing: -0.011em;
+}
+
+.admin-shell h1,
+.admin-shell h2,
+.admin-shell h3,
+.admin-shell h4,
+.admin-shell b,
+.admin-shell strong,
+.admin-shell .font-bold,
+.admin-shell .font-semibold {
+  font-weight: 600 !important;
+}
+
+.admin-shell .font-medium,
+.admin-shell .admin-brand-meta b,
+.admin-shell .admin-segmented-item--active,
+.admin-shell .admin-nav-link--active {
+  font-weight: 500 !important;
 }
 
 .admin-shell button,
 .admin-shell input,
 .admin-shell select,
 .admin-shell textarea {
-  font-family: inherit;
+  font-family: inherit !important;
 }
 
 .admin-layout {
