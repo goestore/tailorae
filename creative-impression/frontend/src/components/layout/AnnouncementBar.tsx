@@ -25,13 +25,13 @@ export interface AnnouncementBarProps {
 export const ANNOUNCEMENT_BAR_DEFAULTS = {
   message:
     'FREE SHIPPING ON ORDERS OVER ₹999 • CUSTOMIZE YOUR PROFESSIONAL WEAR • B2B WHOLESALE PRICING',
-  /** Any colour, or the sentinel 'ink' for the site's dark gradient. */
-  backgroundColor: '#FFFFFF',
-  /** Softer than full ink — this is a utility strip, not a headline. */
-  textColor: '#52525b',
+  /** Rich dark background for a premium fashion-brand feel. */
+  backgroundColor: '#111111',
+  /** Gold-tinted white text stands out on the dark strip. */
+  textColor: '#d4d0ca',
   fontFamily: 'montserrat' as AnnouncementFontFamily,
-  fontSize: '9px',
-  fontSizeMd: '10px',
+  fontSize: '9.5px',
+  fontSizeMd: '10.5px',
   fontWeight: 'normal' as AnnouncementFontWeight,
 };
 

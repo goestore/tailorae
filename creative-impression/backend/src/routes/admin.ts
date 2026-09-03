@@ -1023,11 +1023,134 @@ router.delete('/banners/:id', async (req: Request, res: Response) => {
  * @description Get sales and revenue reports
  * @access Admin only
  */
-router.get('/reports', (req: Request, res: Response) => {
-  res.status(501).json({
-    success: false,
-    message: 'Reports are not implemented yet',
-  });
+router.get('/reports', async (_req: Request, res: Response) => {
+  try {
+    const [orders, products, customers, reviews] = await Promise.all([
+      prisma.order.aggregate({ _sum: { total: true }, _count: { id: true } }),
+      prisma.product.count({ where: { status: 'ACTIVE' } }),
+      prisma.user.count({ where: { role: { not: 'ADMIN' } } }),
+      prisma.review.count({ where: { isPublished: false } }),
+    ]);
+    res.json({
+      success: true,
+      data: {
+        revenue: orders._sum.total ?? 0,
+        orderCount: orders._count.id,
+        activeProducts: products,
+        customers,
+        reviewsAwaitingModeration: reviews,
+      },
+    });
+  } catch (error) {
+    console.error('[ADMIN] reports failed:', error);
+    res.status(500).json({ success: false, message: 'Failed to load reports' });
+  }
+});
+
+router.get('/inventory', async (_req: Request, res: Response) => {
+  try {
+    const products = await prisma.product.findMany({
+      orderBy: { quantity: 'asc' },
+      select: { id: true, name: true, sku: true, quantity: true, status: true, updatedAt: true },
+    });
+    res.json({ success: true, data: { products } });
+  } catch (error) {
+    console.error('[ADMIN] inventory failed:', error);
+    res.status(500).json({ success: false, message: 'Failed to load inventory' });
+  }
+});
+
+router.get('/returns', async (req: Request, res: Response) => {
+  try {
+    const requestType = typeof req.query.type === 'string' ? req.query.type : undefined;
+    const requests = await prisma.returnRequest.findMany({
+      where: requestType ? { requestType } : undefined,
+      orderBy: { createdAt: 'desc' },
+      include: { order: { include: { user: { select: { email: true, firstName: true, lastName: true } } } } },
+    });
+    res.json({ success: true, data: { requests } });
+  } catch (error) {
+    console.error('[ADMIN] returns failed:', error);
+    res.status(500).json({ success: false, message: 'Failed to load return requests' });
+  }
+});
+
+router.patch('/returns/:id', async (req: Request, res: Response) => {
+  const { status, notes } = req.body ?? {};
+  if (typeof status !== 'string' || !['PENDING', 'APPROVED', 'REJECTED', 'COMPLETED'].includes(status)) {
+    res.status(400).json({ success: false, message: 'Invalid return status' });
+    return;
+  }
+  try {
+    const request = await prisma.returnRequest.update({
+      where: { id: req.params.id },
+      data: { status, ...(typeof notes === 'string' ? { notes } : {}), ...(status === 'COMPLETED' ? { refundDate: new Date() } : {}) },
+    });
+    res.json({ success: true, data: { request } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to update return request' });
+  }
+});
+
+router.get('/reviews', async (_req: Request, res: Response) => {
+  try {
+    const reviews = await prisma.review.findMany({
+      orderBy: { createdAt: 'desc' },
+      include: { user: { select: { email: true, firstName: true, lastName: true } }, product: { select: { name: true, slug: true } } },
+    });
+    res.json({ success: true, data: { reviews } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to load reviews' });
+  }
+});
+
+router.patch('/reviews/:id', async (req: Request, res: Response) => {
+  if (typeof req.body?.isPublished !== 'boolean') {
+    res.status(400).json({ success: false, message: 'isPublished must be a boolean' });
+    return;
+  }
+  try {
+    const review = await prisma.review.update({ where: { id: req.params.id }, data: { isPublished: req.body.isPublished } });
+    res.json({ success: true, data: { review } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to update review' });
+  }
+});
+
+router.get('/cod-insights', async (_req: Request, res: Response) => {
+  try {
+    const [pending, delivered, cancelled] = await Promise.all([
+      prisma.order.aggregate({ where: { paymentMethod: 'COD', paymentStatus: 'PENDING' }, _count: { id: true }, _sum: { total: true } }),
+      prisma.order.count({ where: { paymentMethod: 'COD', status: 'DELIVERED' } }),
+      prisma.order.count({ where: { paymentMethod: 'COD', status: 'CANCELLED' } }),
+    ]);
+    res.json({ success: true, data: { pendingOrders: pending._count.id, pendingValue: pending._sum.total ?? 0, delivered, cancelled } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to load COD insights' });
+  }
+});
+
+router.get('/contact-requests', async (_req: Request, res: Response) => {
+  try {
+    const requests = await prisma.contactRequest.findMany({ orderBy: { createdAt: 'desc' } });
+    res.json({ success: true, data: { requests } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to load contact requests' });
+  }
+});
+
+router.patch('/contact-requests/:id', async (req: Request, res: Response) => {
+  const { status, notes } = req.body ?? {};
+  if (typeof status !== 'string' || !['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'].includes(status)) {
+    res.status(400).json({ success: false, message: 'Invalid contact request status' });
+    return;
+  }
+  try {
+    const request = await prisma.contactRequest.update({ where: { id: req.params.id }, data: { status, ...(typeof notes === 'string' ? { notes } : {}) } });
+    res.json({ success: true, data: { request } });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to update contact request' });
+  }
 });
 
 export default router;

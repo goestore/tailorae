@@ -46,7 +46,7 @@ const STATUS_TONE: Record<string, string> = {
   DISCONTINUED: 'border border-line-strong text-ink-3',
 };
 
-const TAG = 'inline-flex items-center px-1.5 py-[2px] text-[10px] font-bold uppercase leading-none tracking-[0.08em]';
+const TAG = 'inline-flex items-center px-1.5 py-[2px] text-[10px] uppercase leading-none tracking-[0.08em]';
 
 export const ProductList: React.FC = () => {
   const [products, setProducts] = useState<AdminProduct[]>([]);
@@ -219,7 +219,7 @@ export const ProductList: React.FC = () => {
 
       <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-ink-2">
         <span>
-          <strong className="text-ink">{total}</strong> product{total === 1 ? '' : 's'}
+          <span className="text-ink">{total}</span> product{total === 1 ? '' : 's'}
           {applied !== '' && <> matching “{applied}”</>}
         </span>
         {products.length > 0 && (
@@ -256,7 +256,7 @@ export const ProductList: React.FC = () => {
                   <span className="flex min-w-0 flex-[2_1_16rem] flex-col">
                     <Link
                       href={`/admin/products/${product.id}`}
-                      className="truncate text-sm font-semibold text-ink hover:underline"
+                      className="truncate text-sm text-ink transition-colors hover:text-[var(--brand-700)]"
                     >
                       {product.name}
                     </Link>

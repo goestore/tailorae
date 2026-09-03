@@ -122,26 +122,30 @@ export default function B2BPage() {
   };
 
   return (
-    <main className="py-8 md:py-12 lg:py-16">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <h1 className="text-4xl font-bold mb-8">B2B Bulk Orders</h1>
+    <main className="section-y">
+      <div className="container-max">
+        <header className="page-intro">
+          <p>For teams & businesses</p>
+          <h1>Bulk orders, without the back and forth.</h1>
+          <span>Clear volume pricing, thoughtful support, and dependable delivery for every order.</span>
+        </header>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-12">
-          <Card className="p-4">
-            <h3 className="text-xl font-bold mb-4">💰 Best Pricing</h3>
-            <p className="text-neutral-600">
+        <div className="mb-12 grid grid-cols-1 gap-px bg-line md:grid-cols-3">
+          <Card className="border-0 p-6">
+            <h3 className="mb-3 text-lg">Best pricing</h3>
+            <p className="text-ink-3">
               Get the most competitive rates for bulk orders with volume discounts.
             </p>
           </Card>
-          <Card className="p-4">
-            <h3 className="text-xl font-bold mb-4">🚚 Fast Delivery</h3>
-            <p className="text-neutral-600">
+          <Card className="border-0 p-6">
+            <h3 className="mb-3 text-lg">Fast delivery</h3>
+            <p className="text-ink-3">
               Express delivery options available for urgent bulk orders.
             </p>
           </Card>
-          <Card className="p-4">
-            <h3 className="text-xl font-bold mb-4">👥 Dedicated Support</h3>
-            <p className="text-neutral-600">
+          <Card className="border-0 p-6">
+            <h3 className="mb-3 text-lg">Dedicated support</h3>
+            <p className="text-ink-3">
               Get personalized support from our B2B team for your orders.
             </p>
           </Card>
@@ -151,10 +155,10 @@ export default function B2BPage() {
           <div className="md:col-span-2">
             {submitted ? (
               <Card className="p-10 text-center">
-                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary-100 text-3xl">
+                <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center bg-primary-100 text-3xl">
                   ✓
                 </div>
-                <h2 className="text-2xl font-bold mb-2">Quote Request Received</h2>
+                <h2 className="mb-2 text-2xl">Quote request received</h2>
                 <p className="text-neutral-600 mb-6">
                   Thanks{companyName.trim() ? `, ${companyName.trim()}` : ''}! Our B2B team will get
                   back to you shortly with pricing.
@@ -164,8 +168,8 @@ export default function B2BPage() {
                 </Button>
               </Card>
             ) : (
-              <Card className="p-4">
-                <h2 className="text-2xl font-bold mb-6">Request Bulk Quote</h2>
+              <Card className="p-6 md:p-8">
+                <h2 className="mb-6 text-2xl">Request a bulk quote</h2>
                 {loading ? (
                   <LoadingSpinner className="py-10" />
                 ) : (

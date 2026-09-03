@@ -157,10 +157,10 @@ export default function CustomizationPage() {
 
   if (products.length === 0) {
     return (
-      <main className="py-16">
-        <div className="mx-auto max-w-lg px-4 text-center">
+      <main className="section-y">
+        <div className="container-max max-w-lg text-center">
           <Card className="p-10">
-            <h1 className="text-3xl font-bold mb-3">Custom Printing</h1>
+            <h1 className="mb-3 text-3xl">Custom printing</h1>
             <p className="text-neutral-600">
               No customizable products are available right now. Please check back soon.
             </p>
@@ -171,27 +171,24 @@ export default function CustomizationPage() {
   }
 
   return (
-    <main className="py-8 md:py-12 lg:py-16">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <h1 className="text-4xl font-bold mb-2">Custom Printing</h1>
-        <p className="text-neutral-600 mb-8">
-          Pick a product, choose your options, and add your custom piece to the cart.
-        </p>
+    <main className="section-y">
+      <div className="container-max">
+        <header className="page-intro page-intro--compact"><p>Made for you</p><h1>Custom printing</h1><span>Pick a product, choose your options, and add your custom piece to the cart.</span></header>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {/* Product picker + options */}
           <div className="md:col-span-2 space-y-6">
             <Card className="p-4">
-              <h2 className="text-lg font-bold mb-4">1. Choose a Product</h2>
+              <h2 className="mb-4 text-lg">1. Choose a product</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {products.map((p) => (
                   <button
                     key={p.id}
                     onClick={() => setSelectedId(p.id)}
-                    className={`text-left rounded-lg border-2 p-2 transition-colors ${
+                    className={`text-left border p-2 transition-colors ${
                       selectedId === p.id
-                        ? 'border-primary-500 bg-primary-50'
-                        : 'border-neutral-200 hover:border-neutral-300'
+                        ? 'border-ink bg-surface-2'
+                        : 'border-line hover:border-ink'
                     }`}
                   >
                     <ProductThumb
@@ -207,7 +204,7 @@ export default function CustomizationPage() {
             </Card>
 
             <Card className="p-4">
-              <h2 className="text-lg font-bold mb-4">2. Customize</h2>
+              <h2 className="mb-4 text-lg">2. Customize</h2>
               {detailLoading ? (
                 <LoadingSpinner className="py-10" />
               ) : customizations.length === 0 ? (
@@ -273,17 +270,17 @@ export default function CustomizationPage() {
 
           {/* Summary */}
           <div>
-            <Card className="p-4 sticky top-24">
-              <h2 className="text-lg font-bold mb-4">Summary</h2>
+            <Card className="sticky top-24 p-4">
+              <h2 className="mb-4 text-lg">Summary</h2>
               {detail && (
                 <>
                   <ProductThumb
                     src={detail.thumbnail || detail.images?.[0]}
                     alt={detail.name}
-                    className="h-40 w-full rounded-lg mb-4"
+                    className="mb-4 h-40 w-full"
                     showLabel
                   />
-                  <p className="font-semibold">{detail.name}</p>
+                  <p>{detail.name}</p>
                   <p className="text-sm text-neutral-500 mb-4">Base {formatCurrency(detail.price)}</p>
 
                   <div className="mb-4">
@@ -294,15 +291,15 @@ export default function CustomizationPage() {
                       <button
                         type="button"
                         onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                        className="h-9 w-9 rounded border border-neutral-300 text-lg leading-none hover:bg-neutral-50"
+                        className="h-9 w-9 border border-line text-lg leading-none hover:bg-surface-2"
                       >
                         −
                       </button>
-                      <span className="w-8 text-center font-semibold">{quantity}</span>
+                      <span className="w-8 text-center">{quantity}</span>
                       <button
                         type="button"
                         onClick={() => setQuantity((q) => q + 1)}
-                        className="h-9 w-9 rounded border border-neutral-300 text-lg leading-none hover:bg-neutral-50"
+                        className="h-9 w-9 border border-line text-lg leading-none hover:bg-surface-2"
                       >
                         +
                       </button>
@@ -315,7 +312,7 @@ export default function CustomizationPage() {
                       <span>+{formatCurrency(extraCost)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between font-bold text-lg border-t pt-3 mt-2 mb-4">
+                  <div className="mb-4 mt-2 flex justify-between border-t pt-3 text-lg">
                     <span>Total</span>
                     <span>{formatCurrency(unitPrice * quantity)}</span>
                   </div>

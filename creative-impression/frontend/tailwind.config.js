@@ -4,7 +4,7 @@
  * Global text size multiplier. 1 = the reference scale below; the site currently
  * runs deliberately small. Change this one number to resize all text.
  */
-const TEXT_SCALE = 0.74;
+const TEXT_SCALE = 0.88;
 
 // 10px floor so the smallest steps (badges, captions) stay legible.
 const px = (n) => `${Math.max(10, Math.round(n * TEXT_SCALE))}px`;
@@ -41,10 +41,10 @@ module.exports = {
           300: '#fcdc6d',
           400: '#fcc93a',
           500: '#fbb602',
-          600: '#e5a602',
-          700: '#c48e03',
-          800: '#9c7104',
-          900: '#755505',
+          600: '#956400',
+          700: '#785000',
+          800: '#5d3d00',
+          900: '#3d2800',
         },
         secondary: {
           50: '#fbf8f1',

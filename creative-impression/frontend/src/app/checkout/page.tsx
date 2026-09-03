@@ -187,10 +187,10 @@ export default function CheckoutPage() {
 
   if (hasToken === false) {
     return (
-      <main className="py-16">
-        <div className="mx-auto max-w-lg px-4 text-center">
+      <main className="section-y">
+        <div className="container-max max-w-lg text-center">
           <Card className="p-10">
-            <h1 className="text-3xl font-bold mb-3">Checkout</h1>
+            <h1 className="mb-3 text-3xl">Checkout</h1>
             <p className="text-neutral-600 mb-6">Please sign in to complete your order.</p>
             <Link href="/auth/login?redirect=/checkout">
               <Button variant="primary" size="lg" fullWidth>
@@ -206,17 +206,17 @@ export default function CheckoutPage() {
   // Confirmation view after a successful order
   if (placedOrder) {
     return (
-      <main className="py-16">
-        <div className="mx-auto max-w-lg px-4 text-center">
+      <main className="section-y">
+        <div className="container-max max-w-lg text-center">
           <Card className="p-10">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary-100 text-3xl">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center bg-primary-100 text-3xl">
               ✓
             </div>
-            <h1 className="text-3xl font-bold mb-2">Order Confirmed!</h1>
+            <h1 className="mb-2 text-3xl">Order confirmed</h1>
             <p className="text-neutral-600 mb-1">Thank you for your order.</p>
             <p className="mb-6">
               Order number:{' '}
-              <span className="font-bold text-neutral-900">{placedOrder.orderNumber}</span>
+              <span className="text-neutral-900">{placedOrder.orderNumber}</span>
             </p>
             <p className="mb-6 text-sm text-neutral-600">
               Payment: Cash on Delivery • Total {formatCurrency(placedOrder.total)}
@@ -239,10 +239,10 @@ export default function CheckoutPage() {
 
   if (cartItems.length === 0) {
     return (
-      <main className="py-16">
-        <div className="mx-auto max-w-lg px-4 text-center">
+      <main className="section-y">
+        <div className="container-max max-w-lg text-center">
           <Card className="p-10">
-            <h1 className="text-3xl font-bold mb-3">Checkout</h1>
+            <h1 className="mb-3 text-3xl">Checkout</h1>
             <p className="text-neutral-600 mb-6">Your cart is empty.</p>
             <Link href="/products">
               <Button variant="primary" size="lg" fullWidth>
@@ -258,9 +258,9 @@ export default function CheckoutPage() {
   const stepIndex = CHECKOUT_STEPS.findIndex((s) => s.id === currentStep);
 
   return (
-    <main className="py-8 md:py-12 lg:py-16">
-      <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
-        <h1 className="text-4xl font-bold mb-8">Checkout</h1>
+    <main className="section-y">
+      <div className="container-max max-w-4xl">
+        <header className="page-intro page-intro--compact"><p>Secure order</p><h1>Checkout</h1></header>
 
         <CheckoutSteps
           steps={CHECKOUT_STEPS}
@@ -272,10 +272,10 @@ export default function CheckoutPage() {
           }}
         />
 
-        <Card className="p-5">
+        <Card className="p-5 md:p-8">
           {currentStep === 'shipping' && (
             <div>
-              <h2 className="text-2xl font-bold mb-6">Shipping Address</h2>
+              <h2 className="mb-6 text-2xl">Shipping address</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                 <Input
                   label="Full Name *"
@@ -356,26 +356,26 @@ export default function CheckoutPage() {
 
           {currentStep === 'payment' && (
             <div>
-              <h2 className="text-2xl font-bold mb-6">Payment Method</h2>
+              <h2 className="mb-6 text-2xl">Payment method</h2>
               <div className="space-y-4 mb-6">
-                <label className="flex items-center p-4 border-2 border-primary-500 bg-primary-50 rounded-lg cursor-pointer">
+                <label className="flex cursor-pointer items-center border border-ink bg-surface-2 p-4">
                   <input type="radio" name="payment" checked readOnly className="mr-3" />
                   <div>
-                    <span className="font-semibold">Cash on Delivery (COD)</span>
+                    <span>Cash on Delivery (COD)</span>
                     <p className="text-sm text-neutral-600">Pay in cash when your order arrives.</p>
                   </div>
                 </label>
-                <label className="flex items-center p-4 border border-gray-200 rounded-lg opacity-60 cursor-not-allowed">
+                <label className="flex cursor-not-allowed items-center border border-line p-4 opacity-60">
                   <input type="radio" name="payment" disabled className="mr-3" />
                   <div>
-                    <span className="font-medium">Razorpay (UPI / Cards / Netbanking)</span>
+                    <span>Razorpay (UPI / Cards / Netbanking)</span>
                     <p className="text-sm text-neutral-500">Coming soon</p>
                   </div>
                 </label>
-                <label className="flex items-center p-4 border border-gray-200 rounded-lg opacity-60 cursor-not-allowed">
+                <label className="flex cursor-not-allowed items-center border border-line p-4 opacity-60">
                   <input type="radio" name="payment" disabled className="mr-3" />
                   <div>
-                    <span className="font-medium">Stripe (International Cards)</span>
+                    <span>Stripe (International Cards)</span>
                     <p className="text-sm text-neutral-500">Coming soon</p>
                   </div>
                 </label>
@@ -417,7 +417,7 @@ export default function CheckoutPage() {
 
           {currentStep === 'review' && (
             <div>
-              <h2 className="text-2xl font-bold mb-6">Review Your Order</h2>
+              <h2 className="mb-6 text-2xl">Review your order</h2>
 
               {orderError && <div className="alert alert-error mb-6">{orderError}</div>}
 

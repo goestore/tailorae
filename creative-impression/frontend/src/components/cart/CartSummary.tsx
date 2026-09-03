@@ -32,8 +32,8 @@ export const CartSummary: React.FC<CartSummaryProps> = ({
   const amountToFreeShipping = FREE_SHIPPING_THRESHOLD - (subtotal - discount);
 
   return (
-    <Card className="p-4">
-      <h2 className="text-2xl font-bold mb-4">Order Summary</h2>
+    <Card className="p-5 md:p-6">
+      <h2 className="mb-5 text-2xl">Order summary</h2>
 
       <div className="space-y-3 border-b pb-4 mb-4">
         {items.map((item) => (
@@ -59,7 +59,7 @@ export const CartSummary: React.FC<CartSummaryProps> = ({
         )}
         <div className="flex justify-between">
           <span>Shipping:</span>
-          <span className={shipping === 0 ? 'font-semibold text-green-700' : ''}>
+          <span className={shipping === 0 ? 'text-green-700' : ''}>
             {shipping === 0 ? 'FREE' : formatCurrency(shipping)}
           </span>
         </div>
@@ -70,7 +70,7 @@ export const CartSummary: React.FC<CartSummaryProps> = ({
         )}
       </div>
 
-      <div className="border-t pt-4 mb-6 flex justify-between text-lg font-bold">
+      <div className="mb-6 flex justify-between border-t pt-4 text-lg">
         <span>Total:</span>
         <span className="text-neutral-900">{formatCurrency(total)}</span>
       </div>

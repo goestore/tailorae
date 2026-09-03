@@ -44,23 +44,29 @@ export const FeaturedProducts: React.FC<FeaturedProductsProps> = ({
   ],
 }) => {
   return (
-    <section className="py-8 md:py-10 lg:py-12">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">Featured Products</h2>
+    <section className="section-y border-t border-line bg-surface">
+      <div className="container-max">
+        <div className="mb-8 flex items-end justify-between border-b border-line pb-4 md:mb-10">
+          <div>
+            <p className="mb-2 text-xs uppercase tracking-[0.16em] text-ink-3">Selected work</p>
+            <h2 className="text-2xl md:text-3xl">Featured products</h2>
+          </div>
+          <span className="hidden text-sm text-ink-3 sm:block">Made to be remembered</span>
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {products.map((product) => (
-            <Card key={product.id} className="overflow-hidden hover:border-primary-500 hover:shadow-brand transition-[border-color,box-shadow]">
+            <Card key={product.id} className="overflow-hidden p-0 hover:border-black hover:shadow-2 transition-[border-color,box-shadow]">
               <div
                 className="h-48 bg-cover bg-center"
                 style={{ backgroundImage: `url('${product.image}')` }}
               />
               <div className="p-4">
-                <h3 className="font-semibold text-lg mb-2">{product.name}</h3>
+                <h3 className="mb-3 text-lg">{product.name}</h3>
                 <div className="flex items-center justify-between">
-                  <span className="text-2xl font-bold text-primary-600">₹{product.price}</span>
+                  <span className="text-xl text-ink">₹{product.price}</span>
                   {product.rating && (
-                    <span className="text-yellow-500 font-semibold">★ {product.rating}</span>
+                    <span className="text-sm text-[var(--brand-700)]">★ {product.rating}</span>
                   )}
                 </div>
               </div>

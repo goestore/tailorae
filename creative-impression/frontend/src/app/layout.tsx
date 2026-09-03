@@ -1,17 +1,9 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
 import '../styles/globals.css';
 import { Providers } from '@/components/providers';
-import { Header, Footer } from '@/components/layout';
+import { SiteFrame } from '@/components/layout/SiteFrame';
 import { brandContent } from '@/content/schema/brand';
 import { loadContent } from '@/content/source';
-
-// Single site-wide font: one variable font file instead of three families.
-const inter = Inter({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-inter',
-});
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -86,7 +78,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const brand = await loadContent(brandContent);
 
   return (
-    <html lang="en" suppressHydrationWarning className={inter.variable}>
+    <html lang="en" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <meta httpEquiv="x-ua-compatible" content="ie=edge" />
@@ -97,15 +89,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
             already constrained, so there is no arbitrary text in here. */}
         <style>{`:root:root{${brandTokens(brand)}}`}</style>
       </head>
-      <body className={inter.className}>
+      <body>
         <Providers>
-          <div className="min-h-screen flex flex-col">
-            <Header announcement={brand.announcement} />
-            <main className="flex-1">
-              {children}
-            </main>
-            <Footer />
-          </div>
+          <SiteFrame announcement={brand.announcement}>{children}</SiteFrame>
         </Providers>
       </body>
     </html>

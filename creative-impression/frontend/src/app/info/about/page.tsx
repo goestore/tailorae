@@ -1,37 +1,37 @@
 import React from 'react';
-import { Card, Badge, Button } from '@/components/common';
+import { Card, Button } from '@/components/common';
 import Link from 'next/link';
 
 const services = [
   {
     title: 'Custom Apparel Manufacturing',
     description: 'We manufacture premium-quality apparel according to your exact specifications — design, tech pack, size chart, fabric requirement, brand label, and packaging.',
-    icon: '👕',
+    number: '01',
   },
   {
     title: 'Private Label Manufacturing',
     description: 'Build your own fashion brand with confidence. Custom branding, woven labels, hang tags, and custom packaging under your brand name.',
-    icon: '🏷️',
+    number: '02',
   },
   {
     title: 'Product Design & Development',
     description: 'Our experienced designers help create fashion collections, seasonal designs, tech packs, artwork, and fabric suggestions.',
-    icon: '🎨',
+    number: '03',
   },
   {
     title: 'Export Manufacturing',
     description: 'With years of export manufacturing experience, we understand international quality expectations, compliance, and timely delivery.',
-    icon: '🌍',
+    number: '04',
   },
   {
     title: 'Retail & Wholesale Business Solutions',
     description: 'We help businesses move from offline to online, build digital presence, expand sales channels, and grow internationally.',
-    icon: '📈',
+    number: '05',
   },
   {
     title: 'Marketplace & eCommerce Support',
     description: 'Product listing, catalog creation, image management, marketplace onboarding, inventory, and order management support.',
-    icon: '🛒',
+    number: '06',
   },
 ];
 
@@ -61,19 +61,17 @@ export default function AboutPage() {
   return (
     <main>
       {/* Hero Section */}
-      <section className="relative py-8 md:py-10 bg-white border-b border-line">
-        <div className="relative z-10 container-max max-w-5xl text-center">
-          <Badge variant="secondary" className="mb-6 text-sm font-medium px-4 py-1.5">
-            About Tailorae
-          </Badge>
+      <section className="section-y border-b border-line bg-surface">
+        <div className="page-intro mx-auto max-w-4xl text-center">
+          <p>About Tailorae</p>
           <h1 className="mb-6 text-ink">
             Transforming Apparel Manufacturing with Innovation, Experience & Global Reach
           </h1>
-          <p className="text-lg md:text-xl text-ink-3 max-w-3xl mx-auto mb-6 leading-relaxed">
+          <span className="mx-auto mb-6 text-lg md:text-xl">
             At Tailorae, we believe every brand deserves high-quality, customized apparel backed by reliable manufacturing and modern eCommerce solutions.
-          </p>
+          </span>
           <div className="flex gap-4 justify-center flex-wrap">
-            <Link href="/contact">
+            <Link href="/info/contact">
               <Button size="lg">
                 Get Started
               </Button>
@@ -88,11 +86,11 @@ export default function AboutPage() {
       </section>
 
       {/* About & Mission Section */}
-      <section className="py-10 md:py-14 bg-white">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="section-y bg-white">
+        <div className="container-max max-w-6xl">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-center">
             <div>
-              <h2 className="font-serif text-3xl md:text-4xl font-bold text-neutral-900 dark:text-neutral-50 mb-6">
+              <h2 className="mb-6 text-3xl text-ink md:text-4xl">
                 Your Complete Apparel Business Partner
               </h2>
               <p className="text-neutral-600 dark:text-neutral-300 text-lg leading-relaxed mb-6">
@@ -101,9 +99,9 @@ export default function AboutPage() {
               <p className="text-neutral-600 dark:text-neutral-300 text-lg leading-relaxed mb-8">
                 Our experience has inspired us to build Tailorae as a complete solution for retailers, wholesalers, startups, fashion brands, corporate buyers, and entrepreneurs worldwide.
               </p>
-              <div className="bg-white border-l-4 border-primary-500 p-4 rounded-r-lg">
-                <h3 className="font-serif text-xl font-bold text-neutral-900 dark:text-neutral-50 mb-2">Our Mission</h3>
-                <p className="text-neutral-700 dark:text-neutral-300 italic">
+              <div className="border-l-2 border-[var(--brand)] bg-surface-2 p-5">
+                <h3 className="mb-2 text-xl text-ink">Our mission</h3>
+                <p className="text-ink-2">
                   To become one of the world&apos;s leading custom apparel manufacturing partners while helping businesses grow from offline to online with complete end-to-end support.
                 </p>
               </div>
@@ -122,11 +120,11 @@ export default function AboutPage() {
       </section>
 
       {/* Services Section */}
-      <section id="services" className="py-10 md:py-14 bg-white border-t border-line">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-8">
-            <Badge variant="primary" className="mb-4 text-sm font-medium px-4 py-1.5">What We Do</Badge>
-            <h2 className="font-serif text-3xl md:text-4xl font-bold text-neutral-900 dark:text-neutral-50 mb-4">
+      <section id="services" className="section-y border-t border-line bg-white">
+        <div className="container-max">
+          <div className="mb-8 text-center">
+            <p className="mb-3 text-xs uppercase tracking-[0.14em] text-[var(--brand-700)]">What we do</p>
+            <h2 className="mb-4 text-3xl text-ink md:text-4xl">
               More Than Just a Manufacturer
             </h2>
             <p className="text-neutral-600 dark:text-neutral-300 text-lg max-w-2xl mx-auto">
@@ -134,11 +132,11 @@ export default function AboutPage() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 gap-px bg-line md:grid-cols-2 lg:grid-cols-3">
             {services.map((service, index) => (
-              <Card key={index} hover className="p-5 h-full">
-                <div className="text-4xl mb-4">{service.icon}</div>
-                <h3 className="font-serif text-xl font-bold text-neutral-900 dark:text-neutral-50 mb-3">
+              <Card key={index} hover className="h-full border-0 p-6">
+                <div className="mb-8 text-xs tracking-[0.14em] text-[var(--brand-700)]">{service.number}</div>
+                <h3 className="mb-3 text-xl text-ink">
                   {service.title}
                 </h3>
                 <p className="text-neutral-600 dark:text-neutral-400 leading-relaxed">
@@ -151,24 +149,20 @@ export default function AboutPage() {
       </section>
 
       {/* Why Choose Us Section */}
-      <section className="py-10 md:py-14 bg-white border-t border-line">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-8">
-            <Badge variant="secondary" className="mb-4 text-sm font-medium px-4 py-1.5">Why Choose Tailorae</Badge>
-            <h2 className="font-serif text-3xl md:text-4xl font-bold text-neutral-900 dark:text-neutral-50 mb-4">
+      <section className="section-y border-t border-line bg-white">
+        <div className="container-max max-w-6xl">
+          <div className="mb-8 text-center">
+            <p className="mb-3 text-xs uppercase tracking-[0.14em] text-[var(--brand-700)]">Why Tailorae</p>
+            <h2 className="mb-4 text-3xl text-ink md:text-4xl">
               Built on Trust, Driven by Excellence
             </h2>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {whyChooseUs.map((item, index) => (
-              <Card key={index} className="p-4 flex items-center gap-4">
-                <div className="flex-shrink-0 w-12 h-12 bg-primary-100 dark:bg-primary-900/30 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6 text-primary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                <span className="font-medium text-neutral-900 dark:text-neutral-50">{item}</span>
+              <Card key={index} className="flex items-center gap-4 p-4">
+                <div className="h-2 w-2 flex-shrink-0 bg-[var(--brand)]" />
+                <span className="text-ink">{item}</span>
               </Card>
             ))}
           </div>
@@ -176,20 +170,20 @@ export default function AboutPage() {
       </section>
 
       {/* Industries Section */}
-      <section className="py-10 md:py-14 bg-white border-t border-line">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-8">
-            <Badge variant="primary" className="mb-4 text-sm font-medium px-4 py-1.5">Industries We Serve</Badge>
-            <h2 className="font-serif text-3xl md:text-4xl font-bold text-neutral-900 dark:text-neutral-50 mb-4">
+      <section className="section-y border-t border-line bg-white">
+        <div className="container-max max-w-6xl">
+          <div className="mb-8 text-center">
+            <p className="mb-3 text-xs uppercase tracking-[0.14em] text-[var(--brand-700)]">Industries</p>
+            <h2 className="mb-4 text-3xl text-ink md:text-4xl">
               Supporting Businesses Across Industries
             </h2>
           </div>
 
-          <div className="flex flex-wrap justify-center gap-3">
+          <div className="flex flex-wrap justify-center gap-2">
             {industries.map((industry, index) => (
-              <Badge key={index} variant="secondary" className="text-sm px-4 py-2">
+              <span key={index} className="border border-line px-3 py-2 text-sm text-ink-2">
                 {industry}
-              </Badge>
+              </span>
             ))}
           </div>
         </div>
@@ -209,7 +203,7 @@ export default function AboutPage() {
             </p>
           </div>
           <div className="mt-6">
-            <Link href="/contact">
+            <Link href="/info/contact">
               <Button size="lg">
                 Contact Us Today
               </Button>

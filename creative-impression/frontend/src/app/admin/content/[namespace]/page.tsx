@@ -27,9 +27,9 @@ export default async function ContentNamespacePage({ params }: PageProps) {
   const { namespace } = await params;
 
   return (
-    <div className="container-max section-y flex flex-col gap-5">
-      <header className="flex flex-col gap-3">
-        <h1 className="heading-rule">Site content</h1>
+    <div className="admin-content flex flex-col gap-6">
+      <header className="admin-page-header flex flex-col gap-3">
+        <h1 className="text-2xl text-ink">Site content</h1>
         <p className="form-help max-w-prose">
           Every value below is declared in a content schema. Editing one here changes only what is
           stored; the storefront falls back to the value it ships with until you publish.

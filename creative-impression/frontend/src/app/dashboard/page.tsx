@@ -109,9 +109,9 @@ function DashboardContent() {
   }
 
   return (
-    <main className="py-8 md:py-12 lg:py-16">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <h1 className="text-4xl font-bold mb-8">My Account</h1>
+    <main className="section-y">
+      <div className="container-max">
+        <header className="page-intro page-intro--compact"><p>Account</p><h1>My account</h1></header>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
           <div className="md:col-span-1">

@@ -600,6 +600,7 @@ model ReturnRequest {
   orderId      String    @unique
   order        Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   reason       String
+  requestType  String    @default("RETURN") // RETURN, EXCHANGE
   description  String?
   images       String[]
   quantity     Int?
@@ -612,6 +613,23 @@ model ReturnRequest {
   updatedAt DateTime @updatedAt
 
   @@index([orderId])
+}
+
+/// Messages submitted through the storefront contact form. They are kept as
+/// operational records so the admin team can assign, resolve and retain them.
+model ContactRequest {
+  id        String   @id @default(cuid())
+  name      String
+  email     String
+  subject   String
+  message   String
+  status    String   @default("OPEN") // OPEN, IN_PROGRESS, RESOLVED, CLOSED
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
 }
 
 // ============================================

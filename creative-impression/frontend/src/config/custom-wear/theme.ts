@@ -84,7 +84,7 @@ const BODY_FONT = 'var(--font-inter), system-ui, sans-serif';
 
 export const customWearTheme: CustomWearTheme = {
   primaryColor: '#FBB602',
-  primaryColorHover: '#E5A502',
+  primaryColorHover: '#956400',
   primaryColorSoft: 'rgba(251, 182, 2, 0.12)',
   onPrimaryColor: '#000000',
 
@@ -126,7 +126,7 @@ export const customWearTheme: CustomWearTheme = {
     fontSizeDesktop: '18px',
     fontSizeTablet: '16px',
     fontSizeMobile: '15px',
-    fontWeight: 600,
+    fontWeight: 400,
     letterSpacing: '0.01em',
     borderRadius: '0px',
     borderWidth: '1px',
@@ -151,7 +151,7 @@ export const customWearTheme: CustomWearTheme = {
     fontSizeDesktop: '15px',
     fontSizeTablet: '14px',
     fontSizeMobile: '14px',
-    fontWeight: 600,
+    fontWeight: 400,
     letterSpacing: '0.01em',
     borderRadius: '0px',
     borderWidth: '1px',

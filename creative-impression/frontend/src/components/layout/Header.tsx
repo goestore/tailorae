@@ -201,6 +201,20 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
     return () => document.removeEventListener('mousedown', handleAccountClickOutside);
   }, [isAccountMenuOpen]);
 
+  useEffect(() => {
+    if (!isMobileMenuOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setIsMobileMenuOpen(false);
+    };
+    document.body.style.overflow = 'hidden';
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [isMobileMenuOpen]);
+
   const handleLogout = () => {
     setIsAccountMenuOpen(false);
     // Best-effort server-side logout; local state is cleared regardless.
@@ -212,7 +226,7 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80">
+    <header className="sticky top-0 z-40 w-full bg-white/98 backdrop-blur-md border-b border-line/60 shadow-[0_1px_0_rgba(17,17,17,0.06)]">
       {announcement?.enabled !== false && (
         <AnnouncementBar
           message={announcement?.message}
@@ -222,15 +236,14 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
       )}
 
       {/* Main header */}
-      <div className="w-full border-b border-line">
+      <div className="w-full">
         <div className="container-fluid">
           <div className="flex h-12 items-center gap-3 md:h-[56px] md:gap-6">
-            {/* Left: mobile menu trigger. flex-1 on mobile so the logo centres
-                between it and the action cluster. */}
+            {/* Left: mobile menu trigger */}
             <div className="flex flex-1 items-center xl:hidden">
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-control text-ink-2 hover:bg-surface-2 xl:hidden"
+                className="flex h-9 w-9 flex-shrink-0 items-center justify-center text-ink-2 hover:bg-surface-2 rounded-lg transition-colors xl:hidden"
                 aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
                 suppressHydrationWarning={true}
               >
@@ -257,13 +270,9 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
                   )}
                 </svg>
               </button>
-
             </div>
 
-            {/* Center: logo. A normal flex item, not absolutely positioned — the
-                old `absolute left-1/2` centred it on the viewport regardless of
-                the nav clusters, so on a narrow phone it overlapped the search
-                button and swallowed its taps. */}
+            {/* Center: logo */}
             <div className="flex min-w-0 flex-shrink-0 justify-center xl:flex-1 xl:justify-start">
               <Link href="/" className="group/logo flex min-w-0 items-center gap-2 md:gap-2.5">
                 <Image
@@ -280,100 +289,101 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
               </Link>
             </div>
 
-              <nav className="hidden flex-shrink-0 items-center justify-center gap-x-6 xl:flex 2xl:gap-x-8">
-                {HEADER_NAVIGATION.map((item) => {
-                  const hasDropdown = item.subcategories && item.subcategories.length > 0;
-                  const isDropdownOpen = activeDropdown === item.name;
-                  const navItemStyle: React.CSSProperties = {
-                    color: NAV_MENU_STYLES.color,
-                    fontSize: NAV_MENU_STYLES.fontSize,
-                    fontFamily: NAV_MENU_STYLES.fontFamily,
-                    fontWeight: NAV_MENU_STYLES.fontWeight,
-                    cursor: hasDropdown ? 'pointer' : 'pointer',
-                    position: 'relative',
-                  };
+            {/* Desktop nav */}
+            <nav className="hidden flex-shrink-0 items-center justify-center gap-x-6 xl:flex 2xl:gap-x-8">
+              {HEADER_NAVIGATION.map((item) => {
+                const hasDropdown = item.subcategories && item.subcategories.length > 0;
+                const isDropdownOpen = activeDropdown === item.name;
+                const navItemStyle: React.CSSProperties = {
+                  color: NAV_MENU_STYLES.color,
+                  fontSize: NAV_MENU_STYLES.fontSize,
+                  fontFamily: NAV_MENU_STYLES.fontFamily,
+                  fontWeight: NAV_MENU_STYLES.fontWeight,
+                  cursor: 'pointer',
+                  position: 'relative',
+                };
 
-                  if (!hasDropdown) {
-                    return (
-                      <Link
-                        key={item.name}
-                        href={item.href}
-                        className="relative inline-flex items-center whitespace-nowrap uppercase tracking-[0.08em] py-3 transition-colors hover:text-ink after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:origin-left after:scale-x-0 after:bg-[var(--brand)] after:transition-transform after:duration-200 hover:after:scale-x-100"
-                        style={navItemStyle}
-                      >
-                        {item.name}
-                      </Link>
-                    );
-                  }
-
+                if (!hasDropdown) {
                   return (
-                    <div
+                    <Link
                       key={item.name}
-                      className="relative"
-                      ref={(el) => {
-                        dropdownRefs.current[item.name] = el;
-                      }}
-                      onMouseEnter={() => handleMouseEnter(item.name)}
-                      onMouseLeave={() => handleMouseLeave(item.name)}
+                      href={item.href}
+                      className="relative inline-flex items-center whitespace-nowrap uppercase tracking-[0.08em] py-3 transition-colors hover:text-ink after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:origin-left after:scale-x-0 after:bg-[var(--brand)] after:transition-transform after:duration-200 hover:after:scale-x-100"
+                      style={navItemStyle}
                     >
-                      <button
-                        suppressHydrationWarning
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          e.preventDefault();
-                          handleDropdownClick(item.name);
-                        }}
-                        className="relative inline-flex items-center whitespace-nowrap uppercase tracking-[0.08em] py-3 transition-colors hover:text-ink after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:origin-left after:scale-x-0 after:bg-[var(--brand)] after:transition-transform after:duration-200 hover:after:scale-x-100"
-                        style={navItemStyle}
-                        aria-expanded={isDropdownOpen}
-                        aria-haspopup="true"
-                      >
-                        {item.name}
-                      </button>
-
-                      {isDropdownOpen && (
-                        <div
-                          className={`absolute top-full left-1/2 -translate-x-1/2 pt-2 transition-all duration-200 ease-out ${
-                            isAnimating ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'
-                          }`}
-                          onMouseEnter={() => openDropdown(item.name)}
-                          onMouseLeave={() => closeDropdown(item.name)}
-                          style={{ zIndex: 50 }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className="min-w-[220px] overflow-hidden rounded-card border border-line bg-white py-2 shadow-3">
-                            {item.subcategories?.map((sub) => (
-                              <Link
-                                key={sub.name}
-                                href={sub.href}
-                                className="block px-4 py-2 text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
-                                style={{
-                                  fontFamily: NAV_MENU_STYLES.fontFamily,
-                                  fontWeight: NAV_MENU_STYLES.fontWeight,
-                                  fontSize: '12px',
-                                }}
-                                onClick={() => {
-                                  closeDropdown(item.name, 0);
-                                }}
-                              >
-                                {sub.name}
-                              </Link>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                      {item.name}
+                    </Link>
                   );
-                })}
-              </nav>
+                }
 
+                return (
+                  <div
+                    key={item.name}
+                    className="relative"
+                    ref={(el) => {
+                      dropdownRefs.current[item.name] = el;
+                    }}
+                    onMouseEnter={() => handleMouseEnter(item.name)}
+                    onMouseLeave={() => handleMouseLeave(item.name)}
+                  >
+                    <button
+                      suppressHydrationWarning
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        handleDropdownClick(item.name);
+                      }}
+                      className="relative inline-flex items-center whitespace-nowrap uppercase tracking-[0.08em] py-3 transition-colors hover:text-ink after:absolute after:inset-x-0 after:bottom-0 after:h-[2px] after:origin-left after:scale-x-0 after:bg-[var(--brand)] after:transition-transform after:duration-200 hover:after:scale-x-100"
+                      style={navItemStyle}
+                      aria-expanded={isDropdownOpen}
+                      aria-haspopup="true"
+                    >
+                      {item.name}
+                    </button>
+
+                    {isDropdownOpen && (
+                      <div
+                        className={`absolute left-0 top-full pt-3 transition-all duration-200 ease-out ${
+                          isAnimating
+                            ? 'opacity-100 translate-y-0 pointer-events-auto'
+                            : 'opacity-0 -translate-y-2 pointer-events-none'
+                        }`}
+                        onMouseEnter={() => openDropdown(item.name)}
+                        onMouseLeave={() => closeDropdown(item.name)}
+                        style={{ zIndex: 50 }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="nav-dropdown-panel">
+                          {item.subcategories?.map((sub) => (
+                            <Link
+                              key={sub.name}
+                              href={sub.href}
+                              className="nav-dropdown-item"
+                              style={{
+                                fontFamily: NAV_MENU_STYLES.fontFamily,
+                                fontWeight: NAV_MENU_STYLES.fontWeight,
+                              }}
+                              onClick={() => {
+                                closeDropdown(item.name, 0);
+                              }}
+                            >
+                              {sub.name}
+                            </Link>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </nav>
 
             {/* Right: actions */}
             <div className="flex flex-1 items-center justify-end gap-1 md:gap-1.5">
               <button
                 onClick={() => setIsSearchOpen(!isSearchOpen)}
-                className="flex h-9 w-9 items-center justify-center rounded-control text-ink-2 transition-colors hover:bg-surface-2"
+                className="flex h-9 w-9 items-center justify-center text-ink-2 transition-colors hover:bg-surface-2 rounded-lg"
                 aria-label="Toggle search"
                 suppressHydrationWarning={true}
               >
@@ -394,11 +404,9 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
 
               <Link
                 href="/cart"
-                className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-control text-ink-2 hover:bg-surface-2"
+                className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center text-ink-2 hover:bg-surface-2 transition-colors rounded-lg"
                 aria-label="Cart"
               >
-                {/* Plain line-art cart, matching the menu/search/account icons.
-                    Replaces a cartoon PNG that was stylistically out of place. */}
                 <svg
                   className="h-5 w-5 md:h-6 md:w-6"
                   fill="none"
@@ -415,8 +423,8 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
                 </svg>
                 {cartItemCount > 0 && (
                   <span
-                    className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full text-[13px] font-bold text-ink md:h-5 md:w-5 md:text-xs"
-                    style={{ background: 'var(--brand)' }}
+                    className="absolute -right-0.5 -top-0.5 flex h-[17px] min-w-[17px] items-center justify-center rounded-full px-0.5 text-[10px] text-ink"
+                    style={{ background: 'var(--brand)', lineHeight: 1 }}
                   >
                     {cartItemCount > 9 ? '9+' : cartItemCount}
                   </span>
@@ -427,7 +435,7 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
                 <div className="relative flex-shrink-0" ref={accountMenuRef}>
                   <button
                     onClick={() => setIsAccountMenuOpen((open) => !open)}
-                    className="flex items-center gap-1 p-1 md:p-2 text-neutral-700 hover:text-primary-700"
+                    className="flex items-center gap-1 p-1 md:p-2 text-neutral-700 hover:text-primary-700 transition-colors"
                     aria-haspopup="menu"
                     aria-expanded={isAccountMenuOpen}
                     suppressHydrationWarning={true}
@@ -438,7 +446,12 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
                     <span className="hidden md:inline max-w-[8rem] truncate text-sm font-medium">
                       {user.firstName || user.email}
                     </span>
-                    <svg className="hidden md:block h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <svg
+                      className={`hidden md:block h-4 w-4 transition-transform duration-200 ${isAccountMenuOpen ? 'rotate-180' : ''}`}
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
                   </button>
@@ -446,36 +459,47 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
                   {isAccountMenuOpen && (
                     <div
                       role="menu"
-                      className="absolute right-0 top-full z-50 mt-2 w-48 rounded-lg border border-neutral-200 bg-white py-2 shadow-lg"
+                      className="absolute right-0 top-full z-50 mt-2 overflow-hidden"
+                      style={{
+                        background: '#ffffff',
+                        border: '1px solid rgba(17,17,17,0.08)',
+                        borderRadius: '12px',
+                        boxShadow: '0 8px 32px rgba(17,17,17,0.12), 0 2px 8px rgba(17,17,17,0.06)',
+                        minWidth: '200px',
+                        animation: 'submenu-open 0.15s ease-out both',
+                      }}
                     >
-                      <div className="border-b border-neutral-100 px-4 pb-2 mb-1">
-                        <p className="truncate text-sm font-semibold text-neutral-900">
+                      <div className="border-b border-neutral-100 px-4 py-3">
+                        <p className="truncate text-sm text-neutral-900" style={{ fontWeight: 600 }}>
                           {[user.firstName, user.lastName].filter(Boolean).join(' ') || user.email}
                         </p>
-                        <p className="truncate text-xs text-neutral-500">{user.email}</p>
+                        <p className="truncate text-xs text-neutral-500 mt-0.5">{user.email}</p>
                       </div>
-                      <Link
-                        href="/dashboard"
-                        className="block px-4 py-2 text-sm text-neutral-700 hover:bg-primary-50 hover:text-neutral-900"
-                        onClick={() => setIsAccountMenuOpen(false)}
-                      >
-                        My Account
-                      </Link>
-                      {user.role === 'ADMIN' && (
+                      <div className="py-1.5">
                         <Link
-                          href="/admin"
-                          className="block px-4 py-2 text-sm text-neutral-700 hover:bg-primary-50 hover:text-neutral-900"
+                          href="/dashboard"
+                          className="nav-dropdown-item"
                           onClick={() => setIsAccountMenuOpen(false)}
                         >
-                          Admin
+                          My Account
                         </Link>
-                      )}
-                      <button
-                        onClick={handleLogout}
-                        className="block w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50"
-                      >
-                        Logout
-                      </button>
+                        {user.role === 'ADMIN' && (
+                          <Link
+                            href="/admin"
+                            className="nav-dropdown-item"
+                            onClick={() => setIsAccountMenuOpen(false)}
+                          >
+                            Admin
+                          </Link>
+                        )}
+                        <button
+                          onClick={handleLogout}
+                          className="nav-dropdown-item w-full text-left"
+                          style={{ color: 'var(--sale)' }}
+                        >
+                          Logout
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -489,51 +513,81 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
           </div>
         </div>
 
-
         {/* Expanding search bar */}
         {isSearchOpen && (
-          <div className="w-full border-t border-line py-2 sm:py-3"><div className="container-fluid">
-            <form onSubmit={handleSearch}>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="Search products..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-full border-line bg-surface-2 py-2 pl-4 pr-10 text-sm focus:bg-white"
-                  suppressHydrationWarning={true}
-                />
-                <button
-                  type="submit"
-                  className="absolute inset-y-0 right-0 flex items-center pr-3"
-                  aria-label="Search"
-                  suppressHydrationWarning={true}
-                >
-                  <svg
-                    className="h-5 w-5 text-ink-3"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
+          <div
+            className="w-full border-t border-line/50 py-2.5 sm:py-3"
+            style={{ animation: 'submenu-open 0.15s ease-out both' }}
+          >
+            <div className="container-fluid">
+              <form onSubmit={handleSearch}>
+                <div className="relative">
+                  <input
+                    type="text"
+                    placeholder="Search products..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full border border-line/70 bg-surface-2 py-2.5 pl-4 pr-10 text-sm focus:bg-white focus:border-[var(--brand)] focus:outline-none transition-colors rounded-lg"
+                    autoFocus
+                    suppressHydrationWarning={true}
+                  />
+                  <button
+                    type="submit"
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-ink-3 hover:text-ink transition-colors"
+                    aria-label="Search"
+                    suppressHydrationWarning={true}
                   >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </form>
+                    <svg
+                      className="h-5 w-5"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}
 
         {/* Mobile menu */}
         {isMobileMenuOpen && (
-          <div className="w-full border-t border-line xl:hidden">
-            <nav className="container-fluid py-2 sm:py-3">
-              <div className="space-y-1">
+          <div
+            className="mobile-drawer-overlay fixed inset-0 z-[60] bg-black/30 backdrop-blur-[2px] xl:hidden"
+            role="presentation"
+            onClick={() => setIsMobileMenuOpen(false)}
+          >
+            <nav
+              className="mobile-drawer"
+              aria-label="Mobile navigation"
+              aria-modal="true"
+              role="dialog"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="mobile-drawer-header">
+                <button
+                  type="button"
+                  className="mobile-drawer-close"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  aria-label="Close menu"
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden="true">
+                    <path d="m6 6 12 12M18 6 6 18" />
+                  </svg>
+                </button>
+                <Link href="/" className="mobile-drawer-brand" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Image src="/images/IX%20Logo.JPG" alt="Creative Impression" width={28} height={28} />
+                  <span>Creative Impression</span>
+                </Link>
+              </div>
+              <div className="mobile-drawer-links">
                 {HEADER_NAVIGATION.map((item) => {
                   const hasSubcategories = item.subcategories && item.subcategories.length > 0;
                   const isExpanded = expandedMobileSubmenu === item.name;
@@ -549,7 +603,7 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
                       <Link
                         key={item.name}
                         href={item.href}
-                        className="block px-3 py-2 hover:bg-neutral-50 hover:text-primary-600 rounded transition-colors duration-150"
+                        className="mobile-drawer-link"
                         style={mobileItemStyle}
                         onClick={() => setIsMobileMenuOpen(false)}
                       >
@@ -559,18 +613,18 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
                   }
 
                   return (
-                    <div key={item.name} className="space-y-1">
+                    <div key={item.name} className="mobile-drawer-group">
                       <button
                         suppressHydrationWarning
                         type="button"
                         onClick={() => handleMobileSubmenuClick(item.name)}
-                        className="w-full flex items-center justify-between px-3 py-2 hover:bg-neutral-50 hover:text-primary-600 rounded transition-colors duration-150"
+                        className="mobile-drawer-link flex w-full items-center justify-between"
                         style={mobileItemStyle}
                         aria-expanded={isExpanded}
                       >
                         <span>{item.name}</span>
                         <svg
-                          className={`h-4 w-4 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                          className={`h-4 w-4 flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
                           fill="none"
                           viewBox="0 0 24 24"
                           stroke="currentColor"
@@ -586,7 +640,7 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
 
                       {isExpanded && (
                         <div
-                          className="pl-4 space-y-1"
+                          className="mobile-drawer-submenu"
                           ref={(el) => {
                             mobileSubmenuRefs.current[item.name] = el;
                           }}
@@ -596,7 +650,7 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
                             <Link
                               key={sub.name}
                               href={sub.href}
-                              className="block px-3 py-2 text-sm text-neutral-600 hover:bg-neutral-50 hover:text-primary-600 rounded transition-colors duration-150"
+                              className="mobile-drawer-sublink"
                               style={{
                                 fontFamily: NAV_MENU_STYLES.fontFamily,
                                 fontWeight: NAV_MENU_STYLES.fontWeight,
@@ -619,16 +673,16 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
 
               {/* Mobile Auth Buttons */}
               {!user ? (
-                <div className="mt-3 pt-3 border-t border-neutral-200">
-                  <div className="px-3">
+                <div className="mobile-drawer-account">
+                  <div>
                     <AuthToggleButtons />
                   </div>
                 </div>
               ) : (
-                <div className="mt-3 pt-3 border-t border-neutral-200 space-y-1">
+                <div className="mobile-drawer-account space-y-1">
                   <Link
                     href="/dashboard"
-                    className="block px-3 py-2 rounded text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+                    className="mobile-drawer-link"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     My Account
@@ -636,7 +690,7 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
                   {user.role === 'ADMIN' && (
                     <Link
                       href="/admin"
-                      className="block px-3 py-2 rounded text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+                      className="mobile-drawer-link"
                       onClick={() => setIsMobileMenuOpen(false)}
                     >
                       Admin
@@ -647,7 +701,7 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
                       setIsMobileMenuOpen(false);
                       handleLogout();
                     }}
-                    className="block w-full px-3 py-2 rounded text-left text-sm font-medium text-red-600 hover:bg-red-50"
+                    className="mobile-drawer-link w-full text-left text-[var(--sale)]"
                   >
                     Logout
                   </button>

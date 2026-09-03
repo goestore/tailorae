@@ -34,7 +34,7 @@ export const customWearThemeContent = defineContent('custom-wear-theme', {
     label: 'Accent colour',
     help: 'Selected states, CTAs and active chips.',
   }),
-  primaryColorHover: field.color('#E5A502', { label: 'Accent colour (hover)' }),
+  primaryColorHover: field.color('#956400', { label: 'Accent colour (hover)' }),
   onPrimaryColor: field.color('#000000', {
     label: 'Text on accent',
     help: 'Must stay readable on the accent above — set it to #FFFFFF if you pick a dark accent.',
@@ -90,7 +90,7 @@ export const customWearThemeContent = defineContent('custom-wear-theme', {
     fontSizeDesktop: field.length('18px', { label: 'Font size (desktop)' }),
     fontSizeTablet: field.length('16px', { label: 'Font size (tablet)' }),
     fontSizeMobile: field.length('15px', { label: 'Font size (mobile)' }),
-    fontWeight: field.number(600, { label: 'Font weight', min: 100, max: 900 }),
+    fontWeight: field.number(400, { label: 'Font weight', min: 100, max: 900 }),
     letterSpacing: field.length('0.01em', { label: 'Letter spacing' }),
 
     borderWidth: field.length('1px', { label: 'Border width' }),
@@ -122,7 +122,7 @@ export const customWearThemeContent = defineContent('custom-wear-theme', {
     fontSizeDesktop: field.length('15px', { label: 'Font size (desktop)' }),
     fontSizeTablet: field.length('14px', { label: 'Font size (tablet)' }),
     fontSizeMobile: field.length('14px', { label: 'Font size (mobile)' }),
-    fontWeight: field.number(600, { label: 'Font weight', min: 100, max: 900 }),
+    fontWeight: field.number(400, { label: 'Font weight', min: 100, max: 900 }),
     letterSpacing: field.length('0.01em', { label: 'Letter spacing' }),
 
     borderWidth: field.length('1px', { label: 'Border width' }),

@@ -79,8 +79,9 @@ export function Providers({ children }: { children: ReactNode }) {
         <Toaster
           position="top-center"
           toastOptions={{
-            style: { background: '#212121', color: '#ffffff' },
-            success: { iconTheme: { primary: '#FBB602', secondary: '#212121' } },
+            style: { background: '#171717', color: '#ffffff', borderRadius: '0px' },
+            success: { iconTheme: { primary: '#FBB602', secondary: '#171717' } },
+            error: { iconTheme: { primary: '#B42318', secondary: '#171717' } },
           }}
         />
       </QueryClientProvider>

@@ -49,7 +49,8 @@ const HomeHero: React.FC<HomeSectionProps> = ({ content }) => (
       href: content.hero.rightHref || undefined,
     }}
     divider={1}
-    aspectRatio="aspect-[3/2]"
+    className="home-hero"
+    aspectRatio="aspect-[4/5] md:aspect-[3/2]"
   />
 );
 
@@ -102,7 +103,10 @@ const Featured = async ({ content }: HomeSectionProps) => {
     <div className={BAND}>
       <section className="bg-white">
         <div className="container-max">
-          <h2 className="heading-rule mb-4 md:mb-5">{content.featured.heading}</h2>
+          <div className="mb-4 flex items-end justify-between border-b border-line pb-3 md:mb-5">
+            <h2 className="heading-rule">{content.featured.heading}</h2>
+            <span className="hidden text-xs uppercase tracking-[0.12em] text-ink-3 sm:block">Selected for you</span>
+          </div>
 
           <ScrollRail label="featured products">
             {products.map((product) => (

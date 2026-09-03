@@ -89,27 +89,27 @@ export const AuthToggle: React.FC<AuthToggleProps> = ({
   };
 
   return (
-    <main className="min-h-screen flex items-center justify-center py-8 md:py-12">
+    <main className="auth-shell flex min-h-[calc(100vh-120px)] items-center justify-center px-4 py-10 md:py-16">
       <div className="w-full max-w-md">
-        <Card className="p-5">
-          {/* Toggle Buttons */}
-          <div className="flex gap-4 mb-8">
+        <Card className="auth-card p-6 md:p-9">
+          <p className="mb-7 text-center text-[11px] uppercase tracking-[0.16em] text-[var(--brand-700)]">Creative Impression</p>
+          <div className="mb-8 grid grid-cols-2 gap-px bg-line">
             <button
               onClick={() => switchMode('signin')}
-              className={`flex-1 py-2 px-4 font-semibold rounded-lg transition-all ${
+              className={`px-4 py-3 text-sm transition-colors ${
                 mode === 'signin'
-                  ? 'bg-primary-500 text-black font-bold'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  ? 'bg-ink text-white'
+                  : 'bg-white text-ink-2 hover:bg-surface-2'
               }`}
             >
               Sign In
             </button>
             <button
               onClick={() => switchMode('signup')}
-              className={`flex-1 py-2 px-4 font-semibold rounded-lg transition-all ${
+              className={`px-4 py-3 text-sm transition-colors ${
                 mode === 'signup'
-                  ? 'bg-primary-500 text-black font-bold'
-                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  ? 'bg-ink text-white'
+                  : 'bg-white text-ink-2 hover:bg-surface-2'
               }`}
             >
               Sign Up
@@ -119,8 +119,8 @@ export const AuthToggle: React.FC<AuthToggleProps> = ({
           {/* Form Content */}
           {mode === 'signin' && (
             <div>
-              <h1 className="text-3xl font-bold text-center mb-2">Welcome Back</h1>
-              <p className="text-center text-gray-600 mb-8">Sign in to your account</p>
+              <h1 className="mb-2 text-center text-3xl">Welcome back</h1>
+              <p className="mb-8 text-center text-ink-3">Sign in to manage your orders and saved details.</p>
 
               <AuthForm
                 onSubmit={handleFormSubmit}
@@ -134,8 +134,8 @@ export const AuthToggle: React.FC<AuthToggleProps> = ({
 
           {mode === 'signup' && (
             <div>
-              <h1 className="text-3xl font-bold text-center mb-2">Create Account</h1>
-              <p className="text-center text-gray-600 mb-8">Join us and start shopping</p>
+              <h1 className="mb-2 text-center text-3xl">Create an account</h1>
+              <p className="mb-8 text-center text-ink-3">A faster way to manage orders and custom work.</p>
 
               <AuthForm
                 onSubmit={handleFormSubmit}

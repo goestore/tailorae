@@ -26,12 +26,12 @@ export default function NewProductPage() {
   }, []);
 
   return (
-    <div className="container-max section-y flex flex-col gap-5">
-      <header className="flex flex-col gap-1">
-        <Link href="/admin/products" className="text-sm text-ink-3 underline hover:text-ink">
-          ← Products
+    <div className="admin-content flex flex-col gap-6">
+      <header className="admin-page-header">
+        <Link href="/admin/products" className="text-sm text-ink-3 hover:text-ink">
+          Products
         </Link>
-        <h1 className="text-2xl font-semibold text-ink">Add a product</h1>
+        <h1 className="text-2xl text-ink">Add a product</h1>
       </header>
 
       {error && <p className="alert alert-error text-sm">{error}</p>}

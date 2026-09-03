@@ -74,7 +74,7 @@ export const CATEGORY_TILES: CategoryTile[] = [
     id: 'custom-wear',
     name: 'Custom Wear',
     image: '/images/WINTER.webp',
-    link: '/custom-printing',
+    link: '/customization',
   },
   {
     id: 'womens/plus-size',

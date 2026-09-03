@@ -13,11 +13,11 @@ import { cn } from '@/utils/helpers';
  * globals.css. Exported so the editor's section headings and these field
  * labels stay one decision rather than two that drift.
  */
-export const LABEL_VOICE = 'text-[10px] font-bold uppercase tracking-[0.1em] text-ink-3';
+export const LABEL_VOICE = 'text-[11px] font-semibold uppercase tracking-[0.04em] text-[#86868b]';
 
-/** Square, like every other surface in this form. `.badge` is a pill. */
+/** Rounded pill badge, matching Apple design. */
 const TAG =
-  'inline-flex items-center px-1.5 py-[2px] text-[10px] font-bold uppercase leading-none tracking-[0.08em]';
+  'inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full tracking-wide leading-none';
 
 /** One-line rendering of a stored value, for the "this is what is live" notes. */
 export function formatContentValue(value: unknown): string {
@@ -444,8 +444,8 @@ export const ContentField: React.FC<ContentFieldProps> = ({
   return (
     <div
       className={cn(
-        'grid gap-2 border-l-2 px-4 py-4 md:grid-cols-[13rem_minmax(0,1fr)] md:gap-6',
-        changed ? 'border-l-primary-500 bg-brand-soft' : 'border-l-transparent'
+        'grid gap-3 border-l-[3px] px-6 py-4 md:grid-cols-[14rem_minmax(0,1fr)] md:gap-8 items-start transition-colors',
+        changed ? 'border-l-[#0071e3] bg-[#0071e3]/[0.02]' : 'border-l-transparent'
       )}
     >
       <div className="flex flex-col gap-1.5">
@@ -453,12 +453,12 @@ export const ContentField: React.FC<ContentFieldProps> = ({
           {label}
         </label>
         {/* The JSON pointer is the address the API and support conversations use. */}
-        <code className="font-mono text-[10px] text-ink-3">{entry.path}</code>
+        <code className="font-mono text-[10.5px] text-[#86868b]">{entry.path}</code>
         {(changed || field.private) && (
-          <span className="flex flex-wrap gap-1">
-            {changed && <span className={cn(TAG, 'bg-primary-500 text-ink')}>Unpublished</span>}
+          <span className="flex flex-wrap gap-1 mt-0.5">
+            {changed && <span className={cn(TAG, 'bg-[#0071e3]/10 text-[#0071e3]')}>Unpublished</span>}
             {field.private && (
-              <span className={cn(TAG, 'border border-line-strong text-ink-3')}>Private</span>
+              <span className={cn(TAG, 'bg-black/[0.05] text-[#86868b]')}>Private</span>
             )}
           </span>
         )}

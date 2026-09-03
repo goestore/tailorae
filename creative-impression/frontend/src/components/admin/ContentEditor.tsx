@@ -417,22 +417,17 @@ const NamespaceEditor: React.FC<{ definition: EditableNamespace }> = ({ definiti
       {visible.map((section) => {
         const changedHere = section.entries.filter((entry) => changedPaths.has(entry.path)).length;
         return (
-          <section key={section.title} className="border border-line bg-surface">
-            <header className="flex items-center justify-between gap-3 border-b border-line bg-surface-2 px-4 py-2.5">
-              <h2 className={cn(LABEL_VOICE, 'text-ink')}>{section.title}</h2>
-              <span
-                className={cn(
-                  'text-[10px] font-bold uppercase tracking-[0.08em]',
-                  changedHere > 0 ? 'text-ink' : 'text-ink-3'
-                )}
-              >
+          <section key={section.title} className="admin-apple-section">
+            <header className="admin-apple-section-header">
+              <h2 className="admin-apple-section-title">{section.title}</h2>
+              <span className="admin-apple-section-badge">
                 {changedHere > 0
                   ? `${changedHere} unpublished`
                   : `${section.entries.length} field${plural(section.entries.length)}`}
               </span>
             </header>
 
-            <div className="divide-y divide-line">
+            <div className="divide-y divide-black/[0.05]">
               {section.entries.map((entry) => (
                 <ContentField
                   key={entry.address}
@@ -458,7 +453,7 @@ const NamespaceEditor: React.FC<{ definition: EditableNamespace }> = ({ definiti
       {/* Bottom rather than top: the site header is already sticky, and the
           state of the draft has to stay readable next to the button that
           publishes it. */}
-      <div className="sticky bottom-3 z-30 flex flex-col gap-3 border border-line bg-surface p-3 shadow-2">
+      <div className="admin-apple-dock">
         {confirming === 'publish' && (
           <div className="border border-line-strong bg-surface-2 p-3">
             <p className="text-sm font-semibold text-ink">
@@ -628,7 +623,7 @@ export const ContentEditor: React.FC<ContentEditorProps> = ({ namespace }) => {
 
 /** The namespace switcher. It lives here because the registry does. */
 export const ContentNamespaceNav: React.FC<{ current: string }> = ({ current }) => (
-  <nav aria-label="Content namespaces" className="flex flex-wrap gap-2">
+  <nav aria-label="Content namespaces" className="admin-segmented-control">
     {NAMESPACES.map((entry) => {
       const active = entry.namespace === current;
       return (
@@ -636,7 +631,7 @@ export const ContentNamespaceNav: React.FC<{ current: string }> = ({ current }) 
           key={entry.namespace}
           href={`/admin/content/${entry.namespace}`}
           aria-current={active ? 'page' : undefined}
-          className={cn('btn btn-sm', active ? 'btn-secondary' : 'btn-outline')}
+          className={cn('admin-segmented-item', active && 'admin-segmented-item--active')}
         >
           {namespaceLabel(entry.namespace)}
         </Link>

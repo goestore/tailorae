@@ -71,7 +71,7 @@ const DEFAULT_PRODUCTS: BestSellingProduct[] = [
     id: '6',
     name: 'Custom Print Tee',
     image: '/images/Round Neck T-Shirt.webp',
-    link: '/custom-printing',
+    link: '/customization',
     mrp: '₹699',
     sellingPrice: '₹449',
     discount: '36%',

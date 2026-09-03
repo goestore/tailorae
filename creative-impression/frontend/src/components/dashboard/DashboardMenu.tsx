@@ -9,11 +9,11 @@ export interface DashboardMenuProps {
 }
 
 const menuItems = [
-  { id: 'overview', label: 'Dashboard Overview', icon: '📊' },
-  { id: 'orders', label: 'Order History', icon: '📦' },
-  { id: 'profile', label: 'Profile', icon: '👤' },
-  { id: 'settings', label: 'Account Settings', icon: '⚙️' },
-  { id: 'logout', label: 'Logout', icon: '🚪' },
+  { id: 'overview', label: 'Overview' },
+  { id: 'orders', label: 'Orders' },
+  { id: 'profile', label: 'Profile' },
+  { id: 'settings', label: 'Settings' },
+  { id: 'logout', label: 'Sign out' },
 ];
 
 export const DashboardMenu: React.FC<DashboardMenuProps> = ({
@@ -21,19 +21,18 @@ export const DashboardMenu: React.FC<DashboardMenuProps> = ({
   onSectionChange,
 }) => {
   return (
-    <Card className="p-4 h-fit sticky top-20">
-      <nav className="space-y-2">
+    <Card className="h-fit p-2 md:sticky md:top-20">
+      <nav className="flex gap-1 overflow-x-auto md:block md:space-y-1">
         {menuItems.map((item) => (
           <button
             key={item.id}
             onClick={() => onSectionChange?.(item.id)}
-            className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
+            className={`shrink-0 px-3 py-2.5 text-left text-sm transition-colors md:w-full ${
               activeSection === item.id
-                ? 'bg-primary-600 text-white font-semibold'
-                : 'hover:bg-gray-100'
+                ? 'bg-ink text-white'
+                : 'text-ink-2 hover:bg-surface-2'
             }`}
           >
-            <span className="mr-2">{item.icon}</span>
             {item.label}
           </button>
         ))}

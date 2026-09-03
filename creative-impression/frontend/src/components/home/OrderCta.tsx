@@ -25,10 +25,11 @@ export const OrderCta: React.FC<OrderCtaProps> = ({
   secondaryLabel,
   secondaryHref,
 }) => (
-  <section className="section-y bg-white border-t border-line">
+  <section className="section-y border-t border-line bg-ink text-white">
     <div className="container-max max-w-3xl text-center">
-      <h2 className="heading-rule heading-rule-center mb-4">{heading}</h2>
-      <p className="mb-8 text-sm text-ink-3 md:text-base">{body}</p>
+      <p className="mb-3 text-xs uppercase tracking-[0.16em] text-[var(--brand)]">Creative Impression</p>
+      <h2 className="mb-4 text-2xl md:text-3xl">{heading}</h2>
+      <p className="mb-8 text-sm text-white/70 md:text-base">{body}</p>
       <div className="flex flex-wrap justify-center gap-3">
         {primaryLabel.trim() !== '' && (
           <Link href={primaryHref}>

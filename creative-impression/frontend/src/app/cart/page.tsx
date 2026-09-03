@@ -113,10 +113,10 @@ export default function CartPage() {
   // Signed-out state
   if (hasToken === false) {
     return (
-      <main className="py-16">
-        <div className="mx-auto max-w-lg px-4 text-center">
+      <main className="section-y">
+        <div className="container-max max-w-lg text-center">
           <Card className="p-10">
-            <h1 className="text-3xl font-bold mb-3">Your Cart</h1>
+            <h1 className="mb-3 text-3xl">Your cart</h1>
             <p className="text-neutral-600 mb-6">Sign in to view and manage your cart.</p>
             <Link href="/auth/login?redirect=/cart">
               <Button variant="primary" size="lg" fullWidth>
@@ -144,16 +144,16 @@ export default function CartPage() {
   const shipping = items.length > 0 ? calculateShipping(subtotal) : 0;
 
   return (
-    <main className="py-8 md:py-12 lg:py-16">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <h1 className="text-4xl font-bold mb-8">Shopping Cart</h1>
+    <main className="section-y">
+      <div className="container-max">
+        <header className="page-intro page-intro--compact"><p>Order review</p><h1>Your cart</h1></header>
 
         {error && <div className="alert alert-error mb-6">{error}</div>}
 
         {items.length === 0 ? (
           <Card className="p-12 text-center">
             <p className="text-5xl mb-4">🛒</p>
-            <h2 className="text-2xl font-bold mb-2">Your cart is empty</h2>
+            <h2 className="mb-2 text-2xl">Your cart is empty</h2>
             <p className="text-neutral-600 mb-6">
               Browse the catalog and add something you like.
             </p>
@@ -166,7 +166,7 @@ export default function CartPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {/* Cart Items */}
-            <div className="md:col-span-2 bg-white p-4 rounded-lg shadow">
+            <div className="border border-line bg-white p-4 md:col-span-2 md:p-6">
               <div className="space-y-4">
                 {items.map((item) => (
                   <div key={item.id} className="flex gap-4 pb-4 border-b last:border-b-0">

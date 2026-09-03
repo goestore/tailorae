@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useSelector } from 'react-redux';
 import { Button } from '@/components/common';
 import { RootState } from '@/store';
@@ -10,6 +11,7 @@ import { formatCurrency } from '@/utils/helpers';
 import { AuthToggleButtons } from './AuthToggleButtons';
 
 export const NavigationBar: React.FC = () => {
+  const router = useRouter();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,10 +32,11 @@ export const NavigationBar: React.FC = () => {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    if (searchQuery.trim()) {
-      // TODO: Implement search navigation
-      console.log('Searching for:', searchQuery);
-    }
+    const query = searchQuery.trim();
+    if (query === '') return;
+    router.push(`/products?search=${encodeURIComponent(query)}`);
+    setIsSearchOpen(false);
+    setIsMobileMenuOpen(false);
   };
 
   return (

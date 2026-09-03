@@ -161,7 +161,7 @@ export const CustomWearThemeProvider: React.FC<CustomWearThemeProviderProps> = (
   margin-right: 20px;
   font-family: var(--cw-font-body);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 400;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--cw-ink-subtle);
@@ -199,7 +199,7 @@ export const CustomWearThemeProvider: React.FC<CustomWearThemeProviderProps> = (
   background: var(--cw-ink);
   color: var(--cw-white);
   font-size: 9.5px;
-  font-weight: 700;
+  font-weight: 400;
   letter-spacing: 0;
 }
 .cw-stage-tab-dot {

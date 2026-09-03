@@ -211,7 +211,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
             style={{ color: 'var(--ink-3)' }}
           >
             <li>
-              <Link href="/" className="hover:underline">
+              <Link href="/" className="transition-colors hover:text-ink">
                 Home
               </Link>
             </li>
@@ -219,7 +219,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
               /
             </li>
             <li>
-              <Link href="/products" className="hover:underline">
+              <Link href="/products" className="transition-colors hover:text-ink">
                 Products
               </Link>
             </li>
@@ -279,9 +279,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
                     style={{
                       border:
                         index === activeImage
-                          ? '1px solid var(--brand)'
+                          ? '1px solid var(--ink)'
                           : '1px solid var(--border)',
-                      boxShadow: index === activeImage ? 'var(--shadow-brand)' : undefined,
+                      boxShadow: index === activeImage ? 'var(--shadow-2)' : undefined,
                     }}
                   >
                     <ProductThumb
