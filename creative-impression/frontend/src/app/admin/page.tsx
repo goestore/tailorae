@@ -4,206 +4,118 @@ import React from 'react';
 
 export const metadata: Metadata = { title: 'Command Center | Creative Impression' };
 
-type Control = {
-  href: string;
-  eyebrow: string;
-  title: string;
-  description: string;
-  action: string;
-  tone: 'gold' | 'blue' | 'green' | 'purple';
-  icon: React.ReactNode;
-};
+const Icon = ({ children }: { children: React.ReactNode }) => (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{children}</svg>
+);
 
-const STORE_CONTROLS: Control[] = [
-  {
-    href: '/admin/content/home',
-    eyebrow: 'Experience',
-    title: 'Home page studio',
-    description: 'Control hero imagery, product bands, category blocks, and the page order.',
-    action: 'Open editor',
-    tone: 'gold',
-    icon: (
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} className="w-6 h-6">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
-      </svg>
-    ),
-  },
-  {
-    href: '/admin/content/brand',
-    eyebrow: 'Identity',
-    title: 'Brand settings',
-    description: 'Set the store name, announcement bar, colours, and core visual language.',
-    action: 'Edit brand',
-    tone: 'purple',
-    icon: (
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} className="w-6 h-6">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42" />
-      </svg>
-    ),
-  },
-  {
-    href: '/admin/content/layout',
-    eyebrow: 'System',
-    title: 'Site layout',
-    description: 'Tune the layout values that shape the storefront across every screen.',
-    action: 'Configure layout',
-    tone: 'blue',
-    icon: (
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} className="w-6 h-6">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
-      </svg>
-    ),
-  },
-  {
-    href: '/admin/content/custom-wear',
-    eyebrow: 'Collection',
-    title: 'Custom Wear',
-    description: 'Control copy and conversion details for the custom collection experience.',
-    action: 'Manage collection',
-    tone: 'green',
-    icon: (
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} className="w-6 h-6">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-      </svg>
-    ),
-  },
+const METRICS = [
+  { label: 'Net revenue', value: '₹1.28L', change: '+18.4%', detail: 'vs last 30 days', bars: [32, 46, 40, 58, 51, 72, 84] },
+  { label: 'Active orders', value: '184', change: '+12', detail: '26 ready to ship', bars: [62, 48, 74, 56, 68, 81, 76] },
+  { label: 'Conversion', value: '4.82%', change: '+0.6%', detail: '8,420 sessions', bars: [38, 44, 52, 48, 64, 61, 79] },
+  { label: 'Inventory health', value: '92%', change: 'Stable', detail: '14 low-stock items', bars: [84, 82, 90, 86, 88, 91, 92] },
 ];
 
-const OPERATIONS = [
-  {
-    href: '/admin/products/new',
-    label: 'Add a product',
-    description: 'List a new item in the store catalogue',
-    icon: (
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-      </svg>
-    ),
-  },
-  {
-    href: '/admin/products',
-    label: 'Manage catalogue',
-    description: 'Edit pricing, inventory, and categories',
-    icon: (
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
-      </svg>
-    ),
-  },
-  {
-    href: '/admin/operations/orders',
-    label: 'Review orders',
-    description: 'Process and manage customer fulfilment',
-    icon: (
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
-      </svg>
-    ),
-  },
-  {
-    href: '/admin/operations/contact-requests',
-    label: 'Customer inbox',
-    description: 'Read and resolve support messages',
-    icon: (
-      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} className="w-5 h-5">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-      </svg>
-    ),
-  },
+const WORKSPACE = [
+  { href: '/admin/content/home', code: '01', title: 'Homepage Studio', description: 'Hero, collections and merchandising', tone: 'cyan', icon: <Icon><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v10h13V10M9.5 20v-6h5v6"/></Icon> },
+  { href: '/admin/products', code: '02', title: 'Product Catalogue', description: 'Pricing, stock and categories', tone: 'violet', icon: <Icon><path d="m4 7 8-4 8 4-8 4-8-4Z"/><path d="M4 7v10l8 4 8-4V7M12 11v10"/></Icon> },
+  { href: '/admin/content/brand', code: '03', title: 'Brand System', description: 'Identity, palette and messaging', tone: 'amber', icon: <Icon><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="7"/></Icon> },
+  { href: '/admin/content/layout', code: '04', title: 'Experience Layer', description: 'Navigation, layout and surfaces', tone: 'green', icon: <Icon><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M8 4v16M8 9h13"/></Icon> },
+];
+
+const QUEUE = [
+  { time: '09:42', label: 'New B2B order', meta: 'CI-2841 · 240 units', status: 'Priority', tone: 'amber' },
+  { time: '09:18', label: 'Customisation approved', meta: 'Apex Athletics · Embroidery', status: 'Ready', tone: 'green' },
+  { time: '08:55', label: 'Low stock detected', meta: 'Classic Polo · Navy / XL', status: 'Review', tone: 'violet' },
+  { time: '08:31', label: 'Customer message', meta: 'Sizing request · Order CI-2819', status: 'Unread', tone: 'cyan' },
+];
+
+const PIPELINE = [
+  { label: 'Payment verified', value: '38', note: 'Auto-cleared', tone: 'cyan' },
+  { label: 'In production', value: '24', note: '4 due today', tone: 'violet' },
+  { label: 'Quality check', value: '11', note: '2 flagged', tone: 'amber' },
+  { label: 'Ready to dispatch', value: '26', note: 'Before 16:00', tone: 'green' },
 ];
 
 export default function AdminHome() {
   return (
-    <div className="admin-content admin-dashboard">
-      {/* Hero Header */}
-      <section className="admin-welcome">
-        <div className="admin-welcome-text">
-          <p className="admin-kicker">Operations dashboard</p>
-          <h1>Command Center</h1>
-          <span>Use the workspace below to shape the storefront, move orders forward, and engage with your customers.</span>
+    <div className="admin-content admin-dashboard admin-command">
+      <section className="admin-command-hero">
+        <div>
+          <div className="admin-command-kicker"><span /> LIVE OPERATIONS / 03 SEP 2026</div>
+          <h1>Good morning, <em>Shiva.</em></h1>
+          <p>Your storefront is healthy. Two items need attention before today&apos;s fulfilment run.</p>
         </div>
-        <div className="admin-welcome-actions">
-          <Link href="/admin/preview" className="admin-action-btn admin-action-btn--secondary">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} className="w-4 h-4">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            Preview shop
-          </Link>
-          <Link href="/admin/content/home" className="admin-action-btn admin-action-btn--primary">
-            Edit home page
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-            </svg>
-          </Link>
+        <div className="admin-command-actions">
+          <Link href="/admin/products/new" className="admin-command-button admin-command-button--ghost">+ New product</Link>
+          <Link href="/admin/preview" className="admin-command-button admin-command-button--solid">Launch preview <span>↗</span></Link>
         </div>
       </section>
 
-      {/* Grid container for main layout */}
-      <div className="admin-grid-layout">
-        
-        {/* Left Column: Quick Operations */}
-        <aside className="admin-operations-sidebar">
-          <div className="admin-section-heading">
-            <h2 id="operation-controls">Daily Operations</h2>
-          </div>
-          <div className="admin-operation-list" aria-labelledby="operation-controls">
-            {OPERATIONS.map((operation) => (
-              <Link key={operation.href} href={operation.href} className="admin-operation-item">
-                <div className="admin-operation-icon">
-                  {operation.icon}
-                </div>
-                <div className="admin-operation-text">
-                  <b>{operation.label}</b>
-                  <small>{operation.description}</small>
-                </div>
-                <div className="admin-operation-arrow" aria-hidden="true">
-                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="w-4 h-4">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-                  </svg>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </aside>
+      <section className="admin-metric-grid" aria-label="Store performance">
+        {METRICS.map((metric, index) => (
+          <article className="admin-metric" key={metric.label}>
+            <div className="admin-metric-top"><span>0{index + 1}</span><p>{metric.label}</p><b>{metric.change}</b></div>
+            <div className="admin-metric-value">{metric.value}</div>
+            <div className="admin-metric-bottom">
+              <small>{metric.detail}</small>
+              <div className="admin-spark" aria-hidden="true">{metric.bars.map((height, i) => <i key={i} style={{ height: `${height}%` }} />)}</div>
+            </div>
+          </article>
+        ))}
+      </section>
 
-        {/* Right Column: Storefront Controls */}
-        <section className="admin-controls-main" aria-labelledby="storefront-controls">
-          <div className="admin-section-heading">
-            <h2 id="storefront-controls">Storefront Controls</h2>
-            <Link href="/" className="admin-link-discreet">
-              View live shop 
-              <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} className="w-4 h-4 ml-1 inline-block">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
-              </svg>
+      <section className="admin-flow" aria-labelledby="fulfilment-flow">
+        <div className="admin-flow-label">
+          <span>LIVE PIPELINE</span>
+          <h2 id="fulfilment-flow">Today&apos;s fulfilment flow</h2>
+          <Link href="/admin/operations/orders">Open orders <span>→</span></Link>
+        </div>
+        <div className="admin-flow-stages">
+          {PIPELINE.map((stage, index) => (
+            <Link href="/admin/operations/orders" key={stage.label} className={`admin-flow-stage admin-flow-stage--${stage.tone}`}>
+              <div><span>0{index + 1}</span><i /></div>
+              <strong>{stage.value}</strong>
+              <p>{stage.label}</p>
+              <small>{stage.note}</small>
             </Link>
+          ))}
+        </div>
+      </section>
+
+      <div className="admin-command-grid">
+        <section className="admin-workspace" aria-labelledby="workspace-heading">
+          <div className="admin-module-heading">
+            <div><span>CONTROL MATRIX</span><h2 id="workspace-heading">Storefront workspace</h2></div>
+            <Link href="/">Open storefront <span>↗</span></Link>
           </div>
-          
-          <div className="admin-control-grid">
-            {STORE_CONTROLS.map((control) => (
-              <Link href={control.href} key={control.href} className={`admin-control-card admin-control-card--${control.tone}`}>
-                <div className="admin-control-card-header">
-                  <div className="admin-control-card-icon">
-                    {control.icon}
-                  </div>
-                  <p>{control.eyebrow}</p>
-                </div>
-                <div className="admin-control-card-body">
-                  <h3>{control.title}</h3>
-                  <span>{control.description}</span>
-                </div>
-                <div className="admin-control-action">
-                  {control.action} 
-                  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="w-4 h-4" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12h15m0 0l-6.75-6.75M19.5 12l-6.75 6.75" />
-                  </svg>
-                </div>
+          <div className="admin-workspace-grid">
+            {WORKSPACE.map((item) => (
+              <Link href={item.href} key={item.href} className={`admin-workspace-card admin-workspace-card--${item.tone}`}>
+                <div className="admin-workspace-card-top"><span>{item.code}</span><div>{item.icon}</div></div>
+                <h3>{item.title}</h3><p>{item.description}</p>
+                <b>Enter module <span>→</span></b>
               </Link>
             ))}
           </div>
         </section>
 
+        <aside className="admin-queue" aria-labelledby="queue-heading">
+          <div className="admin-module-heading"><div><span>ACTIVITY STREAM</span><h2 id="queue-heading">Needs attention</h2></div><b>04</b></div>
+          <div className="admin-queue-list">
+            {QUEUE.map((item) => (
+              <div className="admin-queue-item" key={`${item.time}-${item.label}`}>
+                <time>{item.time}</time><div><strong>{item.label}</strong><small>{item.meta}</small></div><span className={`admin-queue-status admin-queue-status--${item.tone}`}>{item.status}</span>
+              </div>
+            ))}
+          </div>
+          <Link href="/admin/operations/orders" className="admin-queue-link">View operations queue <span>→</span></Link>
+        </aside>
       </div>
+
+      <section className="admin-pulse">
+        <div><span className="admin-pulse-orbit"><i /></span><p><b>Systems nominal</b><small>API, payments, catalogue and content services operational</small></p></div>
+        <div className="admin-pulse-items"><span><i /> API 42ms</span><span><i /> Payments</span><span><i /> Inventory synced</span></div>
+      </section>
     </div>
   );
 }

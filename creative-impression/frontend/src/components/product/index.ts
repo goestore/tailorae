@@ -5,4 +5,5 @@ export * from './ProductFilters';
 export * from './ProductListing';
 export * from './ProductThumb';
 export * from './QuickAddButton';
+export * from './RecentlyViewed';
 export * from './ViewAllTile';

@@ -111,11 +111,15 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, product })
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmingRemoval, setConfirmingDelete] = useState(false);
+  const [hasInteracted, setHasInteracted] = useState(false);
 
-  const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
+  const set = <K extends keyof Draft>(key: K, value: Draft[K]) => {
+    setHasInteracted(true);
     setDraft((current) => ({ ...current, [key]: value }));
+  };
 
   const setName = (name: string) => {
+    setHasInteracted(true);
     setDraft((current) => ({
       ...current,
       name,
@@ -546,8 +550,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, product })
           </div>
         )}
 
-        {problems.length > 0 && (
-          <ul className="text-sm text-red-600">
+        {hasInteracted && problems.length > 0 && (
+          <ul className="text-sm text-red-600" aria-live="polite">
             {problems.map((problem) => (
               <li key={problem}>{problem}</li>
             ))}

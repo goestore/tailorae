@@ -1,5 +1,6 @@
 # Node
 node_modules/
+.local/
 package-lock.json
 npm-debug.log
 .npm

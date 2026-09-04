@@ -286,6 +286,7 @@ model Product {
   reviews           Review[]
   bulkPricings      BulkPricing[]
   comparisons       ProductComparison[]
+  stockNotifications StockNotification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -314,6 +315,7 @@ model ProductVariant {
   // Relations
   cartItems  CartItem[]
   orderItems OrderItem[]
+  stockNotifications StockNotification[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -938,4 +940,45 @@ model SystemSetting {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ============================================
+// STOREFRONT CAPTURE
+// ============================================
+
+// Footer / homepage newsletter signups. Re-subscribing an address is a no-op
+// rather than an error, so the endpoint never reveals who is already on the
+// list.
+model NewsletterSubscriber {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  source         String    @default("footer")
+  isSubscribed   Boolean   @default(true)
+  unsubscribedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isSubscribed])
+}
+
+// "Notify me when this is back in stock" signups, per product and (optionally)
+// per size variant. `notifiedAt` is set once the restock mail goes out so the
+// same shopper is not mailed twice for one restock.
+model StockNotification {
+  id         String          @id @default(cuid())
+  productId  String
+  product    Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  variantId  String?
+  variant    ProductVariant? @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  email      String
+  notifiedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  // Postgres treats NULLs as distinct, so this only enforces uniqueness for
+  // variant-level signups; the route de-dupes product-level ones in code.
+  @@unique([productId, variantId, email])
+  @@index([productId])
+  @@index([notifiedAt])
 }

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import '../styles/globals.css';
+import '../styles/admin-command.css';
 import { Providers } from '@/components/providers';
 import { SiteFrame } from '@/components/layout/SiteFrame';
 import { brandContent } from '@/content/schema/brand';

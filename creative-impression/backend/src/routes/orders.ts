@@ -10,6 +10,7 @@ import {
   randomSuffix,
   round2,
 } from '@/utils/helpers';
+import { findCouponByCode, resolveCoupon } from '@/utils/coupons';
 
 const router = Router();
 
@@ -163,32 +164,14 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
       let discount = 0;
       let appliedCouponCode: string | null = null;
       if (isNonEmptyString(couponCode)) {
-        const coupon = await tx.coupon.findUnique({ where: { code: couponCode.trim() } });
-        const now = new Date();
-        if (
-          !coupon ||
-          !coupon.isActive ||
-          coupon.startDate > now ||
-          coupon.endDate < now ||
-          (coupon.usageLimit !== null && coupon.usageCount >= coupon.usageLimit)
-        ) {
-          throw new HttpError(400, 'Invalid or expired coupon code');
-        }
-        if (subtotal < coupon.minOrderAmount) {
-          throw new HttpError(400, `Coupon requires a minimum order amount of ${coupon.minOrderAmount}`);
-        }
-
-        if (coupon.discountType === 'PERCENTAGE') {
-          discount = (subtotal * coupon.discountValue) / 100;
-          if (coupon.maxDiscount !== null) discount = Math.min(discount, coupon.maxDiscount);
-        } else {
-          discount = coupon.discountValue;
-        }
-        discount = round2(Math.min(discount, subtotal));
-        appliedCouponCode = coupon.code;
+        const coupon = await findCouponByCode(tx, couponCode);
+        const result = resolveCoupon(coupon, subtotal);
+        if (!result.ok) throw new HttpError(result.status, result.error!);
+        discount = result.discount;
+        appliedCouponCode = coupon!.code;
 
         await tx.coupon.update({
-          where: { id: coupon.id },
+          where: { id: coupon!.id },
           data: { usageCount: { increment: 1 } },
         });
       }

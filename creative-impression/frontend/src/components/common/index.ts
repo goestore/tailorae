@@ -23,3 +23,6 @@ export type { ScrollRailProps } from './ScrollRail';
 
 export { Icon } from './Icon';
 export type { IconProps } from './Icon';
+
+export { Breadcrumbs } from './Breadcrumbs';
+export type { BreadcrumbsProps, Crumb } from './Breadcrumbs';

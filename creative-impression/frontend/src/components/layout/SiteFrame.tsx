@@ -21,31 +21,22 @@ const ADMIN_GROUPS: Array<{ label: string; links: AdminLink[] }> = [
     { href: '/admin', label: 'Dashboard', icon: 'grid', tone: 'blue' },
     { href: '/admin/operations/analytics', label: 'Analytics', icon: 'grid', tone: 'blue' },
   ] },
-  { label: 'Storefront', links: [
+  { label: 'Content', links: [
     { href: '/admin/preview', label: 'Responsive preview', icon: 'grid', tone: 'blue' },
     { href: '/admin/content/home', label: 'Homepage studio', icon: 'edit', tone: 'green' },
     { href: '/admin/content/brand', label: 'Brand identity', icon: 'edit', tone: 'purple' },
-    { href: '/admin/content/layout', label: 'Site layout', icon: 'grid', tone: 'blue' },
-    { href: '/admin/content/custom-wear', label: 'Custom Wear', icon: 'edit', tone: 'gold' },
-    { href: '/admin/content/custom-wear-theme', label: 'Custom Wear theme', icon: 'edit', tone: 'purple' },
   ] },
-  { label: 'Catalogue', links: [
+  { label: 'Commerce', links: [
     { href: '/admin/products/new', label: 'List product', icon: 'box', tone: 'teal' },
     { href: '/admin/products', label: 'All products', icon: 'box', tone: 'teal' },
     { href: '/admin/operations/inventory', label: 'Inventory', icon: 'box', tone: 'gold' },
-    { href: '/admin/products', label: 'Product categories', icon: 'edit', tone: 'purple' },
-  ] },
-  { label: 'Commerce', links: [
     { href: '/admin/operations/orders', label: 'Orders', icon: 'box', tone: 'blue' },
-    { href: '/admin/operations/returns', label: 'Returns', icon: 'arrow', tone: 'teal' },
-    { href: '/admin/operations/exchanges', label: 'Exchanges', icon: 'arrow', tone: 'green' },
-    { href: '/admin/operations/cod', label: 'COD insights', icon: 'grid', tone: 'gold' },
-    { href: '/admin/operations/coupons', label: 'Coupons', icon: 'edit', tone: 'purple' },
     { href: '/admin/operations/customers', label: 'Customers', icon: 'grid', tone: 'blue' },
-    { href: '/admin/operations/reviews', label: 'Reviews', icon: 'edit', tone: 'teal' },
-    { href: '/admin/operations/contact-requests', label: 'Contact requests', icon: 'arrow', tone: 'green' },
   ] },
-  { label: 'System', links: [
+  { label: 'Utilities', links: [
+    { href: '/admin/content/layout', label: 'Site layout', icon: 'grid', tone: 'blue' },
+    { href: '/admin/content/custom-wear', label: 'Custom Wear', icon: 'edit', tone: 'gold' },
+    { href: '/admin/operations/contact-requests', label: 'Customer inbox', icon: 'arrow', tone: 'green' },
     { href: '/', label: 'View shop', icon: 'arrow', tone: 'gold' },
   ] },
 ];
@@ -83,6 +74,12 @@ export function SiteFrame({ children, announcement }: { children: ReactNode; ann
               </div>
             </Link>
           </div>
+          <nav className="admin-mobile-nav" aria-label="Quick admin navigation">
+            <Link href="/admin">Overview</Link>
+            <Link href="/admin/products">Products</Link>
+            <Link href="/admin/operations/orders">Orders</Link>
+            <Link href="/admin/content/home">Content</Link>
+          </nav>
           <nav className="admin-nav" aria-label="Admin navigation">
             {ADMIN_GROUPS.map((group) => (
               <section key={group.label} className="admin-nav-group">

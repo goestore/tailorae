@@ -21,6 +21,11 @@ import adminRoutes from '@/routes/admin';
 import contentRoutes, { publicContentRouter } from '@/routes/content';
 import mediaRoutes, { UPLOAD_DIR } from '@/routes/media';
 import contactRoutes from '@/routes/contact';
+import couponRoutes from '@/routes/coupons';
+import newsletterRoutes from '@/routes/newsletter';
+import deliveryRoutes from '@/routes/delivery';
+import trackOrderRoutes from '@/routes/track-order';
+import stockNotifyRoutes from '@/routes/stock-notify';
 
 const app: Express = express();
 
@@ -94,6 +99,11 @@ app.use('/api/cart', cartRoutes);
 app.use('/api/b2b', b2bRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/coupons', couponRoutes);
+app.use('/api/newsletter', newsletterRoutes);
+app.use('/api/delivery', deliveryRoutes);
+app.use('/api/track-order', trackOrderRoutes);
+app.use('/api/stock-notify', stockNotifyRoutes);
 // Mounted before the general admin router so the more specific prefix wins
 // rather than falling through that router's guards first.
 app.use('/api/admin/content', contentRoutes);
