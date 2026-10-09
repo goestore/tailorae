@@ -12,10 +12,11 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
-    "seed": "ts-node prisma/seed.ts",
+    "seed": "ts-node -r tsconfig-paths/register prisma/seed.ts && ts-node -r tsconfig-paths/register scripts/seed-general-categories.ts && ts-node -r tsconfig-paths/register scripts/migrate-apparel-sections.ts && ts-node -r tsconfig-paths/register scripts/backfill-colour-families.ts",
     "lint": "eslint src --ext .ts",
     "type-check": "tsc --noEmit",
-    "test": "jest"
+    "test": "jest",
+    "setup:db": "prisma db push && npm run seed"
   },
   "dependencies": {
     "@prisma/client": "^5.0.0",
@@ -75,7 +76,7 @@
     "winston": "^3.19.0"
   },
   "prisma": {
-    "seed": "ts-node -r tsconfig-paths/register prisma/seed.ts"
+    "seed": "ts-node -r tsconfig-paths/register prisma/seed.ts && ts-node -r tsconfig-paths/register scripts/seed-general-categories.ts && ts-node -r tsconfig-paths/register scripts/migrate-apparel-sections.ts && ts-node -r tsconfig-paths/register scripts/backfill-colour-families.ts"
   },
   "lint-staged": {
     "src/**/*.{ts,tsx}": [

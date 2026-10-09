@@ -2,6 +2,25 @@
 
 Complete setup and development guide for the Creative Impression platform.
 
+
+## After you pull new code
+
+Run these whenever someone else's changes come in — most "the site is broken
+after pulling" problems are one of them being skipped:
+
+```bash
+cd backend  && npm install && npm run setup:db
+cd ../frontend && npm install
+```
+
+- `npm install` — the lockfiles (`package-lock.json`) are committed, so this
+  installs exactly the versions everyone else has.
+- `npm run setup:db` — applies database schema changes and the catalogue setup.
+  Without it the API fails with "column does not exist" errors and the homepage
+  category tiles and menus come up empty.
+- Still odd? Stop the frontend, delete `frontend/.next`, and start it again —
+  Next.js can cache pages that no longer exist.
+
 ## Prerequisites
 
 Before starting, ensure you have:
@@ -116,31 +135,28 @@ This will:
 
 **Environment Variables**
 
-The `.env` file is already configured for local development:
-```env
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/creative_impression
-PORT=3001
-NODE_ENV=development
-JWT_SECRET=creative-impression-dev-secret-key-2024
-FRONTEND_URL=http://localhost:3001
-```
-
-For production, update these values before deployment.
-
-**Run Prisma migrations:**
+`.env` files are not in git (they hold secrets). Create them from the examples:
 ```bash
-npx prisma migrate dev --name init
+cp backend/.env.example backend/.env
+cp frontend/.env.example frontend/.env.local
 ```
+The backend example already points at the Docker database
+(`postgres:postgres@localhost:5432/creative_impression`) and runs the API on
+port 5000. Leave `CONTENT_REVALIDATE_SECRET` identical in both files.
 
-This will:
-1. Create all tables
-2. Setup relationships
-3. Create initial indexes
-
-**Seed initial data (optional):**
+**Create the tables and the starter catalogue:**
 ```bash
-npx prisma db seed
+cd backend
+npm run setup:db
 ```
+This runs `prisma db push` (this project has no migrations folder — do not use
+`prisma migrate dev`) and then `npm run seed`, which:
+1. Creates the admin/demo accounts and 8 demo products
+2. Adds the Footwear, Electronics, Home, Bags and Beauty departments
+3. Creates the Women/Men/Kids sub-categories and the homepage category tiles
+4. Files every colour under a colour family for the colour filter
+
+Every step is safe to re-run.
 
 **Open Prisma Studio (optional):**
 ```bash

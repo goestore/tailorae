@@ -1,7 +1,9 @@
 # Node
 node_modules/
 .local/
-package-lock.json
+# Lockfiles ARE committed: without them every teammate's `npm install` picks
+# whatever versions are newest that day, and the site breaks differently on
+# each machine.
 npm-debug.log
 .npm
 .eslintcache
