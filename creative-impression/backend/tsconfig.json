@@ -45,5 +45,6 @@
     "transpileOnly": true
   },
   "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist"]
+  "//exclude": "Tests are type-checked by tsconfig.test.json via ts-jest, which adds the jest globals. Leaving them here would force those globals into the server build's `types`.",
+  "exclude": ["node_modules", "dist", "src/**/*.test.ts"]
 }

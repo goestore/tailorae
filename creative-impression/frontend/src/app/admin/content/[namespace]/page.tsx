@@ -27,20 +27,17 @@ export default async function ContentNamespacePage({ params }: PageProps) {
   const { namespace } = await params;
 
   return (
-    <div className="admin-content flex flex-col gap-6">
-      <header className="admin-page-header flex flex-col gap-3">
-        <div className="flex flex-col gap-1">
-          <p className="admin-kicker">Content Studio</p>
-          <h1 className="text-2xl font-bold tracking-tight text-[#1d1d1f]">Site Content</h1>
-        </div>
-        <p className="text-[13px] leading-relaxed text-[#86868b] max-w-2xl">
-          Every value below is declared in a content schema. Editing one here changes only what is
-          stored; the storefront falls back to the value it ships with until you publish.
-        </p>
-        <div className="pt-1">
-          <ContentNamespaceNav current={namespace} />
+    <div className="admin-content">
+      <header className="admin-page-head">
+        <div>
+          <h1 className="admin-page-title">Site Content</h1>
+          <p className="admin-page-sub">
+            Every value below is declared in a content schema. Editing one here changes only what is
+            stored; the storefront falls back to the value it ships with until you publish.
+          </p>
         </div>
       </header>
+      <ContentNamespaceNav current={namespace} />
 
       <ContentEditor namespace={namespace} />
     </div>

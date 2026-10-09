@@ -3,8 +3,7 @@
 import React, { useState } from 'react';
 import type { ContentPath } from '@/content/define';
 import { resolveList, type ListItem, type ListItemFields } from '@/content/field';
-import { cn } from '@/utils/helpers';
-import { FieldControl, LABEL_VOICE } from './ContentField';
+import { FieldControl, Grip, RowActions } from './ContentField';
 
 /**
  * Edits a repeating set of items — the cards in a marketing band.
@@ -117,114 +116,108 @@ export const ListControl: React.FC<ListControlProps> = ({
   return (
     <div id={id} aria-describedby={describedBy} className="flex flex-col gap-2">
       {items.length === 0 && (
-        <p className="border border-dashed border-line-strong bg-surface-2 px-3 py-2.5 text-sm text-ink-2">
-          No items — this section will not appear on the page.
-        </p>
+        <div className="ce-well">
+          <p>No items — this section will not appear on the page.</p>
+          <button type="button" className="btn btn-sm" disabled={full} onClick={add}>
+            Add item
+          </button>
+        </div>
       )}
 
-      <ol className="flex flex-col gap-2">
-        {items.map((item, index) => {
-          const expanded = open === index;
-          const rowId = `${id}-item-${index}`;
-          return (
-            <li key={index} className="border border-line bg-surface">
-              <div className="flex items-center gap-3 bg-surface-2 px-3 py-2">
-                <span className={cn(LABEL_VOICE, 'w-5 shrink-0 tabular-nums')}>{index + 1}</span>
+      {items.length > 0 && (
+        <ol className="ce-rows">
+          {items.map((item, index) => {
+            const expanded = open === index;
+            const rowId = `${id}-item-${index}`;
+            const name = itemLabel(item, itemFields, index);
+            return (
+              <li key={index} className="ce-row">
+                <div className="ce-row-head">
+                  <Grip />
+                  <span className="ce-row-index">{index + 1}</span>
 
-                <button
-                  type="button"
-                  aria-expanded={expanded}
-                  aria-controls={`${rowId}-fields`}
-                  className="min-w-0 flex-1 truncate text-left text-sm text-ink hover:underline"
-                  onClick={() => setOpen(expanded ? null : index)}
-                >
-                  {itemLabel(item, itemFields, index)}
-                </button>
-
-                <span className="flex shrink-0 gap-1">
                   <button
                     type="button"
-                    className="btn btn-sm btn-outline px-2"
-                    disabled={index === 0}
-                    aria-label={`Move ${itemLabel(item, itemFields, index)} up`}
-                    onClick={() => move(index, index - 1)}
+                    aria-expanded={expanded}
+                    aria-controls={`${rowId}-fields`}
+                    className="ce-row-name"
+                    onClick={() => setOpen(expanded ? null : index)}
                   >
-                    <span aria-hidden="true">↑</span>
+                    <span
+                      aria-hidden="true"
+                      className="mr-1.5 inline-block w-3 text-[var(--a-text-dim)]"
+                    >
+                      {expanded ? '▾' : '▸'}
+                    </span>
+                    {name}
                   </button>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline px-2"
-                    disabled={index === items.length - 1}
-                    aria-label={`Move ${itemLabel(item, itemFields, index)} down`}
-                    onClick={() => move(index, index + 1)}
-                  >
-                    <span aria-hidden="true">↓</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-ghost px-2"
-                    aria-label={`Remove ${itemLabel(item, itemFields, index)}`}
-                    onClick={() => remove(index)}
-                  >
-                    <span aria-hidden="true">✕</span>
-                  </button>
-                </span>
-              </div>
 
-              {expanded && (
-                <div id={`${rowId}-fields`} className="flex flex-col gap-3 px-3 py-3">
-                  {entries.map(([key, field]) => {
-                    const fieldId = `${rowId}-${key}`;
-                    const error = field.validate(item[key]);
-                    const helpId = field.help ? `${fieldId}-help` : undefined;
-                    const label = field.label ?? humanise(key);
-
-                    return (
-                      <div key={key} className="flex flex-col gap-1">
-                        <label htmlFor={fieldId} className={LABEL_VOICE}>
-                          {label}
-                        </label>
-                        <FieldControl
-                          field={field as ContentPath['field']}
-                          id={fieldId}
-                          value={item[key]}
-                          error={error}
-                          describedBy={helpId}
-                          label={label}
-                          onChange={(next) => setField(index, key, next)}
-                          onBlur={onBlur}
-                        />
-                        {field.help && (
-                          <p id={helpId} className="form-help">
-                            {field.help}
-                          </p>
-                        )}
-                        {error && (
-                          <p role="alert" className="form-error">
-                            {error}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
+                  <RowActions
+                    name={name}
+                    index={index}
+                    count={items.length}
+                    onMove={move}
+                    onRemove={() => remove(index)}
+                  />
                 </div>
-              )}
-            </li>
-          );
-        })}
-      </ol>
 
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="button" className="btn btn-sm btn-outline" disabled={full} onClick={add}>
-          Add item
-        </button>
-        {max !== undefined && (
-          <span className={LABEL_VOICE}>
-            {items.length}/{max}
-          </span>
-        )}
-        {full && <span className="form-help">Remove one to add another.</span>}
-      </div>
+                {expanded && (
+                  <div id={`${rowId}-fields`} className="ce-row-body">
+                    {entries.map(([key, field]) => {
+                      const fieldId = `${rowId}-${key}`;
+                      const error = field.validate(item[key]);
+                      const helpId = field.help ? `${fieldId}-help` : undefined;
+                      const label = field.label ?? humanise(key);
+
+                      return (
+                        <div key={key} className="ce-subfield">
+                          <label htmlFor={fieldId} className="ce-label">
+                            {label}
+                          </label>
+                          <FieldControl
+                            field={field as ContentPath['field']}
+                            id={fieldId}
+                            value={item[key]}
+                            error={error}
+                            describedBy={helpId}
+                            label={label}
+                            onChange={(next) => setField(index, key, next)}
+                            onBlur={onBlur}
+                          />
+                          {field.help && (
+                            <p id={helpId} className="ce-help">
+                              {field.help}
+                            </p>
+                          )}
+                          {error && (
+                            <p role="alert" className="ce-error">
+                              {error}
+                            </p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      )}
+
+      {items.length > 0 && (
+        <div className="ce-inline">
+          <button type="button" className="btn btn-sm" disabled={full} onClick={add}>
+            Add item
+          </button>
+          {max !== undefined && (
+            <span className="ce-count">
+              {items.length}/{max}
+            </span>
+          )}
+          {full && <span className="ce-help">Remove one to add another.</span>}
+        </div>
+      )}
 
       <span role="status" aria-live="polite" className="sr-only">
         {announcement}

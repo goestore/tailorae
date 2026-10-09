@@ -38,3 +38,6 @@ prisma/dev.db-journal
 *.tmp
 temp/
 uploads/
+
+# Seller KYC documents. Never commit, never serve statically.
+private-uploads/

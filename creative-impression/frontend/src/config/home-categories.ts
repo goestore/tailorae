@@ -1,12 +1,12 @@
+import { storeHref, type HomeCategoryTile } from '@/lib/category-tree';
+
 /**
- * The category tiles the home page can show.
+ * The home page's "Explore all categories" tiles.
  *
- * Moved out of `CategoryCarousel` so the admin picker and the carousel read one
- * list: the picker offers exactly the tiles that exist, and a chosen id always
- * resolves to something renderable. Ids are the tile's destination path, which
- * makes them stable and readable in stored content — unlike the positional
- * "1", "2", "3" they used to carry, which would have silently re-pointed every
- * saved selection the first time a tile was inserted.
+ * The live tiles are categories the admin marks "Show on homepage" (with an
+ * image and an order) in Admin › Categories — see `tilesFromCategories`.
+ * `CATEGORY_TILES` below is what the band showed before that, kept as the
+ * fallback for when the API is unreachable, so the band never renders empty.
  */
 export interface CategoryTile {
   id: string;
@@ -85,16 +85,51 @@ export const CATEGORY_TILES: CategoryTile[] = [
 ];
 
 /**
- * Applies a curated selection to the tiles.
- *
- * An empty selection means "not curated" and shows everything, which is what
- * keeps an untouched field from emptying the carousel. Ids that no longer
- * match a tile are dropped rather than rendering a hole.
+ * Custom Wear is a page, not a category, so it cannot be marked on the
+ * categories screen. It keeps its tile in code, slotted in by `homeOrder`
+ * among the category tiles (10 = where it has always sat, before Plus Size).
  */
-export function selectCategoryTiles(picks: readonly string[] | undefined): CategoryTile[] {
-  if (!picks || picks.length === 0) return CATEGORY_TILES;
-  const byId = new Map(CATEGORY_TILES.map((tile) => [tile.id, tile]));
-  return picks
-    .map((id) => byId.get(id))
-    .filter((tile): tile is CategoryTile => tile !== undefined);
+export const CUSTOM_WEAR_TILE: CategoryTile & { homeOrder: number } = {
+  ...CATEGORY_TILES.find((tile) => tile.id === 'custom-wear')!,
+  homeOrder: 10,
+};
+
+/**
+ * The captions the tiles carried before they were categories. A subcategory
+ * is named for its place in the tree ("Polo T-Shirts" under Women), which
+ * reads ambiguously on its own in a row of tiles. Each entry applies only
+ * while the category still has the name it was migrated with, so renaming the
+ * category in the admin takes over the tile caption too.
+ */
+const LEGACY_TILE_CAPTIONS: Record<string, { name: string; caption: string }> = {
+  'womens-polo-t-shirt': { name: 'Polo T-Shirts', caption: "Women's Polo T-Shirt" },
+  'mens-polo-t-shirt': { name: 'Polo T-Shirts', caption: "Men's Polo T-Shirt" },
+  'womens-tops-tunics': { name: 'Tops & Tunics', caption: "Women's Tops" },
+  'mens-round-neck-tshirts': { name: 'Round Neck T-Shirts', caption: "Men's Round Neck T-Shirt" },
+  'kids-boys-polo-t-shirt': { name: 'Polo T-Shirts', caption: "Boy's Polo T-Shirt" },
+  'mens-shirts': { name: 'Shirts', caption: "Men's Shirt" },
+  'kids-boys-round-neck-t-shirt': { name: 'Round Neck T-Shirts', caption: "Boy's Round Neck T-Shirt" },
+  'kids-girls-polo-t-shirt': { name: 'Polo T-Shirts', caption: "Girl's Polo T-Shirt" },
+  'kids-girls-tops': { name: 'Tops', caption: "Girl's Top" },
+};
+
+/** Shown when a category is on the homepage without an image yet. */
+const PLACEHOLDER_IMAGE = '/images/WINTER.webp';
+
+/** The admin-managed tiles, in homepage order, with Custom Wear in its slot. */
+export function tilesFromCategories(categories: readonly HomeCategoryTile[]): CategoryTile[] {
+  const tiles = categories.map((category) => {
+    const legacy = LEGACY_TILE_CAPTIONS[category.slug];
+    return {
+      id: category.slug,
+      name: legacy && legacy.name === category.name ? legacy.caption : category.name,
+      image: category.image || PLACEHOLDER_IMAGE,
+      link: storeHref(category),
+      homeOrder: category.homeOrder,
+    };
+  });
+  // Stable: a category sharing Custom Wear's order goes first.
+  const at = tiles.findIndex((tile) => tile.homeOrder > CUSTOM_WEAR_TILE.homeOrder);
+  const ordered = at === -1 ? [...tiles, CUSTOM_WEAR_TILE] : [...tiles.slice(0, at), CUSTOM_WEAR_TILE, ...tiles.slice(at)];
+  return ordered.map(({ id, name, image, link }) => ({ id, name, image, link }));
 }

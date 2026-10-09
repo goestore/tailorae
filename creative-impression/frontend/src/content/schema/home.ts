@@ -39,11 +39,29 @@ export const homeContent = defineContent('home', {
       max: 200,
       help: 'Read aloud to anyone using a screen reader. Describe the picture, not the promotion.',
     }),
-    leftHref: field.text('', {
+    leftHref: field.text('/products', {
       label: 'Left banner link',
       max: 200,
       optional: true,
       help: 'Where clicking the banner goes. Leave empty for no link.',
+    }),
+    leftEyebrow: field.text('', {
+      label: 'Left banner kicker',
+      max: 40,
+      optional: true,
+      help: 'The small line above the headline. Leave every copy field empty when the image already carries its own wording, which the banners uploaded today do — the overlay would print on top of it.',
+    }),
+    leftHeading: field.text('', {
+      label: 'Left banner headline',
+      max: 60,
+      optional: true,
+      help: 'Set this only for a plain photograph with no text baked into it.',
+    }),
+    leftCta: field.text('', {
+      label: 'Left banner button',
+      max: 30,
+      optional: true,
+      help: 'Only shown when the banner has a link and a headline.',
     }),
     rightImage: field.image('/images/Male Model Neutral.webp', {
       label: 'Right banner image',
@@ -55,6 +73,21 @@ export const homeContent = defineContent('home', {
     rightHref: field.text('/b2b', {
       label: 'Right banner link',
       max: 200,
+      optional: true,
+    }),
+    rightEyebrow: field.text('', {
+      label: 'Right banner kicker',
+      max: 40,
+      optional: true,
+    }),
+    rightHeading: field.text('', {
+      label: 'Right banner headline',
+      max: 60,
+      optional: true,
+    }),
+    rightCta: field.text('', {
+      label: 'Right banner button',
+      max: 30,
       optional: true,
     }),
   },
@@ -185,12 +218,9 @@ export const homeContent = defineContent('home', {
   },
 
   categories: {
+    // The tiles themselves (which categories, their order and images) are
+    // set on each category in Admin › Categories › Homepage.
     heading: field.text('EXPLORE ALL CATEGORIES', { label: 'Heading', max: 60 }),
-    picks: field.picker('category-tiles', {
-      label: 'Categories to show',
-      max: 20,
-      help: 'Which category tiles appear, in order. Leave empty to show them all.',
-    }),
   },
 });
 

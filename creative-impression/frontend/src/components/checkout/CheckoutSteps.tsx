@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Card, Button } from '@/components/common';
+import { Card } from '@/components/common';
 
 export interface CheckoutStepsProps {
   steps: Array<{
@@ -13,6 +13,15 @@ export interface CheckoutStepsProps {
   onStepClick?: (stepId: string) => void;
 }
 
+/**
+ * The three-step checkout ladder.
+ *
+ * Each step is an equal `flex-1` column and the connector is drawn as an
+ * absolutely positioned rule behind the markers rather than as a flex sibling
+ * with fixed side margins — a fixed margin is what made the row wider than a
+ * 320px phone once the labels were in place. Nothing here has an intrinsic
+ * width, so the ladder shrinks with the viewport instead of overflowing it.
+ */
 export const CheckoutSteps: React.FC<CheckoutStepsProps> = ({
   steps,
   currentStep,
@@ -21,34 +30,56 @@ export const CheckoutSteps: React.FC<CheckoutStepsProps> = ({
   const currentStepIndex = steps.findIndex((s) => s.id === currentStep);
 
   return (
-    <Card className="p-4 mb-6">
-      <div className="flex items-center justify-between">
-        {steps.map((step, index) => (
-          <React.Fragment key={step.id}>
-            <div className="flex flex-col items-center">
+    <Card className="mb-6 p-4">
+      <ol className="m-0 flex list-none items-start p-0">
+        {steps.map((step, index) => {
+          const reached = index <= currentStepIndex;
+          // Only a step already left behind is navigable; the page enforces the
+          // same rule, and a dead-looking button is kinder than one that does
+          // nothing when pressed.
+          const isNavigable = index < currentStepIndex;
+
+          return (
+            <li
+              key={step.id}
+              className="relative flex min-w-0 flex-1 flex-col items-center"
+              aria-current={index === currentStepIndex ? 'step' : undefined}
+            >
+              {index > 0 && (
+                <span
+                  aria-hidden="true"
+                  className="absolute right-1/2 top-[13px] h-px w-full"
+                  style={{ background: reached ? 'var(--brand)' : 'var(--border)' }}
+                />
+              )}
               <button
+                type="button"
+                disabled={!isNavigable}
                 onClick={() => onStepClick?.(step.id)}
-                className={`flex items-center justify-center w-10 h-10 rounded-full font-bold mb-2 ${
-                  index <= currentStepIndex
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-gray-200 text-gray-600'
-                }`}
+                // The number alone is not a name. The label below repeats the
+                // step, so it is hidden from assistive tech and the button
+                // carries the wording instead of both being announced.
+                aria-label={isNavigable ? `Back to ${step.name}` : step.name}
+                className="relative z-10 flex h-[27px] w-[27px] items-center justify-center rounded-full text-[12px] transition-colors disabled:cursor-default"
+                style={{
+                  background: reached ? 'var(--brand)' : 'var(--surface)',
+                  border: `1px solid ${reached ? 'var(--brand)' : 'var(--border-strong)'}`,
+                  color: reached ? 'var(--ink)' : 'var(--ink-3)',
+                }}
               >
                 {index + 1}
               </button>
-              <span className="text-xs font-semibold text-gray-700">{step.label}</span>
-            </div>
-
-            {index < steps.length - 1 && (
-              <div
-                className={`flex-1 h-1 mx-4 mb-6 ${
-                  index < currentStepIndex ? 'bg-primary-600' : 'bg-gray-200'
-                }`}
-              />
-            )}
-          </React.Fragment>
-        ))}
-      </div>
+              <span
+                aria-hidden="true"
+                className="mt-2 text-center text-[10px] font-bold uppercase tracking-[0.08em]"
+                style={{ color: reached ? 'var(--ink)' : 'var(--ink-3)' }}
+              >
+                {step.label}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
     </Card>
   );
 };

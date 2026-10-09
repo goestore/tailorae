@@ -3,8 +3,7 @@
 import React, { useMemo, useState } from 'react';
 import type { PickerSource } from '@/content/field';
 import { loadPickerOptions, type PickerOption } from '@/content/picker-source';
-import { cn } from '@/utils/helpers';
-import { LABEL_VOICE } from './ContentField';
+import { Grip, RowActions } from './ContentField';
 
 /**
  * Chooses which items a section shows, and in what order.
@@ -24,7 +23,7 @@ const previewable = (value: string): boolean => value !== '' && /^[^"'()\s]+$/.t
 const Thumb: React.FC<{ url?: string }> = ({ url }) => (
   <span
     aria-hidden="true"
-    className="block h-10 w-10 shrink-0 border border-line bg-surface-2 bg-cover bg-center"
+    className="ce-thumb"
     style={url && previewable(url) ? { backgroundImage: `url("${url}")` } : undefined}
   />
 );
@@ -116,102 +115,90 @@ export const PickerControl: React.FC<PickerControlProps> = ({
 
   const full = max !== undefined && chosen.length >= max;
 
+  const chooseLabel = loading ? 'Loading…' : chosen.length > 0 ? 'Edit selection' : 'Choose';
+
   return (
-    <div id={id} aria-describedby={describedBy} className="flex flex-col gap-3">
+    <div id={id} aria-describedby={describedBy} className="flex flex-col gap-2">
       {chosen.length === 0 ? (
-        <p className="border border-dashed border-line-strong bg-surface-2 px-3 py-2.5 text-sm text-ink-2">
-          Nothing chosen — this section picks its own items automatically. Add one below to take
-          control of exactly what shows and in what order.
-        </p>
+        <div className="ce-well">
+          <p>
+            Nothing chosen — this section picks its own items automatically. Choose items to take
+            control of exactly what shows and in what order.
+          </p>
+          {!loaded && (
+            <button type="button" className="btn btn-sm" disabled={loading} onClick={load}>
+              {chooseLabel}
+            </button>
+          )}
+        </div>
       ) : (
-        <ol className="flex flex-col gap-1.5">
+        <ol className="ce-rows">
           {chosen.map((itemId, index) => {
             const option = byId.get(itemId);
             return (
-              <li
-                key={itemId}
-                className="flex items-center gap-3 border border-line bg-surface-2 px-3 py-2"
-              >
-                <span className={cn(LABEL_VOICE, 'w-5 shrink-0 tabular-nums')}>{index + 1}</span>
-                <Thumb url={option?.image} />
-                <span className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-sm text-ink">
-                    {/* Before the list loads there is nothing to resolve the id
-                        against; showing the raw id is honest rather than blank. */}
-                    {option?.label ?? (loaded ? `Unknown item (${itemId})` : itemId)}
-                  </span>
-                  {option?.meta && <span className={LABEL_VOICE}>{option.meta}</span>}
-                  {loaded && !option && (
-                    <span className={cn(LABEL_VOICE, 'text-red-600')}>
-                      No longer in the catalog — it will not show
+              <li key={itemId} className="ce-row">
+                <div className="ce-row-head">
+                  <Grip />
+                  <span className="ce-row-index">{index + 1}</span>
+                  <Thumb url={option?.image} />
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="ce-row-name">
+                      {/* Before the list loads there is nothing to resolve the id
+                          against; showing the raw id is honest rather than blank. */}
+                      {option?.label ?? (loaded ? `Unknown item (${itemId})` : itemId)}
                     </span>
-                  )}
-                </span>
-                <span className="flex shrink-0 gap-1">
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline px-2"
-                    disabled={index === 0}
-                    aria-label={`Move ${nameOf(itemId)} up`}
-                    onClick={() => move(index, index - 1)}
-                  >
-                    <span aria-hidden="true">↑</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-outline px-2"
-                    disabled={index === chosen.length - 1}
-                    aria-label={`Move ${nameOf(itemId)} down`}
-                    onClick={() => move(index, index + 1)}
-                  >
-                    <span aria-hidden="true">↓</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-sm btn-ghost px-2"
-                    aria-label={`Remove ${nameOf(itemId)}`}
-                    onClick={() => remove(itemId)}
-                  >
-                    <span aria-hidden="true">✕</span>
-                  </button>
-                </span>
+                    {option?.meta && <span className="ce-row-meta">{option.meta}</span>}
+                    {loaded && !option && (
+                      <span className="ce-error">No longer in the catalog — it will not show</span>
+                    )}
+                  </span>
+                  <RowActions
+                    name={nameOf(itemId)}
+                    index={index}
+                    count={chosen.length}
+                    onMove={move}
+                    onRemove={() => remove(itemId)}
+                  />
+                </div>
               </li>
             );
           })}
         </ol>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
-        {!loaded && (
-          <button type="button" className="btn btn-sm btn-outline" disabled={loading} onClick={load}>
-            {loading ? 'Loading…' : chosen.length > 0 ? 'Edit selection' : 'Choose items'}
-          </button>
-        )}
-        {chosen.length > 0 && (
-          <button
-            type="button"
-            className="btn btn-sm btn-ghost"
-            onClick={() => commit([], 'Selection cleared.')}
-          >
-            Clear selection
-          </button>
-        )}
-        {max !== undefined && (
-          <span className={LABEL_VOICE}>
-            {chosen.length}/{max} chosen
-          </span>
-        )}
-      </div>
+      {(chosen.length > 0 || max !== undefined) && (
+        <div className="ce-inline">
+          {!loaded && chosen.length > 0 && (
+            <button type="button" className="btn btn-sm" disabled={loading} onClick={load}>
+              {chooseLabel}
+            </button>
+          )}
+          {chosen.length > 0 && (
+            <button
+              type="button"
+              className="btn btn-sm btn-ghost"
+              onClick={() => commit([], 'Selection cleared.')}
+            >
+              Clear selection
+            </button>
+          )}
+          {max !== undefined && (
+            <span className="ce-count">
+              {chosen.length}/{max} chosen
+            </span>
+          )}
+        </div>
+      )}
 
       {error && (
-        <p role="alert" className="form-error">
+        <p role="alert" className="ce-error">
           {error}
         </p>
       )}
 
       {loaded && (
-        <div className="border border-line bg-surface p-3">
-          <label htmlFor={`${id}-search`} className={cn(LABEL_VOICE, 'block')}>
+        <div className="ce-panel">
+          <label htmlFor={`${id}-search`} className="ce-label">
             Available
           </label>
           <input
@@ -219,18 +206,14 @@ export const PickerControl: React.FC<PickerControlProps> = ({
             type="search"
             value={search}
             placeholder="Search…"
-            className="mt-1 w-full text-sm"
+            className="w-full"
             onChange={(event) => setSearch(event.target.value)}
           />
 
-          {full && (
-            <p className="form-help mt-2">
-              That is the maximum. Remove one above to add another.
-            </p>
-          )}
+          {full && <p className="ce-help">That is the maximum. Remove one above to add another.</p>}
 
           {available.length === 0 ? (
-            <p className="mt-2 text-sm text-ink-3">
+            <p className="ce-help">
               {options.length === 0
                 ? 'Nothing to choose from.'
                 : search.trim() !== ''
@@ -238,21 +221,24 @@ export const PickerControl: React.FC<PickerControlProps> = ({
                   : 'Everything is already chosen.'}
             </p>
           ) : (
-            <ul className="mt-2 flex max-h-72 flex-col gap-1 overflow-y-auto pr-1">
+            <ul className="ce-rows max-h-72 overflow-y-auto">
               {available.map((option) => (
-                <li key={option.id}>
+                <li key={option.id} className="ce-row">
                   <button
                     type="button"
-                    className="flex w-full items-center gap-3 border border-line bg-surface px-3 py-2 text-left hover:bg-surface-2 disabled:opacity-50"
+                    className="ce-row-head w-full cursor-pointer border-0 bg-transparent text-left hover:bg-[var(--a-surface-2)] disabled:cursor-not-allowed"
                     disabled={full}
                     onClick={() => add(option.id)}
                   >
                     <Thumb url={option.image} />
                     <span className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate text-sm text-ink">{option.label}</span>
-                      {option.meta && <span className={LABEL_VOICE}>{option.meta}</span>}
+                      <span className="ce-row-name">{option.label}</span>
+                      {option.meta && <span className="ce-row-meta">{option.meta}</span>}
                     </span>
-                    <span aria-hidden="true" className="shrink-0 text-lg leading-none text-ink-3">
+                    <span
+                      aria-hidden="true"
+                      className="shrink-0 px-2 text-base leading-none text-[var(--a-text-dim)]"
+                    >
                       +
                     </span>
                   </button>

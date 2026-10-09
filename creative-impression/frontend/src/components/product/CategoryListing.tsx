@@ -8,21 +8,39 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 export interface CategoryListingProps {
   section: CatalogSection;
-  /** Parent section, when rendering a subcategory. */
-  parent?: CatalogSection;
+  /**
+   * Breadcrumbs and sibling chips worked out by the caller. Category pages
+   * (/products/<dept>/…, /c/…) pass these from the live category tree.
+   */
+  crumbs?: Crumb[];
+  chips?: ListingChip[];
 }
 
-async function fetchSectionProducts(query: Record<string, string>): Promise<Product[]> {
-  const params = new URLSearchParams({ ...query, limit: '50' });
+/** Must match ProductListing's page size, or the client refetches on mount. */
+const SSR_PAGE_SIZE = 24;
+
+/**
+ * The first page, rendered on the server so crawlers and slow connections get
+ * products in the HTML.
+ *
+ * Category pages scope by `category` (the API includes its subcategories).
+ */
+async function fetchSectionProducts(
+  section: CatalogSection
+): Promise<{ products: Product[]; total: number }> {
+  const params = new URLSearchParams({ ...section.query, limit: String(SSR_PAGE_SIZE) });
+
   try {
     const res = await fetch(`${API_BASE}/products?${params.toString()}`, {
       next: { revalidate: 60 },
     });
-    if (!res.ok) return [];
+    if (!res.ok) return { products: [], total: 0 };
     const json = await res.json();
-    return json?.data?.products ?? [];
+    const products: Product[] = json?.data?.products ?? [];
+    const total = json?.data?.pagination?.total;
+    return { products, total: typeof total === 'number' ? total : products.length };
   } catch {
-    return [];
+    return { products: [], total: 0 };
   }
 }
 
@@ -31,35 +49,19 @@ async function fetchSectionProducts(query: Record<string, string>): Promise<Prod
  * chips and the server-rendered first page — then hands off to ProductListing,
  * which every product page on the site shares.
  */
-export const CategoryListing = async ({ section, parent }: CategoryListingProps) => {
-  const initialProducts = await fetchSectionProducts(section.query);
+export const CategoryListing = async ({
+  section,
+  crumbs: givenCrumbs,
+  chips: givenChips,
+}: CategoryListingProps) => {
+  const { products: initialProducts, total: initialTotal } = await fetchSectionProducts(section);
 
-  const crumbs: Crumb[] = [
+  const crumbs: Crumb[] = givenCrumbs ?? [
     { label: 'Home', href: '/' },
     { label: 'Products', href: '/products' },
-    ...(parent ? [{ label: parent.title, href: `/products/${parent.slug}` }] : []),
     { label: section.title },
   ];
-
-  /**
-   * The same strip on the parent page and on every child of it, with exactly one
-   * entry marked current. "All X" used to be added only when a parent existed,
-   * so clicking it landed on the parent page — where it promptly disappeared and
-   * nothing read as selected.
-   */
-  const root = parent ?? section;
-  const siblings = root.children ?? [];
-  const chips: ListingChip[] =
-    siblings.length === 0
-      ? []
-      : [
-          { label: `All ${root.title}`, href: `/products/${root.slug}`, active: !parent },
-          ...siblings.map((child) => ({
-            label: child.title,
-            href: `/products/${root.slug}/${child.slug}`,
-            active: Boolean(parent) && child.slug === section.slug,
-          })),
-        ];
+  const chips: ListingChip[] = givenChips ?? [];
 
   return (
     // ProductListing calls useSearchParams, which opts this subtree out of
@@ -81,9 +83,8 @@ export const CategoryListing = async ({ section, parent }: CategoryListingProps)
         crumbs={crumbs}
         chips={chips}
         baseQuery={section.query}
-        match={section.match}
-        exclude={section.exclude}
         initialProducts={initialProducts}
+        initialTotal={initialTotal}
       />
     </Suspense>
   );

@@ -22,6 +22,60 @@ enum UserRole {
   RETAIL_CUSTOMER
 }
 
+/// Where a seller's identity check stands. Only APPROVED shops can be verified.
+enum KycStatus {
+  NOT_SUBMITTED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// Where a business is in becoming a seller. Only APPROVED shops may list.
+enum SellerApplicationStatus {
+  APPLIED
+  UNDER_REVIEW
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum BusinessType {
+  INDIVIDUAL
+  PROPRIETORSHIP
+  PARTNERSHIP
+  LLP
+  PRIVATE_LIMITED
+  PUBLIC_LIMITED
+  OTHER
+}
+
+/// A brand a seller registers must be approved before anyone lists under it.
+enum BrandStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum LedgerEntryType {
+  /// Seller's share of a sub-order that has passed the return window.
+  SALE
+  /// Bank transfer made to the seller.
+  PAYOUT
+  /// A return completed after the sub-order was already settled; deducted
+  /// from the next payout.
+  RETURN_REVERSAL
+  /// Manual correction by an admin, positive or negative.
+  ADJUSTMENT
+}
+
+/// Whether a seller's listing has been checked by the platform.
+/// House stock and admin-created products are APPROVED from the start.
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 enum UserStatus {
   ACTIVE
   INACTIVE
@@ -53,18 +107,20 @@ model User {
   subscribeToNewsletter Boolean    @default(false)
 
   // Relations
-  addresses     Address[]
-  cart          Cart?
-  wishlist      Wishlist[]
-  orders        Order[]
-  reviews       Review[]
-  b2bProfile    B2BProfile?
-  vendorProfile VendorProfile?
-  notifications Notification[]
-  auditLogs     AuditLog[]
-  mediaAssets   MediaAsset[]
-  contentEdits  ContentValue[]
-  authSessions  AuthSession[]
+  addresses        Address[]
+  cart             Cart?
+  wishlist         Wishlist[]
+  orders           Order[]
+  reviews          Review[]
+  b2bProfile       B2BProfile?
+  vendorProfile    VendorProfile?
+  customWearQuotes CustomWearQuote[]
+  notifications    Notification[]
+  auditLogs        AuditLog[]
+  mediaAssets      MediaAsset[]
+  contentEdits     ContentValue[]
+  authSessions     AuthSession[]
+  authTokens       AuthToken[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -74,23 +130,88 @@ model User {
   @@index([role])
 }
 
+/// One row per issued sign-in token, which is what makes a JWT revocable.
+///
+/// A JWT on its own cannot be withdrawn: it is valid until it expires, so
+/// "log out" meant nothing more than the browser forgetting it, and a
+/// suspended or demoted account kept its old powers for the remaining days of
+/// the token's life. Every authenticated request checks this table, so
+/// revoking a row ends the session on the next call.
+///
+/// The trade is one indexed read per authenticated request. That is worth it
+/// here: without it, the only answer to a leaked token is to rotate
+/// JWT_SECRET and sign every customer out at once.
 model AuthSession {
-  id         String    @id @default(cuid())
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  token      String    @unique
-  tokenType  String    @default("Bearer")
-  expiresAt  DateTime
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// SHA-256 of the issued JWT, never the token itself. A stolen dump of this
+  /// table must not be a drawer full of working sessions.
+  tokenHash String @unique
+
+  /// Copied from the token's own expiry so a session can be swept without
+  /// decoding anything.
+  expiresAt DateTime
+
+  /// Both are for a future "where you are signed in" screen, and for making
+  /// sense of an incident after the fact. Neither is used for authorisation.
   deviceInfo String?
   ipAddress  String?
-  isRevoked  Boolean   @default(false)
-  revokedAt  DateTime?
+
+  isRevoked Boolean   @default(false)
+  revokedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId])
-  @@index([token])
+  /// Sweeping expired rows.
+  @@index([expiresAt])
+}
+
+/// What a password reset link and an email verification link are made of.
+///
+/// One table with a purpose rather than two tables, because the two have the
+/// same shape and the same lifecycle — issue, mail, redeem once, expire — and
+/// splitting them would duplicate the storage rules along with every chance to
+/// get one of the copies wrong.
+enum AuthTokenPurpose {
+  PASSWORD_RESET
+  EMAIL_VERIFICATION
+}
+
+/// A single-use, expiring token sent to an email address.
+///
+/// Only the hash is kept. The readable token exists in the outgoing mail and
+/// nowhere else, so a database leak cannot be turned into a set of live reset
+/// links — which is the whole point, given that redeeming one is enough to
+/// take an account over.
+model AuthToken {
+  id      String           @id @default(cuid())
+  userId  String
+  user    User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  purpose AuthTokenPurpose
+
+  /// SHA-256 of the emailed token. Unique so verification is one indexed read
+  /// rather than a scan, and so a collision can never redeem another account.
+  tokenHash String @unique
+
+  expiresAt DateTime
+
+  /// Stamped on redemption. Single use is what stops a reset link in a mailbox
+  /// or a browser history staying a permanent key to the account.
+  usedAt DateTime?
+
+  /// Where the request came from, for tracing abuse of the send endpoints.
+  requestedIp String?
+
+  createdAt DateTime @default(now())
+
+  /// The lookup behind "invalidate this user's other outstanding links".
+  @@index([userId, purpose])
+  /// Sweeping expired rows.
+  @@index([expiresAt])
 }
 
 // ============================================
@@ -143,28 +264,59 @@ model VendorProfile {
   shopImage         String?
   shopBanner        String?
   bankAccountName   String?
-  bankAccountNumber String?
+  bankAccountNumber String? // AES-256-GCM, see utils/field-crypto.ts
   bankIFSC          String?
   bankName          String?
-  businessLicense   String?
-  taxId             String?
   isVerified        Boolean @default(false)
   isActive          Boolean @default(true)
-  commissionRate    Float   @default(10)
-  totalEarnings     Float   @default(0)
-  totalOrders       Int     @default(0)
-  rating            Float   @default(0)
-  ratingCount       Int     @default(0)
+  /// Seller-specific override. Null means the category rate applies, then the
+  /// platform default (SystemSetting commission.defaultRate).
+  commissionRate    Float?
+
+  // The business behind the shop.
+  legalName         String?
+  businessType      BusinessType?
+  /// { line1, line2?, city, state, pincode, country }
+  registeredAddress Json?
+  contactPhone      String?
+  contactEmail      String?
+
+  applicationStatus     SellerApplicationStatus @default(APPLIED)
+  /// Shown to the seller: why the application was rejected or suspended.
+  applicationNote       String?
+  applicationReviewedAt DateTime?
+
+  // Identity check (KYC). Documents are stored privately, never under /uploads.
+  pan                String?
+  gstin              String?
+  kycStatus          KycStatus @default(NOT_SUBMITTED)
+  kycDocuments       String[]
+  kycSubmittedAt     DateTime?
+  kycReviewedAt      DateTime?
+  kycRejectionReason String?
+
+  // Stock at or below this shows on the seller's low-stock list.
+  lowStockThreshold Int @default(5)
+
+  totalEarnings Float @default(0)
+  totalOrders   Int   @default(0)
+  rating        Float @default(0)
+  ratingCount   Int   @default(0)
 
   // Relations
   products           Product[]
+  brands             Brand[]
+  sellerOrders       SellerOrder[]
   withdrawalRequests WithdrawalRequest[]
+  ledgerEntries      SellerLedgerEntry[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@index([shopSlug])
+  @@index([kycStatus])
+  @@index([applicationStatus])
 }
 
 // ============================================
@@ -211,7 +363,7 @@ enum ProductStatus {
 
 model Category {
   id           String     @id @default(cuid())
-  name         String     @unique
+  name         String
   slug         String     @unique
   description  String?
   icon         String?
@@ -222,44 +374,152 @@ model Category {
   isActive     Boolean    @default(true)
   displayOrder Int        @default(0)
 
+  /// Listing template key sellers get when they pick this category (see
+  /// config/myntra-catalogue.json and config/general-catalogue.json).
+  /// Children inherit it when unset.
+  listingTemplate String?
+  /// Commission % for items in this category. Children inherit when unset.
+  commissionRate  Float?
+
+  /// What the variant option is called for products here ("Screen size",
+  /// "Capacity"). Children inherit when unset; falls back to the template's.
+  optionLabel  String?
+  /// Suggested option values ("32 inch", "43 inch"); empty means free text.
+  optionValues String[]
+
+  /// Homepage "Explore all categories" tile. Uses `image`.
+  showOnHome Boolean @default(false)
+  homeOrder  Int     @default(0)
+
+  /// Admin-defined product fields. Products in this category and every
+  /// subcategory below it get these on top of the listing template's.
+  fields CategoryField[]
+
   // Relations
   products Product[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([parentId, name])
   @@index([slug])
   @@index([parentId])
+  @@index([showOnHome, homeOrder])
+}
+
+enum CategoryFieldType {
+  TEXT
+  NUMBER
+  SELECT
+  MULTI_SELECT
+  BOOLEAN
+}
+
+/// A product field the admin adds to a category from the console, e.g.
+/// Television → "Screen size" (select: 32", 43", 55"). Values are stored in
+/// Product.attributes under `key`.
+model CategoryField {
+  id           String            @id @default(cuid())
+  categoryId   String
+  category     Category          @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  /// camelCase, unique along a category's ancestor chain.
+  key          String
+  label        String
+  type         CategoryFieldType @default(TEXT)
+  options      String[]
+  /// Shown after a NUMBER value: "inch", "L", "W".
+  unit         String?
+  helpText     String?
+  required     Boolean           @default(false)
+  /// Shoppers can filter the category page by it.
+  filterable   Boolean           @default(false)
+  displayOrder Int               @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([categoryId, key])
+  @@index([categoryId])
 }
 
 model Product {
-  id                 String         @id @default(cuid())
-  name               String
-  slug               String         @unique
-  description        String?
-  shortDescription   String?
-  status             ProductStatus  @default(DRAFT)
-  vendorId           String?
-  vendor             VendorProfile? @relation(fields: [vendorId], references: [id], onDelete: SetNull)
-  categoryId         String
-  category           Category       @relation(fields: [categoryId], references: [id])
-  price              Float
-  costPrice          Float?
-  originalPrice      Float?
-  discountPercentage Float          @default(0)
-  sku                String         @unique
-  barcode            String?
-  quantity           Int            @default(0)
-  minOrderQuantity   Int            @default(1)
-  maxOrderQuantity   Int?
-  isFeatured         Boolean        @default(false)
-  isCustomizable     Boolean        @default(false)
-  allowBulkOrders    Boolean        @default(true)
-  weight             Float? // in kg
-  dimensions         String? // length x width x height
-  material           String?
-  color              String?
-  sizeGuide          String?
+  id               String           @id @default(cuid())
+  name             String
+  slug             String           @unique
+  description      String?
+  shortDescription String?
+  status           ProductStatus    @default(DRAFT)
+  moderationStatus ModerationStatus @default(APPROVED)
+
+  // ── Marketplace listing data (Myntra SKU template) ─────────────────
+  // Which template this listing follows. Null for legacy products, which
+  // are exempt from the go-live checklist until edited.
+  articleType         String?
+  styleGroupId        String?
+  /// Myntra's "Color Variant GroupId": the same value on every colourway of
+  /// one design, so the product page can offer the other colours.
+  colourGroupId       String?
+  displayName         String?
+  listViewName        String?
+  brandColour         String?
+  /// Swatch colour per colour name, chosen by the seller: { "Navy Blue": "#1F2A44" }.
+  /// Cards and filters use it; a colour with no entry falls back to a guess
+  /// from its name.
+  colourHexes         Json?
+  /// Colour family of the product's own colour (for listings without
+  /// variants). Derived from primaryColour, else brandColour, on every write.
+  colorFamily         String?
+  primaryColour       String?
+  secondaryColour     String?
+  tertiaryColour      String?
+  ageGroup            String?
+  fashionType         String?
+  usage               String?
+  season              String?
+  year                Int?
+  hsn                 String?
+  countriesOfOrigin   String[]
+  manufacturerDetails String?
+  packerDetails       String?
+  importerDetails     String?
+  styleNote           String?
+  materialCare        String?
+  sizeAndFit          String?
+  tags                String[]
+  measurementBasis    String? // "Garment Measurements in" | "To-Fit Denotes Body Measurements in"
+  netQuantity         Int?
+  netQuantityUnit     String?
+  numberOfItems       String?
+  multipackSet        String?
+  packageContains     String?
+  bisCertificate      Json? // { number, imageUrl, expiryDate }
+  imageAngles         Json? // { front, back, side, detail, lookShot, additional1, additional2 } → url
+  attributes          Json? // type-specific attributes, keyed by catalogue key
+  moderationNote      String?
+  moderatedAt         DateTime?
+  vendorId            String?
+  vendor              VendorProfile? @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  categoryId          String
+  category            Category       @relation(fields: [categoryId], references: [id])
+  brandId             String?
+  brand               Brand?         @relation(fields: [brandId], references: [id], onDelete: SetNull)
+  price               Float
+  costPrice           Float?
+  originalPrice       Float?
+  discountPercentage  Float          @default(0)
+  sku                 String         @unique
+  barcode             String?
+  quantity            Int            @default(0)
+  minOrderQuantity    Int            @default(1)
+  maxOrderQuantity    Int?
+  isFeatured          Boolean        @default(false)
+  isCustomizable      Boolean        @default(false)
+  allowBulkOrders     Boolean        @default(true)
+  weight              Float? // in kg
+  dimensions          String? // length x width x height
+  material            String?
+  color               String?
+  sizeGuide           String?
 
   // Media
   thumbnail String?
@@ -277,15 +537,15 @@ model Product {
   metaKeywords    String?
 
   // Relations
-  variants          ProductVariant[]
-  customizations    ProductCustomization[]
-  inventoryTracking InventoryTracking[]
-  orderItems        OrderItem[]
-  cartItems         CartItem[]
-  wishlistItems     Wishlist[]
-  reviews           Review[]
-  bulkPricings      BulkPricing[]
-  comparisons       ProductComparison[]
+  variants           ProductVariant[]
+  customizations     ProductCustomization[]
+  inventoryTracking  InventoryTracking[]
+  orderItems         OrderItem[]
+  cartItems          CartItem[]
+  wishlistItems      Wishlist[]
+  reviews            Review[]
+  bulkPricings       BulkPricing[]
+  comparisons        ProductComparison[]
   stockNotifications StockNotification[]
 
   createdAt DateTime @default(now())
@@ -294,27 +554,41 @@ model Product {
   @@index([slug])
   @@index([sku])
   @@index([categoryId])
+  @@index([brandId])
   @@index([vendorId])
+  @@index([moderationStatus])
+  @@index([articleType])
+  @@index([colourGroupId])
+  @@index([styleGroupId])
 }
 
 model ProductVariant {
-  id        String   @id @default(cuid())
-  productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  name      String // e.g., "Red - M", "Blue - L"
-  sku       String   @unique
-  size      String?
-  color     String?
-  material  String?
-  price     Float? // Override price if different
-  quantity  Int      @default(0)
-  weight    Float?
-  images    String[]
-  isDefault Boolean  @default(false)
+  id           String   @id @default(cuid())
+  productId    String
+  product      Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name         String // e.g., "Red - M", "Blue - L"
+  sku          String   @unique
+  size         String?
+  color        String?
+  material     String?
+  price        Float? // Override price if different
+  quantity     Int      @default(0)
+  standardSize String?
+  sizeOnLabel  Boolean?
+  gtin         String?
+  measurements Json? // catalogue measurement key → inches
+  /// Extra option values for non-apparel templates, e.g. { "Storage": "128 GB" }.
+  options      Json?
+  /// The fixed colour family (utils/colour-families.ts) this colour files
+  /// under. Filters use this, never the free-text `color`.
+  colorFamily  String?
+  weight       Float?
+  images       String[]
+  isDefault    Boolean  @default(false)
 
   // Relations
-  cartItems  CartItem[]
-  orderItems OrderItem[]
+  cartItems          CartItem[]
+  orderItems         OrderItem[]
   stockNotifications StockNotification[]
 
   createdAt DateTime @default(now())
@@ -322,6 +596,7 @@ model ProductVariant {
 
   @@index([productId])
   @@index([sku])
+  @@index([colorFamily])
 }
 
 model ProductCustomization {
@@ -551,6 +826,7 @@ model Order {
 
   // Relations
   items         OrderItem[]
+  sellerOrders  SellerOrder[]
   timeline      OrderTimeline[]
   notifications Notification[]
 
@@ -564,24 +840,36 @@ model Order {
 }
 
 model OrderItem {
-  id            String          @id @default(cuid())
-  orderId       String
-  order         Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  productId     String
-  product       Product         @relation(fields: [productId], references: [id])
-  variantId     String?
-  variant       ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
-  quantity      Int
-  price         Float // Price at time of order
-  discount      Float           @default(0)
-  customization Json? // Store custom choices
-  mockupImage   String?
-  sku           String
+  id               String          @id @default(cuid())
+  orderId          String
+  order            Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId        String
+  product          Product         @relation(fields: [productId], references: [id])
+  variantId        String?
+  variant          ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  /// Which shop's half of the order this line belongs to.
+  sellerOrderId    String?
+  sellerOrder      SellerOrder?    @relation(fields: [sellerOrderId], references: [id], onDelete: SetNull)
+  /// Snapshotted at order time: a product can change hands later, but who sold
+  /// this line cannot.
+  vendorId         String?
+  quantity         Int
+  price            Float // Price at time of order
+  discount         Float           @default(0)
+  /// Commission snapshotted at order time: seller override, else category
+  /// rate, else platform default. Amount is on the line's net value.
+  commissionRate   Float           @default(0)
+  commissionAmount Float           @default(0)
+  customization    Json? // Store custom choices
+  mockupImage      String?
+  sku              String
 
   createdAt DateTime @default(now())
 
   @@index([orderId])
   @@index([productId])
+  @@index([sellerOrderId])
+  @@index([vendorId])
 }
 
 model OrderTimeline {
@@ -981,4 +1269,181 @@ model StockNotification {
   @@unique([productId, variantId, email])
   @@index([productId])
   @@index([notifiedAt])
+}
+
+// ============================================
+// BRANDS
+// ============================================
+
+/// A label a product is sold under.
+///
+/// Distinct from VendorProfile on purpose, the way it is on any marketplace:
+/// the brand is whose name is on the garment, the vendor is who sells it. One
+/// seller lists many brands, and one brand is sold by many sellers, so folding
+/// them together would make both unusable as a filter.
+model Brand {
+  id           String  @id @default(cuid())
+  name         String  @unique
+  slug         String  @unique
+  description  String?
+  /// Square mark for the brand rail and the brand page header.
+  logo         String?
+  /// Wide image for the top of the brand page.
+  banner       String?
+  /// Surfaced on the homepage brand rail.
+  isFeatured   Boolean @default(false)
+  isActive     Boolean @default(true)
+  displayOrder Int     @default(0)
+
+  /// The shop that added this brand from the listing form. Until an admin
+  /// approves it (isActive), only that shop may list under it. Null for
+  /// brands the platform added.
+  ownerVendorId String?
+  ownerVendor   VendorProfile? @relation(fields: [ownerVendorId], references: [id], onDelete: SetNull)
+
+  /// Seller-registered brands start PENDING. Approving also sets isActive.
+  status            BrandStatus @default(APPROVED)
+  /// Trademark certificate or authorised-reseller letter. Private storage
+  /// (private-uploads/), never under /uploads.
+  authorizationDoc  String?
+  /// TRADEMARK_OWNER | AUTHORISED_RESELLER
+  authorizationType String?
+  rejectionReason   String?
+
+  // SEO
+  metaTitle       String?
+  metaDescription String?
+
+  // Relations
+  products Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+  @@index([isActive])
+}
+
+// ============================================
+// MARKETPLACE SETTLEMENT
+// ============================================
+
+/// One seller's half of an order.
+///
+/// An order is placed once and paid once, but fulfilled and settled per shop:
+/// shop A can have shipped while shop B is still packing, and each is owed a
+/// different amount. Without this row there is nothing to compute a commission
+/// against and nothing to pay out.
+///
+/// `commissionRate` is a snapshot, not a lookup. Rates change; what a seller
+/// was owed for an order placed in March must not move when their rate is
+/// renegotiated in June.
+model SellerOrder {
+  id          String @id @default(cuid())
+  /// Parent order number plus a letter: CI-1234-A, CI-1234-B.
+  orderNumber String @unique
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  /// Null for house stock — the platform's own listings, which owe no commission.
+  vendorId String?
+  vendor   VendorProfile? @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+
+  /// This shop's part moves through fulfilment on its own.
+  status OrderStatus @default(PENDING)
+
+  /// Money, all shares of the parent order and summing exactly back to it.
+  subtotal         Float
+  discount         Float @default(0)
+  shippingCost     Float @default(0)
+  total            Float
+  commissionRate   Float @default(0)
+  commissionAmount Float @default(0)
+  /// What the seller is owed: net of discount and commission, excluding shipping.
+  payoutAmount     Float @default(0)
+
+  /// Set once the payout has actually been settled.
+  settledAt DateTime?
+
+  // Fulfilment, per shop
+  trackingNumber String?
+  carrier        String?
+  shippedAt      DateTime?
+  deliveredAt    DateTime?
+
+  items OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([vendorId])
+  @@index([status])
+  @@index([settledAt])
+}
+
+/// Every money movement between the platform and a seller. The balance is the
+/// sum of amounts: positive means the platform owes the seller.
+model SellerLedgerEntry {
+  id            String          @id @default(cuid())
+  vendorId      String
+  vendor        VendorProfile   @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  sellerOrderId String?
+  type          LedgerEntryType
+  /// Rupees. SALE positive; PAYOUT and RETURN_REVERSAL negative.
+  amount        Float
+  /// Bank / UTR reference for payouts.
+  reference     String?
+  note          String?
+  createdBy     String?
+
+  createdAt DateTime @default(now())
+
+  @@index([vendorId, createdAt])
+  @@index([sellerOrderId])
+}
+
+// ============================================
+// CUSTOM WEAR QUOTES
+// ============================================
+
+/// A request for custom-printed or embroidered garments from /custom-wear.
+/// Priced by a person, so it is a quote rather than an order.
+model CustomWearQuote {
+  id        String  @id @default(cuid())
+  reference String  @unique // CWQ-<year>-<6 digits>
+  userId    String?
+  user      User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  productId   String // custom-wear catalogue id (static catalogue, not Product)
+  productSlug String
+  productName String
+  sku         String
+  colorName   String?
+  sizes       String[]
+  quantity    Int
+  method      String?
+  locations   String[]
+  designFiles String[] // uploaded artwork URLs or names
+  notes       String?
+
+  customerName String
+  company      String?
+  email        String
+  phone        String?
+  country      String
+  postcode     String?
+  requiredBy   String?
+
+  status      String  @default("NEW") // NEW, CONTACTED, QUOTED, WON, LOST
+  quotedPrice Float?
+  adminNotes  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([email])
+  @@index([userId])
 }

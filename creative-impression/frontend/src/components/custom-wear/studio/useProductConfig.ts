@@ -5,13 +5,18 @@ import { useRouter } from 'next/navigation';
 import { useDispatch } from 'react-redux';
 import { CUSTOMIZATION_LOCATION_LABELS } from '@/config/custom-wear/taxonomy';
 import { customWearContent } from '@/config/custom-wear/content';
-import { buildCartItem } from '@/lib/custom-wear/cart';
+import { buildQuoteLine } from '@/lib/custom-wear/cart';
 import { calculatePricing } from '@/lib/custom-wear/pricing';
-import { createDesignUpload, releaseDesignUpload } from '@/lib/custom-wear/uploads';
+import {
+  createDesignUpload,
+  releaseDesignUpload,
+  uploadDesignFile,
+} from '@/lib/custom-wear/uploads';
 import { trackCustomWearEvent } from '@/lib/custom-wear/analytics';
 import { useUrlPurchaseMode } from '@/hooks/useUrlPurchaseMode';
-import { addToCart } from '@/store/slices/cart';
+import { addQuoteLine } from '@/store/slices/customWear';
 import type {
+  DesignUpload,
   CustomWearProduct,
   CustomizationLocationId,
   CustomizationPlacement,
@@ -59,8 +64,12 @@ export interface ProductConfig {
   errors: ConfigErrors;
   clearError: (key: keyof ConfigErrors) => void;
 
+  /** True while any artwork file is still being sent to the server. */
+  uploadsPending: boolean;
+
   /**
-   * Validates and adds to the cart, returning what it found. The errors come
+   * Validates and adds to the cart's custom-wear section (a quote request,
+   * not a payable line), returning what it found. The errors come
    * back from the call rather than only landing in state, because a caller
    * reacting to them in the same tick would otherwise read the previous
    * render's value — stale and usually empty.
@@ -228,14 +237,42 @@ export function useProductConfig(product: CustomWearProduct): ProductConfig {
         return;
       }
 
-      const created = Array.from(files).slice(0, room).map((file) => createDesignUpload(file));
+      const picked = Array.from(files).slice(0, room);
+      const created = picked.map((file) => createDesignUpload(file));
       const rejected = created.find((upload) => upload.status === 'error');
       setUploadError(rejected?.error ?? null);
 
       // A rejected file may still hold an object URL; release it now.
       created.filter((upload) => upload.status === 'error').forEach(releaseDesignUpload);
-      const accepted = created.filter((upload) => upload.status !== 'error');
+      const acceptedFiles: Array<{ file: File; upload: DesignUpload }> = [];
+      created.forEach((upload, index) => {
+        if (upload.status !== 'error') {
+          acceptedFiles.push({ file: picked[index], upload: { ...upload, status: 'uploading' } });
+        }
+      });
+      const accepted = acceptedFiles.map((entry) => entry.upload);
       if (accepted.length === 0) return;
+
+      const patchUpload = (id: string, patch: Partial<DesignUpload>) =>
+        setSelection((current) => ({
+          ...current,
+          uploads: current.uploads.map((upload) =>
+            upload.id === id ? { ...upload, ...patch } : upload
+          ),
+        }));
+
+      // Each file goes to storage straight away, so the print team gets the
+      // real artwork with the quote rather than just its name.
+      acceptedFiles.forEach(({ file, upload }) => {
+        uploadDesignFile(file)
+          .then((stored) => patchUpload(upload.id, { status: 'ready', url: stored.url, error: undefined }))
+          .catch((caught: unknown) => {
+            const message =
+              caught instanceof Error ? caught.message : 'Could not upload that file.';
+            patchUpload(upload.id, { status: 'error', error: message });
+            setUploadError(`${upload.name}: ${message}`);
+          });
+      });
 
       setSelection((current) => ({
         ...current,
@@ -290,7 +327,20 @@ export function useProductConfig(product: CustomWearProduct): ProductConfig {
         (placement) => !placement.templateId && !placement.uploadId
       );
       const methodless = selection.placements.find((placement) => !placement.method);
-      if (bare) {
+      const failed = selection.placements.find((placement) =>
+        selection.uploads.some(
+          (upload) => upload.id === placement.uploadId && upload.status === 'error'
+        )
+      );
+      const pending = selection.uploads.some((upload) => upload.status === 'uploading');
+      if (pending) {
+        next.artwork = 'Your artwork is still uploading. Try again in a moment.';
+      } else if (failed) {
+        next.artwork = `The artwork on the ${CUSTOMIZATION_LOCATION_LABELS[
+          failed.location
+        ].toLowerCase()} did not upload. Remove it and upload it again.`;
+        setActivePlacement(failed.id);
+      } else if (bare) {
         next.artwork = `Add artwork to the ${CUSTOMIZATION_LOCATION_LABELS[
           bare.location
         ].toLowerCase()}.`;
@@ -305,21 +355,20 @@ export function useProductConfig(product: CustomWearProduct): ProductConfig {
 
     setErrors(next);
     return next;
-  }, [colorId, sizeIds, selection.placements]);
+  }, [colorId, sizeIds, selection.placements, selection.uploads]);
 
   const commitToCart = useCallback((): { ok: boolean; errors: ConfigErrors } => {
     const found = validate();
     if (Object.keys(found).length > 0 || !colorId) return { ok: false, errors: found };
 
     dispatch(
-      addToCart(
-        buildCartItem({
+      addQuoteLine(
+        buildQuoteLine({
           product,
           colorId,
-          sizeId: sizeIds[0],
+          sizeIds,
           pricing,
           customization: selection,
-          deliverySpeed: 'standard',
         })
       )
     );
@@ -330,6 +379,8 @@ export function useProductConfig(product: CustomWearProduct): ProductConfig {
     });
     return { ok: true, errors: {} };
   }, [validate, colorId, dispatch, product, sizeIds, pricing, selection]);
+
+  const uploadsPending = selection.uploads.some((upload) => upload.status === 'uploading');
 
   const hasArtwork = selection.placements.some(
     (placement) => placement.templateId || placement.uploadId
@@ -360,6 +411,7 @@ export function useProductConfig(product: CustomWearProduct): ProductConfig {
     pricing,
     errors,
     clearError,
+    uploadsPending,
     commitToCart,
     hasArtwork,
   };

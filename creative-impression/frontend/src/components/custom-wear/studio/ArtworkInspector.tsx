@@ -212,7 +212,13 @@ export const ArtworkInspector: React.FC<ArtworkInspectorProps> = ({ product, con
             {selection.uploads.map((upload) => (
               <li key={upload.id}>
                 <span className="cw-art-file-name">{upload.name}</span>
-                <span className="cw-art-file-size">{formatFileSize(upload.size)}</span>
+                <span className="cw-art-file-size">
+                  {upload.status === 'uploading'
+                    ? 'Uploading…'
+                    : upload.status === 'error'
+                      ? 'Upload failed'
+                      : formatFileSize(upload.size)}
+                </span>
                 <button
                   suppressHydrationWarning
                   type="button"

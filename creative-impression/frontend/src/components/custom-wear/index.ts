@@ -17,6 +17,7 @@ export { ProductPhotos } from './studio/ProductPhotos';
 export { Designer } from './studio/Designer';
 export { DesignCanvas } from './studio/DesignCanvas';
 export { ArtworkInspector } from './studio/ArtworkInspector';
-export { QuoteSheet } from './studio/QuoteSheet';
+export { QuoteSheet, QuoteContactSheet } from './studio/QuoteSheet';
+export { CustomWearQuoteBasket } from './CustomWearQuoteBasket';
 export { DesignMark } from './studio/DesignMark';
 export { useProductConfig } from './studio/useProductConfig';

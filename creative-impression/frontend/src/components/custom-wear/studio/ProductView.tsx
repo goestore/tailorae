@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
 import { FABRIC_LABELS } from '@/config/custom-wear/taxonomy';
 import { customWearContent } from '@/config/custom-wear/content';
 import { formatTierRange } from '@/lib/custom-wear/pricing';
@@ -51,7 +52,9 @@ export const ProductView: React.FC<ProductViewProps> = ({
   const handleAdd = () => {
     const { ok, errors } = config.commitToCart();
     if (ok) {
-      setFlash(`Added ${config.pricing.quantity} to your cart.`);
+      setFlash(
+        `Added ${config.pricing.quantity} to your cart. Custom pieces are priced by our team, so you request a quote from the cart instead of paying at checkout.`
+      );
       return;
     }
     // Artwork is the one requirement that cannot be satisfied on this page, so
@@ -239,9 +242,10 @@ export const ProductView: React.FC<ProductViewProps> = ({
                   suppressHydrationWarning
                   type="button"
                   onClick={handleAdd}
+                  disabled={config.uploadsPending}
                   className="cw-cta cw-cta--accent"
                 >
-                  Add to cart
+                  {config.uploadsPending ? 'Uploading artwork…' : 'Add to cart'}
                 </button>
               ) : (
                 <button
@@ -265,7 +269,10 @@ export const ProductView: React.FC<ProductViewProps> = ({
 
             {flash && (
               <p role="status" className="cw-pdp-flash">
-                {flash}
+                {flash}{' '}
+                <Link href="/cart#custom-wear" className="underline">
+                  View cart
+                </Link>
               </p>
             )}
           </div>

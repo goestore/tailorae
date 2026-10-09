@@ -23,13 +23,34 @@ export interface CardItem {
 
 const CARD = 'flex h-full flex-col p-5 text-left';
 
+/**
+ * Each icon gets the colour of what it stands for (delivery blue, pricing
+ * green…). Icons not listed — an admin can pick any — cycle through the same
+ * palette, so a card is never left uncoloured.
+ */
+const TONE_BY_ICON: Record<string, string> = {
+  sparkle: 'gold',
+  star: 'gold',
+  truck: 'blue',
+  tag: 'green',
+  sewing: 'violet',
+  printer: 'coral',
+  building: 'indigo',
+  tshirt: 'rose',
+  palette: 'teal',
+};
+const TONES = ['gold', 'blue', 'green', 'violet', 'coral', 'indigo', 'rose', 'teal'];
+const toneFor = (icon: string, index: number) => TONE_BY_ICON[icon] ?? TONES[index % TONES.length];
+
 /** h-full + flex keeps every card the same height regardless of copy length. */
 const CardBody: React.FC<{ item: CardItem; index: number }> = ({ item, index }) => (
   <Card hover className={CARD}>
-    <div className={`service-icon service-icon--${index % 6} mb-5 flex h-9 w-9 items-center justify-center`}>
-      <Icon name={item.icon} className="h-6 w-6" />
+    <div
+      className={`service-icon service-icon--${index % 6} service-tone--${toneFor(item.icon, index)} mb-4 flex items-center justify-center`}
+    >
+      <Icon name={item.icon} className="h-5 w-5" />
     </div>
-    <h3 className="mb-1.5 text-[15px] text-ink">{item.title}</h3>
+    <h3 className="mb-1.5 text-[15px] font-semibold text-ink">{item.title}</h3>
     <p className="text-sm leading-relaxed text-ink-3">{item.description}</p>
   </Card>
 );
@@ -45,9 +66,8 @@ const CardBand: React.FC<CardBandProps> = ({ heading, items }) => {
   return (
     <section className="section-y border-t border-line bg-white">
       <div className="container-max">
-        <div className="mb-4 flex items-end justify-between border-b border-line pb-3 md:mb-6">
+        <div className="section-head">
           <h2 className="heading-rule">{heading}</h2>
-          <span className="hidden text-xs uppercase tracking-[0.12em] text-ink-3 sm:block">The Creative Impression standard</span>
         </div>
 
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">

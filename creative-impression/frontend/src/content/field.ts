@@ -328,10 +328,10 @@ export const field = {
 /**
  * Where a picker's choices come from.
  *
- * `products` is the catalog in Postgres; `category-tiles` is the set of
- * home-page category cards declared in `config/home-categories.ts`.
+ * `products` is the catalog in Postgres. (Homepage category tiles used to be
+ * a picker too; they are now managed on the categories themselves.)
  */
-export type PickerSource = 'products' | 'category-tiles';
+export type PickerSource = 'products';
 
 /** The declared shape of one list entry. */
 export type ListItemFields = Readonly<Record<string, Field<unknown>>>;

@@ -1,22 +1,30 @@
 'use client';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { apiClient } from '@/lib/api-client';
 import { getApiErrorMessage } from '@/lib/api-utils';
 import { CATALOG_CATEGORIES } from '@/lib/catalog';
-import { Product } from '@/types';
+import {
+  getBrands,
+  getColors,
+  getFacets,
+  getProductsPage,
+  parseColourParam,
+  type ColourFacet,
+  type Facets,
+} from '@/lib/products-api';
+import { Brand, Product } from '@/types';
 import { ProductGrid } from './ProductGrid';
 import { ProductFilters, ProductFilterValues, SORT_OPTIONS } from './ProductFilters';
 
 /**
- * The API caps `limit` at 50, and the keyword narrowing below has to run on the
- * client, so the listing works from one page of at most 50 and paginates that.
- * Past 50 matches in a single section this needs real server-side paging.
+ * Every refinement — including the subcategory keywords and stock — is now
+ * applied by the API, so one page is a real page of the whole match set and
+ * the count above the grid describes the catalogue rather than one fetch.
+ * Pages accumulate behind a Load more button, the way 9impression's shop does.
  */
-const FETCH_LIMIT = 50;
-const PAGE_SIZE = 12;
+const PAGE_SIZE = 24;
 
 export interface Crumb {
   label: string;
@@ -47,6 +55,20 @@ export interface ProductListingProps {
   exclude?: string[];
   /** Server-rendered first page, so the products are in the HTML for crawlers. */
   initialProducts?: Product[];
+  /**
+   * True when `initialProducts` was fetched using the page's search params, not
+   * just its base scope. The server and the client then agree on what is on
+   * screen, so the first fetch can be skipped whatever the params say.
+   *
+   * False (the default) means the server rendered the section's unfiltered
+   * first page, and an arrival carrying filters must still fetch.
+   */
+  initialReflectsParams?: boolean;
+  /**
+   * Total the server's filter set matched. Without it the listing would take
+   * the first page for the whole catalogue and never offer Load more.
+   */
+  initialTotal?: number;
 }
 
 /**
@@ -65,6 +87,8 @@ export const ProductListing: React.FC<ProductListingProps> = ({
   match,
   exclude,
   initialProducts = [],
+  initialTotal,
+  initialReflectsParams = false,
 }) => {
   const router = useRouter();
   const pathname = usePathname();
@@ -76,12 +100,29 @@ export const ProductListing: React.FC<ProductListingProps> = ({
     maxPrice: searchParams.get('maxPrice') ?? '',
     sortBy: searchParams.get('sortBy') ?? '',
     q: searchParams.get('q') ?? '',
+    color: searchParams.get('color') ?? '',
+    brand: searchParams.get('brand') ?? '',
     inStock: searchParams.get('inStock') ?? '',
     onSale: searchParams.get('onSale') ?? '',
+    size: searchParams.get('size') ?? '',
+    ageGroup: searchParams.get('ageGroup') ?? '',
   };
-  const page = Math.max(1, parseInt(searchParams.get('page') ?? '1', 10) || 1);
+  // Template attribute facets ride along as attr_<key> (attr_upperMaterial).
+  const attributeFilters: Record<string, string> = {};
+  searchParams.forEach((value, key) => {
+    if (key.startsWith('attr_') && value) {
+      values[key] = value;
+      attributeFilters[key.slice(5)] = value;
+    }
+  });
 
   const [fetched, setFetched] = useState<Product[]>(initialProducts);
+  const [total, setTotal] = useState(initialTotal ?? initialProducts.length);
+  const [page, setPage] = useState(1);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [colorFacets, setColorFacets] = useState<ColourFacet[]>([]);
+  const [brandFacets, setBrandFacets] = useState<Brand[]>([]);
+  const [facets, setFacets] = useState<Facets>({ sizes: [], ageGroups: [] });
   // Start loading when there is nothing to show yet, so the first paint is a
   // skeleton. Starting at false rendered "Nothing matches those filters" for
   // the moment before the effect fired — an empty state on a page that had not
@@ -90,12 +131,43 @@ export const ProductListing: React.FC<ProductListingProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
-  // The server already rendered an unfiltered first page; don't immediately
-  // re-request it on mount and flash a skeleton over identical content.
+  // The server already rendered the first page; don't immediately re-request it
+  // on mount and flash a skeleton over identical content. When the server did
+  // not take the params into account, an arrival carrying any still has to
+  // fetch — otherwise a shared filtered link would show the unfiltered grid.
   const hasParams = Array.from(searchParams.keys()).length > 0;
-  const skipFirstFetch = useRef(initialProducts.length > 0 && !hasParams);
+  const skipFirstFetch = useRef(
+    initialProducts.length > 0 && (initialReflectsParams || !hasParams)
+  );
 
-  const queryKey = JSON.stringify([baseQuery, values]);
+  /**
+   * The filter set sent to the API. `baseQuery` is the section's permanent
+   * scope, so it wins over anything the shopper could set — a men's section
+   * cannot be filtered into womenswear.
+   */
+  const serverFilters = {
+    category: baseQuery?.category || values.category || undefined,
+    // A section can declare its own default order (new arrivals is newest
+    // first); an explicit choice by the shopper still wins over it.
+    sortBy: values.sortBy || baseQuery?.sortBy || undefined,
+    q: values.q || undefined,
+    color: values.color || undefined,
+    brand: baseQuery?.brand || values.brand || undefined,
+    vendor: baseQuery?.vendor || undefined,
+    minPrice: values.minPrice ? Number(values.minPrice) : undefined,
+    maxPrice: values.maxPrice ? Number(values.maxPrice) : undefined,
+    sale: values.onSale === '1' || baseQuery?.onSale === 'true',
+    newest: baseQuery?.newest === 'true',
+    inStock: values.inStock === '1',
+    size: values.size || undefined,
+    ageGroup: values.ageGroup || undefined,
+    audience: baseQuery?.audience || undefined,
+    attributes: attributeFilters,
+    match,
+    exclude,
+  };
+
+  const queryKey = JSON.stringify([baseQuery, values, match, exclude]);
 
   useEffect(() => {
     if (skipFirstFetch.current) {
@@ -107,23 +179,17 @@ export const ProductListing: React.FC<ProductListingProps> = ({
     setIsLoading(true);
     setError(null);
 
-    const params: Record<string, string | number> = { limit: FETCH_LIMIT, ...baseQuery };
-    if (values.category && !baseQuery?.category) params.category = values.category;
-    if (values.q) params.search = values.q;
-    if (values.sortBy) params.sortBy = values.sortBy;
-    if (values.minPrice) params.minPrice = values.minPrice;
-    if (values.maxPrice) params.maxPrice = values.maxPrice;
-    if (values.onSale === '1') params.onSale = 'true';
-
-    apiClient
-      .get('/products', { params })
-      .then((res) => {
+    getProductsPage({ ...serverFilters, page: 1, limit: PAGE_SIZE })
+      .then(({ products, total: matched }) => {
         if (cancelled) return;
-        setFetched(res.data?.data?.products ?? []);
+        setFetched(products);
+        setTotal(matched);
+        setPage(1);
       })
       .catch((err) => {
         if (cancelled) return;
         setFetched([]);
+        setTotal(0);
         setError(getApiErrorMessage(err, 'Failed to load products.'));
       })
       .finally(() => {
@@ -136,50 +202,82 @@ export const ProductListing: React.FC<ProductListingProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryKey]);
 
-  /**
-   * Narrowing the API cannot express: subcategory keywords (a kurti is a tunic)
-   * and stock, which is not a query parameter.
-   */
-  const results = useMemo(() => {
-    let list = fetched;
+  // Colour families present in this category. They do not depend on the other
+  // filters, so they are read once per category; a failure just hides the group.
+  const colourCategory = baseQuery?.category || values.category || '';
+  useEffect(() => {
+    let cancelled = false;
+    getColors(colourCategory || undefined)
+      .then((list) => {
+        if (!cancelled) setColorFacets(list);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [colourCategory]);
 
-    if (match) {
-      list = list.filter((product) => {
-        const name = product.name.toLowerCase();
-        return (
-          match.some((term) => name.includes(term)) &&
-          !(exclude ?? []).some((term) => name.includes(term))
-        );
+  useEffect(() => {
+    let cancelled = false;
+    getBrands()
+      .then((list) => {
+        if (!cancelled) setBrandFacets(list);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Sizes and age groups depend on the category: the Kids page offers baby and
+  // kids sizes, not the whole chart.
+  const facetCategory = serverFilters.category;
+  useEffect(() => {
+    let cancelled = false;
+    getFacets(facetCategory)
+      .then((next) => {
+        if (!cancelled) setFacets(next);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [facetCategory]);
+
+  /** Append the next page rather than replacing what is already on screen. */
+  const loadMore = async () => {
+    if (isLoadingMore) return;
+    setIsLoadingMore(true);
+    try {
+      const next = page + 1;
+      const { products } = await getProductsPage({
+        ...serverFilters,
+        page: next,
+        limit: PAGE_SIZE,
       });
+      setFetched((current) => [...current, ...products]);
+      setPage(next);
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not load more products.'));
+    } finally {
+      setIsLoadingMore(false);
     }
+  };
 
-    if (values.inStock === '1') list = list.filter((product) => product.quantity > 0);
-
-    return list;
-  }, [fetched, match, exclude, values.inStock]);
-
-  const totalPages = Math.max(1, Math.ceil(results.length / PAGE_SIZE));
-  const currentPage = Math.min(page, totalPages);
-  const visible = results.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const results = fetched;
 
   /** Merge changes into the URL; an empty value drops the parameter. */
-  const updateParams = (changed: Record<string, string | undefined>, resetPage = true) => {
+  const updateParams = (changed: Record<string, string | undefined>) => {
     const next = new URLSearchParams(searchParams.toString());
     Object.entries(changed).forEach(([key, value]) => {
       if (value) next.set(key, value);
       else next.delete(key);
     });
-    if (resetPage) next.delete('page');
+    // Paging is now "load more" rather than numbered pages, so a stale `page`
+    // in the URL would mean nothing. Dropped whenever a filter changes.
+    next.delete('page');
     const query = next.toString();
     router.push(query ? `${pathname}?${query}` : pathname, { scroll: false });
-  };
-
-  const pageHref = (target: number) => {
-    const next = new URLSearchParams(searchParams.toString());
-    if (target > 1) next.set('page', String(target));
-    else next.delete('page');
-    const query = next.toString();
-    return query ? `${pathname}?${query}` : pathname;
   };
 
   const categoryName = CATALOG_CATEGORIES.find((c) => c.slug === values.category)?.name;
@@ -202,6 +300,34 @@ export const ProductListing: React.FC<ProductListingProps> = ({
     showCategoryChip
       ? { label: categoryName ?? values.category ?? '', clear: { category: '' } }
       : null,
+    // One chip per chosen colour family, each removable on its own.
+    ...parseColourParam(values.color).map((slug) => ({
+      label: colorFacets.find((f) => f.slug === slug)?.name ?? slug,
+      clear: {
+        color: parseColourParam(values.color)
+          .filter((s) => s !== slug)
+          .join(','),
+      },
+    })),
+    values.size
+      ? { label: `${facets.optionLabel ?? 'Size'} ${values.size}`, clear: { size: '' } }
+      : null,
+    ...Object.entries(attributeFilters).map(([key, value]) => ({
+      label: `${facets.attributes?.find((a) => a.key === key)?.label ?? key}: ${value}`,
+      clear: { [`attr_${key}`]: '' },
+    })),
+    values.ageGroup
+      ? {
+          label: facets.ageGroups.find((a) => a.value === values.ageGroup)?.label ?? values.ageGroup,
+          clear: { ageGroup: '' },
+        }
+      : null,
+    values.brand && !baseQuery?.brand
+      ? {
+          label: brandFacets.find((b) => b.slug === values.brand)?.name ?? values.brand,
+          clear: { brand: '' },
+        }
+      : null,
     priceLabel ? { label: priceLabel, clear: { minPrice: '', maxPrice: '' } } : null,
     values.inStock === '1' ? { label: 'In stock', clear: { inStock: '' } } : null,
     values.onSale === '1' ? { label: 'On sale', clear: { onSale: '' } } : null,
@@ -215,8 +341,13 @@ export const ProductListing: React.FC<ProductListingProps> = ({
       maxPrice: '',
       sortBy: '',
       q: '',
+      color: '',
+      brand: '',
       inStock: '',
       onSale: '',
+      size: '',
+      ageGroup: '',
+      ...Object.fromEntries(Object.keys(attributeFilters).map((key) => [`attr_${key}`, ''])),
     });
 
   const filterPanel = (
@@ -224,6 +355,9 @@ export const ProductListing: React.FC<ProductListingProps> = ({
       values={values}
       onChange={(changed) => updateParams(changed)}
       showCategories={!baseQuery?.category}
+      colors={colorFacets}
+      brands={baseQuery?.brand ? [] : brandFacets}
+      facets={baseQuery?.audience ? { ...facets, ageGroups: [] } : facets}
     />
   );
 
@@ -274,7 +408,7 @@ export const ProductListing: React.FC<ProductListingProps> = ({
                     aria-current={chip.active ? 'page' : undefined}
                     className={`whitespace-nowrap border px-2.5 py-1 text-[12px] font-medium no-underline transition-colors ${
                       chip.active
-                        ? 'border-ink bg-ink text-white'
+                        ? 'border-[var(--brand)] bg-[var(--brand)] font-semibold text-ink'
                         : 'border-line text-ink-2 hover:border-ink hover:text-ink'
                     }`}
                   >
@@ -285,10 +419,9 @@ export const ProductListing: React.FC<ProductListingProps> = ({
             </div>
           )}
 
+          {/* The total the filters match, not the number fetched so far. */}
           <p className="ml-auto text-[13px] text-ink-3">
-            {isLoading
-              ? 'Loading…'
-              : `${results.length} ${results.length === 1 ? 'product' : 'products'}`}
+            {isLoading ? 'Loading…' : `${total} ${total === 1 ? 'product' : 'products'}`}
           </p>
 
           <form
@@ -373,7 +506,12 @@ export const ProductListing: React.FC<ProductListingProps> = ({
               <div className="alert alert-error">{error}</div>
             ) : (
               <>
-                <ProductGrid products={visible} columns={4} loading={isLoading} />
+                <ProductGrid
+                  products={results}
+                  columns={4}
+                  loading={isLoading}
+                  selectedColor={values.color}
+                />
 
                 {!isLoading && results.length === 0 && (
                   <div className="border-t border-line py-16 text-center">
@@ -393,32 +531,20 @@ export const ProductListing: React.FC<ProductListingProps> = ({
                   </div>
                 )}
 
-                {!isLoading && totalPages > 1 && (
-                  <nav
-                    className="mt-8 flex flex-wrap items-center justify-center gap-2"
-                    aria-label="Pagination"
-                  >
-                    {currentPage > 1 && (
-                      <Link href={pageHref(currentPage - 1)} className="btn btn-outline btn-sm">
-                        Previous
-                      </Link>
-                    )}
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((target) => (
-                      <Link
-                        key={target}
-                        href={pageHref(target)}
-                        aria-current={target === currentPage ? 'page' : undefined}
-                        className={`btn btn-sm ${target === currentPage ? 'btn-secondary' : 'btn-outline'}`}
-                      >
-                        {target}
-                      </Link>
-                    ))}
-                    {currentPage < totalPages && (
-                      <Link href={pageHref(currentPage + 1)} className="btn btn-outline btn-sm">
-                        Next
-                      </Link>
-                    )}
-                  </nav>
+                {!isLoading && results.length < total && (
+                  <div className="mt-10 flex flex-col items-center gap-3">
+                    <button
+                      type="button"
+                      onClick={loadMore}
+                      disabled={isLoadingMore}
+                      className="btn btn-outline btn-lg"
+                    >
+                      {isLoadingMore ? 'Loading…' : 'Load more'}
+                    </button>
+                    <p className="m-0 text-[12.5px]" style={{ color: 'var(--ink-3)' }}>
+                      Showing {results.length} of {total}
+                    </p>
+                  </div>
                 )}
               </>
             )}

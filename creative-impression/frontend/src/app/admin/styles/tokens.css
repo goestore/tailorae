@@ -1,0 +1,166 @@
+/* ==========================================================================
+   ADMIN DESIGN TOKENS — Shopify-admin (Polaris) idiom
+   --------------------------------------------------------------------------
+   - Dark top bar, grey sidebar, light grey canvas, white cards with a soft
+     bevel shadow (no hard borders).
+   - Compact sizing: 13px body, 32px controls, 12px card radius, 8px control
+     radius — the density an operator wants on a tool used all day.
+   - Ink primary buttons with a bevel; white secondary buttons; blue links and
+     focus rings; tinted badges for status.
+
+   Token NAMES are unchanged, so every screen and the storefront tokens
+   re-pointed below (--ink, --surface, --border, --brand …) follow.
+   ========================================================================== */
+
+:root,
+.admin-shell {
+  /* --- Surfaces --- */
+  --a-floor: #ffffff; /* canvas: white; cards are framed by --a-lift-card */
+  --a-surface: #ffffff; /* cards                         */
+  --a-surface-2: #f7f7f7; /* subdued: hover rows, wells    */
+  --a-overlay: #ffffff; /* popovers                      */
+  --a-sunken: #f7f7f7; /* table header                  */
+  --a-nav: #ffffff; /* sidebar: white, set off by its hairline edge */
+  --a-topbar: #ffffff; /* top bar: white, with a hairline under it */
+  --a-topbar-2: #f3f3f3; /* top bar search, hover         */
+
+  --a-edge: #ebebeb; /* dividers inside cards         */
+  --a-edge-strong: #8a8a8a; /* field borders                 */
+  --a-card-edge: #e3e3e3;
+
+  /* --- Elevation (Polaris bevel) --- */
+  --a-lift-1:
+    0 1px 0 0 rgba(26, 26, 26, 0.07), inset 0 1px 0 0 rgba(204, 204, 204, 0.5),
+    inset 0 -1px 0 0 rgba(0, 0, 0, 0.17), inset 1px 0 0 0 rgba(0, 0, 0, 0.13),
+    inset -1px 0 0 0 rgba(0, 0, 0, 0.13);
+  --a-lift-card: 0 0 0 1px rgba(0, 0, 0, 0.09), 0 1px 2px 0 rgba(16, 24, 40, 0.05);
+  --a-lift-2: 0 4px 6px -2px rgba(26, 26, 26, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.06);
+  --a-lift-3: 0 20px 20px -8px rgba(26, 26, 26, 0.28), 0 0 0 1px rgba(0, 0, 0, 0.06);
+
+  /* --- Text --- */
+  --a-text: #303030; /* 12.6:1 */
+  --a-text-dim: #616161; /* 6.2:1  */
+  --a-text-faint: #6f6f6f; /* 5.1:1  */
+
+  /* --- Status --- */
+  --a-good: #0c5132;
+  --a-good-fill: #29845a;
+  --a-good-bg: #cdfee1;
+  --a-warn: #5e4200;
+  --a-warn-fill: #b28400;
+  --a-warn-bg: #ffef9d;
+  --a-serious: #8f3d00;
+  --a-attention-bg: #ffd6a4;
+  --a-bad: #8e0b21;
+  --a-bad-fill: #e51c00;
+  --a-bad-bg: #fedad9;
+  --a-info: #00527c;
+  --a-info-fill: #0094d5;
+  --a-info-bg: #e0f0ff;
+  --a-neutral-bg: #e3e3e3;
+
+  /* --- Accent tones (components/admin/tone.tsx) ---
+     Colour for wayfinding, in small doses: icon chips, dots, sparklines and
+     the selected sidebar icon. Never card fills, body text or buttons.
+     -fg is the glyph colour (>= 4.5:1 on its own -bg and on white),
+     -bg the chip tint, -solid the colour of a dot or a line. */
+  --a-tone-blue-fg: #1d4fa8;
+  --a-tone-blue-bg: #e6efff;
+  --a-tone-blue-solid: #2f6fe4;
+  --a-tone-green-fg: #116a3e;
+  --a-tone-green-bg: #e2f5e9;
+  --a-tone-green-solid: #22995a;
+  --a-tone-amber-fg: #7a4f00;
+  --a-tone-amber-bg: #fff2cc;
+  --a-tone-amber-solid: #fbb602; /* the brand yellow */
+  --a-tone-violet-fg: #5434b0;
+  --a-tone-violet-bg: #efeaff;
+  --a-tone-violet-solid: #7c5ce6;
+  --a-tone-teal-fg: #0b6463;
+  --a-tone-teal-bg: #ddf4f2;
+  --a-tone-teal-solid: #14a39a;
+  --a-tone-rose-fg: #a3263f;
+  --a-tone-rose-bg: #fde8ec;
+  --a-tone-rose-solid: #e5484d;
+
+  /* --- Accent --- */
+  --a-accent: #005bd3; /* links          */
+  --a-accent-fill: #303030; /* primary button */
+  --a-accent-hover: #1a1a1a;
+  --a-focus-ring: #005bd3;
+  --a-focus: rgba(0, 91, 211, 0.24);
+
+  /* --- Categorical series --- */
+  --a-series-1: #005bd3;
+  --a-series-2: #d95926;
+  --a-series-3: #29845a;
+  --a-series-4: #b28400;
+  --a-series-5: #d55181;
+  --a-series-6: #008300;
+  --a-series-7: #7a6fd8;
+  --a-series-8: #e66767;
+
+  /* --- Chart furniture --- */
+  --a-grid: #ebebeb;
+  --a-axis: #cccccc;
+  --a-chart-bg: #ffffff;
+
+  /* --- Geometry --- */
+  --a-radius: 12px;
+  --a-radius-sm: 8px;
+  --a-radius-lg: 16px;
+
+  /* --- Motion --- */
+  --a-dur-instant: 100ms;
+  --a-dur-fast: 150ms;
+  --a-dur-base: 220ms;
+  --a-dur-slow: 300ms;
+  --a-ease-out: cubic-bezier(0.25, 0.1, 0.25, 1);
+
+  --a-font:
+    'Inter', -apple-system, BlinkMacSystemFont, 'San Francisco', 'Segoe UI', Roboto, 'Helvetica Neue',
+    sans-serif;
+}
+
+/* The tokens existing screens read, re-pointed onto the system above. */
+.admin-shell {
+  --admin-bg: var(--a-floor);
+  --admin-panel: var(--a-surface);
+  --admin-panel-2: var(--a-surface-2);
+  --admin-line: var(--a-edge);
+  --admin-line-strong: var(--a-edge-strong);
+  --admin-text: var(--a-text);
+  --admin-text-2: var(--a-text-dim);
+  --admin-muted: var(--a-text-faint);
+  --admin-accent: var(--a-accent);
+  --admin-accent-soft: var(--a-info-bg);
+  --admin-cyan: var(--a-accent);
+  --admin-success: var(--a-good-fill);
+  --admin-danger: var(--a-bad);
+  --admin-warn: var(--a-warn);
+  --admin-radius: var(--a-radius);
+  --admin-radius-sm: var(--a-radius-sm);
+  --admin-shadow: var(--a-lift-card);
+
+  /* Storefront tokens borrowed by shared components inside the admin. */
+  --ink: var(--a-text);
+  --ink-2: var(--a-text-dim);
+  --ink-3: var(--a-text-faint);
+  --surface: var(--a-surface);
+  --surface-2: var(--a-surface-2);
+  --border: var(--a-card-edge);
+  --border-strong: var(--a-edge-strong);
+  --line: var(--a-edge);
+  --brand: var(--a-accent-fill);
+  --brand-600: var(--a-accent-hover);
+  --brand-700: var(--a-accent);
+  --brand-soft: var(--a-surface-2);
+  --sale: var(--a-bad);
+  --shadow-1: var(--a-lift-card);
+
+  /* Queue counts that need a person: the store's own yellow. */
+  --admin-highlight: #fbb602;
+  --admin-highlight-ink: #241a00;
+
+  color-scheme: light;
+}

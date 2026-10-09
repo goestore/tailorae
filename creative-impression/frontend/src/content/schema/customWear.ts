@@ -268,13 +268,13 @@ export const customWearContent = defineContent('custom-wear', {
     // `acceptedExtensions` and `backendPendingExtensions` are omitted: both are
     // lists, and the second is only meaningful as a subset of the first — two
     // separate editors could disagree and flag an extension nobody can pick.
-    maxFileSizeMb: field.number(25, {
+    maxFileSizeMb: field.number(15, {
       label: 'Maximum file size (MB)',
       min: 1,
-      // Capped at today's value: this is the browser-side check, and setting it
-      // above what the upload endpoint accepts fails only after the customer
+      // Capped at what POST /api/custom-wear/artwork accepts: this is the
+      // browser-side check, and setting it higher fails only after the customer
       // has picked a file, where no admin would see it. Lower it, never raise it.
-      max: 25,
+      max: 15,
       help: 'Shown to the customer and checked before the file is sent.',
     }),
     maxFiles: field.number(5, {
@@ -284,7 +284,7 @@ export const customWearContent = defineContent('custom-wear', {
       help: 'Further files are refused once this many are attached.',
     }),
     helpText: field.textarea(
-      'Vector artwork (SVG, PDF, AI, EPS) reproduces best. For raster files use 300 DPI at print size.',
+      'PDF or high-resolution PNG reproduces best. SVGs are converted to PNG. For raster files use 300 DPI at print size.',
       {
         label: 'Upload help text',
         max: 200,

@@ -13,7 +13,14 @@ export type { ModalProps, ModalHeaderProps, ModalBodyProps, ModalFooterProps } f
 export { Input } from './Input';
 export type { InputProps } from './Input';
 
-export { LoadingSpinner, Skeleton, SkeletonText } from './Loading';
+export {
+  LoadingSpinner,
+  Skeleton,
+  SkeletonText,
+  SkeletonLine,
+  SkeletonList,
+  SkeletonPanel,
+} from './Loading';
 export type { LoadingSpinnerProps, SkeletonProps, SkeletonTextProps } from './Loading';
 
 export { Alert } from './Alert';

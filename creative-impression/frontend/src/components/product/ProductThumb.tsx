@@ -116,14 +116,7 @@ export const ProductThumb: React.FC<ProductThumbProps> = ({
       );
     }
 
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
-        src={url}
-        alt={alt}
-        className={cn('object-cover', fill && 'absolute inset-0 h-full w-full', className)}
-      />
-    );
+    return <RemoteThumb url={url} alt={alt} fill={fill} className={className} />;
   }
 
   return (
@@ -143,3 +136,46 @@ export const ProductThumb: React.FC<ProductThumbProps> = ({
     </div>
   );
 };
+
+/**
+ * A plain <img> for hosts outside the optimizer's allowlist. Marketplace CDNs
+ * often refuse hotlinks, so a failed load falls back to the neutral
+ * placeholder instead of the browser's broken-image icon and alt text.
+ */
+function RemoteThumb({
+  url,
+  alt,
+  fill,
+  className,
+}: {
+  url: string;
+  alt: string;
+  fill: boolean;
+  className?: string;
+}) {
+  const [failed, setFailed] = React.useState(false);
+  if (failed) {
+    return (
+      <div
+        className={cn('flex items-center justify-center bg-neutral-100 text-neutral-400', fill && 'absolute inset-0', className)}
+        role="img"
+        aria-label={alt}
+      >
+        <svg className="h-1/2 w-1/2 max-h-8 max-w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        </svg>
+      </div>
+    );
+  }
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={url}
+      alt={alt}
+      loading="lazy"
+      referrerPolicy="no-referrer"
+      onError={() => setFailed(true)}
+      className={cn('object-cover', fill && 'absolute inset-0 h-full w-full', className)}
+    />
+  );
+}

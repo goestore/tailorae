@@ -9,15 +9,102 @@ import { ListControl } from './ListControl';
 import { cn } from '@/utils/helpers';
 
 /**
- * The site's small-caps label voice, lifted from `.cw-art-field > span` in
- * globals.css. Exported so the editor's section headings and these field
- * labels stay one decision rather than two that drift.
+ * The small secondary-label voice (counts, meta lines). Exported so the list,
+ * picker and image controls share one decision rather than several that drift.
  */
-export const LABEL_VOICE = 'text-[11px] font-semibold uppercase tracking-[0.04em] text-[#86868b]';
+export const LABEL_VOICE = 'text-xs font-[550] text-[var(--a-text-dim)]';
 
-/** Rounded pill badge, matching Apple design. */
-const TAG =
-  'inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded-full tracking-wide leading-none';
+/** Six-dot grip: marks a row as one of an ordered set. Moves are by button. */
+export const Grip: React.FC = () => (
+  <span className="ce-grip" aria-hidden="true">
+    <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor">
+      <circle cx="2.5" cy="2.5" r="1.25" />
+      <circle cx="7.5" cy="2.5" r="1.25" />
+      <circle cx="2.5" cy="7" r="1.25" />
+      <circle cx="7.5" cy="7" r="1.25" />
+      <circle cx="2.5" cy="11.5" r="1.25" />
+      <circle cx="7.5" cy="11.5" r="1.25" />
+    </svg>
+  </span>
+);
+
+/** Up / down / remove buttons shared by every ordered row in the editor. */
+export const RowActions: React.FC<{
+  name: string;
+  index: number;
+  count: number;
+  onMove: (from: number, to: number) => void;
+  onRemove?: () => void;
+}> = ({ name, index, count, onMove, onRemove }) => (
+  <span className="ce-row-actions">
+    <button
+      type="button"
+      className="btn btn-sm ce-icon-btn"
+      disabled={index === 0}
+      aria-label={`Move ${name} up`}
+      title="Move up"
+      onClick={() => onMove(index, index - 1)}
+    >
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 12 12"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M3 7.5 6 4.5l3 3" />
+      </svg>
+    </button>
+    <button
+      type="button"
+      className="btn btn-sm ce-icon-btn"
+      disabled={index === count - 1}
+      aria-label={`Move ${name} down`}
+      title="Move down"
+      onClick={() => onMove(index, index + 1)}
+    >
+      <svg
+        width="12"
+        height="12"
+        viewBox="0 0 12 12"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M3 4.5 6 7.5l3-3" />
+      </svg>
+    </button>
+    {onRemove && (
+      <button
+        type="button"
+        className="btn btn-sm btn-ghost ce-icon-btn ce-icon-btn--remove"
+        aria-label={`Remove ${name}`}
+        title="Remove"
+        onClick={onRemove}
+      >
+        <svg
+          width="12"
+          height="12"
+          viewBox="0 0 12 12"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          aria-hidden="true"
+        >
+          <path d="M3.5 3.5l5 5M8.5 3.5l-5 5" />
+        </svg>
+      </button>
+    )}
+  </span>
+);
 
 /** One-line rendering of a stored value, for the "this is what is live" notes. */
 export function formatContentValue(value: unknown): string {
@@ -66,15 +153,9 @@ const swatchValue = (value: unknown): string => {
  * a parallel keyboard implementation to match. Each move announces itself
  * through the live region so the new position is audible, not just visible.
  */
-const OrderControl: React.FC<ControlProps & { ids: readonly string[]; labels?: Readonly<Record<string, string>> }> = ({
-  id,
-  value,
-  describedBy,
-  ids,
-  labels,
-  onChange,
-  onBlur,
-}) => {
+const OrderControl: React.FC<
+  ControlProps & { ids: readonly string[]; labels?: Readonly<Record<string, string>> }
+> = ({ id, value, describedBy, ids, labels, onChange, onBlur }) => {
   const order = resolveOrder(value, ids);
   const [announcement, setAnnouncement] = useState('');
   const nameOf = (sectionId: string) => labels?.[sectionId] ?? sectionId;
@@ -90,35 +171,21 @@ const OrderControl: React.FC<ControlProps & { ids: readonly string[]; labels?: R
   };
 
   return (
-    <div id={id} aria-describedby={describedBy} className="flex flex-col gap-1.5">
-      <ol className="flex flex-col gap-1.5">
+    <div id={id} aria-describedby={describedBy}>
+      <ol className="ce-rows">
         {order.map((sectionId, index) => (
-          <li
-            key={sectionId}
-            className="flex items-center gap-3 border border-line bg-surface-2 px-3 py-2"
-          >
-            <span className={cn(LABEL_VOICE, 'w-5 shrink-0 tabular-nums')}>{index + 1}</span>
-            <span className="min-w-0 flex-1 truncate text-sm text-ink">{nameOf(sectionId)}</span>
-            <span className="flex shrink-0 gap-1">
-              <button
-                type="button"
-                className="btn btn-sm btn-outline px-2"
-                disabled={index === 0}
-                aria-label={`Move ${nameOf(sectionId)} up`}
-                onClick={() => move(index, index - 1)}
-              >
-                <span aria-hidden="true">↑</span>
-              </button>
-              <button
-                type="button"
-                className="btn btn-sm btn-outline px-2"
-                disabled={index === order.length - 1}
-                aria-label={`Move ${nameOf(sectionId)} down`}
-                onClick={() => move(index, index + 1)}
-              >
-                <span aria-hidden="true">↓</span>
-              </button>
-            </span>
+          <li key={sectionId} className="ce-row">
+            <div className="ce-row-head">
+              <Grip />
+              <span className="ce-row-index">{index + 1}</span>
+              <span className="ce-row-name">{nameOf(sectionId)}</span>
+              <RowActions
+                name={nameOf(sectionId)}
+                index={index}
+                count={order.length}
+                onMove={move}
+              />
+            </div>
           </li>
         ))}
       </ol>
@@ -266,10 +333,9 @@ export const FieldControl: React.FC<FieldControlProps> = ({
             {...shared}
             type="checkbox"
             checked={value === true}
-            className="h-4 w-4 accent-[var(--brand)]"
             onChange={(event) => onChange(event.target.checked)}
           />
-          <span className="text-sm text-ink-2">{value === true ? 'On' : 'Off'}</span>
+          <span className="text-[13px] text-[var(--a-text)]">{value === true ? 'On' : 'Off'}</span>
         </span>
       );
 
@@ -296,7 +362,7 @@ export const FieldControl: React.FC<FieldControlProps> = ({
             type="color"
             value={swatchValue(value)}
             aria-label={`${label} — colour picker`}
-            className="h-9 w-12 cursor-pointer p-1"
+            className="h-8 w-10 shrink-0 cursor-pointer rounded-[var(--a-radius-sm)]"
             // Uppercased to match the hex casing the schema defaults use, so
             // re-picking the colour already set does not read as a change.
             onChange={(event) => onChange(event.target.value.toUpperCase())}
@@ -439,32 +505,23 @@ export const ContentField: React.FC<ContentFieldProps> = ({
   const text = asText(value);
   const overLimit = field.max !== undefined && text.length > field.max;
 
-
-
   return (
-    <div
-      className={cn(
-        'grid gap-3 border-l-[3px] px-6 py-4 md:grid-cols-[14rem_minmax(0,1fr)] md:gap-8 items-start transition-colors',
-        changed ? 'border-l-[#0071e3] bg-[#0071e3]/[0.02]' : 'border-l-transparent'
-      )}
-    >
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor={id} className={LABEL_VOICE}>
+    <div className={cn('ce-field', changed && 'ce-field--changed')}>
+      <div className="ce-field-label">
+        {/* The JSON pointer is the address the API and support use; it stays
+            reachable as a tooltip without cluttering the form. */}
+        <label htmlFor={id} className="ce-label" title={entry.path}>
           {label}
         </label>
-        {/* The JSON pointer is the address the API and support conversations use. */}
-        <code className="font-mono text-[10.5px] text-[#86868b]">{entry.path}</code>
         {(changed || field.private) && (
-          <span className="flex flex-wrap gap-1 mt-0.5">
-            {changed && <span className={cn(TAG, 'bg-[#0071e3]/10 text-[#0071e3]')}>Unpublished</span>}
-            {field.private && (
-              <span className={cn(TAG, 'bg-black/[0.05] text-[#86868b]')}>Private</span>
-            )}
+          <span className="ce-tags">
+            {changed && <span className="ce-badge ce-badge--attention">Unpublished</span>}
+            {field.private && <span className="ce-badge">Private</span>}
           </span>
         )}
       </div>
 
-      <div className="flex min-w-0 flex-col gap-1.5">
+      <div className="ce-control">
         <FieldControl
           field={field}
           id={id}
@@ -477,28 +534,28 @@ export const ContentField: React.FC<ContentFieldProps> = ({
         />
 
         {field.help && (
-          <p id={helpId} className="form-help">
+          <p id={helpId} className="ce-help">
             {field.help}
           </p>
         )}
 
         {field.max !== undefined && (field.kind === 'text' || field.kind === 'textarea') && (
-          <p className={cn('text-xs', overLimit ? 'text-red-600' : 'text-ink-3')}>
+          <p className={overLimit ? 'ce-error' : 'ce-help'}>
             {text.length}/{field.max} characters
           </p>
         )}
 
         {error && (
-          <p id={errorId} role="alert" className="form-error">
+          <p id={errorId} role="alert" className="ce-error">
             {error}
           </p>
         )}
 
         {changed && (
-          <p className="flex flex-wrap items-baseline gap-2 text-xs text-ink-3">
-            <span className={LABEL_VOICE}>Live</span>
-            <span className="min-w-0 flex-1 truncate">{formatContentValue(publishedValue)}</span>
-            <button type="button" className="underline hover:text-ink" onClick={onRevert}>
+          <p className="ce-live">
+            <span className="font-[550]">Live</span>
+            <span>{formatContentValue(publishedValue)}</span>
+            <button type="button" className="btn btn-sm btn-ghost" onClick={onRevert}>
               Revert
             </button>
           </p>

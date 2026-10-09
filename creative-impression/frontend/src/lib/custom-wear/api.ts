@@ -13,11 +13,16 @@
 
 import { PAGE_SIZE } from '@/config/custom-wear/taxonomy';
 import { CUSTOM_WEAR_PRODUCTS } from '@/data/custom-wear/products';
+import { apiClient } from '@/lib/api-client';
+import { getApiErrorMessage, getApiErrorStatus } from '@/lib/api-utils';
 import { findRelatedProducts, queryProducts } from './filters';
 import type {
   CustomWearFilterState,
   CustomWearProduct,
+  CustomWearQuoteSummary,
   ProductQueryResult,
+  QuoteContactPayload,
+  QuoteLinePayload,
   QuoteRequestPayload,
   QuoteRequestResult,
 } from '@/types/custom-wear';
@@ -107,39 +112,110 @@ export async function fetchAllCustomWearSlugs(): Promise<string[]> {
 // ============================================
 // QUOTES
 // ============================================
+//
+// Quotes go straight to the Express API (`/api/custom-wear`), which stores
+// them as `CustomWearQuote` rows and issues the reference. A result is only
+// ever returned once the backend has stored the request — there is no
+// provisional path that could tell a customer "received" when nothing was kept.
 
-/**
- * Submits a quote request to the Next.js route handler at
- * `/api/custom-wear/quotes`, which issues the reference number server-side and
- * forwards to the quote backend when one is configured.
- */
+interface QuoteResponseData {
+  reference: string;
+  references: string[];
+  persisted: boolean;
+  receivedAt: string;
+}
+
+const toQuoteResult = (data: QuoteResponseData | undefined): QuoteRequestResult => {
+  if (!data || typeof data.reference !== 'string' || data.persisted !== true) {
+    throw new CustomWearApiError('The quote service returned an unexpected response.', 502);
+  }
+  return {
+    reference: data.reference,
+    references: Array.isArray(data.references) ? data.references : [data.reference],
+    persisted: true,
+    receivedAt: data.receivedAt,
+  };
+};
+
+const toApiError = (error: unknown, fallback: string): CustomWearApiError =>
+  new CustomWearApiError(getApiErrorMessage(error, fallback), getApiErrorStatus(error) ?? 500);
+
+/** Submit one configured garment for a quote. */
 export async function submitQuoteRequest(
   payload: QuoteRequestPayload
 ): Promise<QuoteRequestResult> {
-  const response = await fetch('/api/custom-wear/quotes', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  });
-
-  const data: unknown = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    const message =
-      data && typeof data === 'object' && 'message' in data && typeof data.message === 'string'
-        ? data.message
-        : 'We could not submit your quote request. Please try again.';
-    throw new CustomWearApiError(message, response.status);
+  try {
+    const response = await apiClient.post('/custom-wear/quotes', payload);
+    return toQuoteResult(response.data?.data);
+  } catch (error) {
+    if (error instanceof CustomWearApiError) throw error;
+    throw toApiError(error, 'We could not submit your quote request. Please try again.');
   }
+}
 
-  if (
-    !data ||
-    typeof data !== 'object' ||
-    !('reference' in data) ||
-    typeof (data as QuoteRequestResult).reference !== 'string'
-  ) {
-    throw new CustomWearApiError('The quote service returned an unexpected response.', 502);
+/** Submit several garments under one contact — one stored quote per line. */
+export async function submitQuoteBatch(
+  contact: QuoteContactPayload,
+  items: QuoteLinePayload[]
+): Promise<QuoteRequestResult> {
+  try {
+    const response = await apiClient.post('/custom-wear/quotes/batch', { ...contact, items });
+    return toQuoteResult(response.data?.data);
+  } catch (error) {
+    if (error instanceof CustomWearApiError) throw error;
+    throw toApiError(error, 'We could not submit your quote requests. Please try again.');
   }
+}
 
-  return data as QuoteRequestResult;
+/** The signed-in customer's quotes. */
+export async function fetchMyQuotes(): Promise<CustomWearQuoteSummary[]> {
+  try {
+    const response = await apiClient.get('/custom-wear/quotes/mine');
+    return (response.data?.data?.quotes ?? []) as CustomWearQuoteSummary[];
+  } catch (error) {
+    throw toApiError(error, 'Could not load your quotes.');
+  }
+}
+
+/** Guest status check: answers only when the email matches the request. */
+export async function lookupQuote(
+  reference: string,
+  email: string
+): Promise<CustomWearQuoteSummary> {
+  try {
+    const response = await apiClient.get(
+      `/custom-wear/quotes/${encodeURIComponent(reference.trim().toUpperCase())}`,
+      { params: { email: email.trim() } }
+    );
+    return response.data?.data?.quote as CustomWearQuoteSummary;
+  } catch (error) {
+    throw toApiError(error, 'Could not look up that quote.');
+  }
+}
+
+export interface UploadedArtwork {
+  url: string;
+  name: string;
+  format: 'png' | 'jpg' | 'webp' | 'pdf';
+  bytes: number;
+  rasterised: boolean;
+}
+
+/** Store one artwork file; returns its `/uploads/artwork/...` path. */
+export async function uploadArtwork(file: File): Promise<UploadedArtwork> {
+  const form = new FormData();
+  form.append('file', file);
+  try {
+    const response = await apiClient.post('/custom-wear/artwork', form, {
+      // Let the browser write the multipart header with its own boundary.
+      headers: { 'Content-Type': undefined },
+      timeout: 120000,
+    });
+    const artwork = response.data?.data?.artwork as UploadedArtwork | undefined;
+    if (!artwork?.url) throw new CustomWearApiError('The upload returned no file.', 502);
+    return artwork;
+  } catch (error) {
+    if (error instanceof CustomWearApiError) throw error;
+    throw toApiError(error, 'Could not upload that file. Please try again.');
+  }
 }

@@ -16,8 +16,11 @@ import orderRoutes from '@/routes/orders';
 import userRoutes from '@/routes/users';
 import cartRoutes from '@/routes/cart';
 import b2bRoutes from '@/routes/b2b';
-import paymentRoutes from '@/routes/payments';
+import adminB2BRoutes from '@/routes/admin-b2b';
+import paymentRoutes, { RAZORPAY_WEBHOOK_PATH } from '@/routes/payments';
 import adminRoutes from '@/routes/admin';
+import catalogImportRoutes from '@/routes/catalog-import';
+import catalogExportRoutes from '@/routes/catalog-export';
 import contentRoutes, { publicContentRouter } from '@/routes/content';
 import mediaRoutes, { UPLOAD_DIR } from '@/routes/media';
 import contactRoutes from '@/routes/contact';
@@ -26,6 +29,13 @@ import newsletterRoutes from '@/routes/newsletter';
 import deliveryRoutes from '@/routes/delivery';
 import trackOrderRoutes from '@/routes/track-order';
 import stockNotifyRoutes from '@/routes/stock-notify';
+import sellerRoutes from '@/routes/seller';
+import catalogueRoutes from '@/routes/catalogue';
+import adminReportRoutes from '@/routes/admin-report';
+import customWearRoutes from '@/routes/custom-wear';
+import adminCustomWearRoutes from '@/routes/admin-custom-wear';
+import adminCategoryFieldRoutes from '@/routes/admin-category-fields';
+import { assertFieldCryptoReady } from '@/utils/field-crypto';
 
 const app: Express = express();
 
@@ -40,6 +50,10 @@ app.use(cors({
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  // Custom response headers are invisible to a cross-origin caller unless they
+  // are exposed. The storefront runs on a different port in development and
+  // reads the listing total from this one.
+  exposedHeaders: ['X-Total-Count'],
 }));
 
 // Rate limiting
@@ -70,6 +84,14 @@ const authLimiter = rateLimit({
 
 app.use('/api/', apiLimiter);
 app.use('/api/auth', authLimiter);
+
+// Razorpay signs the raw request body, so the webhook route needs the bytes
+// exactly as sent: `express.json()` below would consume the stream and leave
+// nothing to verify against `x-razorpay-signature`, and re-serialising the
+// parsed object does not reproduce the same digest. Mounted first and for that
+// one path only — body-parser marks the request as read, so the JSON parser
+// skips it and every other route is unaffected.
+app.use(RAZORPAY_WEBHOOK_PATH, express.raw({ type: '*/*', limit: '1mb' }));
 
 // Body parser
 app.use(express.json({ limit: '10mb' }));
@@ -104,11 +126,23 @@ app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/delivery', deliveryRoutes);
 app.use('/api/track-order', trackOrderRoutes);
 app.use('/api/stock-notify', stockNotifyRoutes);
+// A seller's own shop. The public seller directory lives under /api/products.
+app.use('/api/seller', sellerRoutes);
+app.use('/api/custom-wear', customWearRoutes);
+app.use('/api/catalogue', catalogueRoutes);
+app.use('/api/admin/report', adminReportRoutes);
 // Mounted before the general admin router so the more specific prefix wins
 // rather than falling through that router's guards first.
 app.use('/api/admin/content', contentRoutes);
 app.use('/api/admin/media', mediaRoutes);
+app.use('/api/admin/custom-wear', adminCustomWearRoutes);
+app.use('/api/admin/b2b', adminB2BRoutes);
+// Only /:id/fields; the category CRUD itself stays in the admin router.
+app.use('/api/admin/categories', adminCategoryFieldRoutes);
+// Before the admin router, whose /products/:id routes would otherwise see "export".
+app.use('/api/admin/products/export', catalogExportRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/admin/catalog-import', catalogImportRoutes);
 // Uploaded images. Served unauthenticated because the storefront renders them
 // for shoppers, and cached hard because a file's name is the hash of its bytes
 // — the content at a given URL can never change.
@@ -168,6 +202,9 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
+  // Fail at boot, not on the first payout, if bank details cannot be decrypted.
+  assertFieldCryptoReady();
+
   // Try database connection but don't block server startup
   try {
     await prisma.$connect();

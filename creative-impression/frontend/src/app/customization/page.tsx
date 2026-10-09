@@ -38,6 +38,7 @@ export default function CustomizationPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [choices, setChoices] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
+  const [variantId, setVariantId] = useState('');
   const [adding, setAdding] = useState(false);
 
   // Load the customizable catalog.
@@ -61,13 +62,27 @@ export default function CustomizationPage() {
     };
   }, []);
 
-  // Load full detail (with customizations) for the selected product.
+  /**
+   * Pick a product to customise. Its answers and quantity belong to it, so they
+   * are cleared here rather than left for an effect to tidy up after the next
+   * render has already read them.
+   */
+  const selectProduct = (id: string) => {
+    if (id === selectedId) return;
+    setSelectedId(id);
+    setChoices({});
+    setQuantity(1);
+    setVariantId('');
+    setDetailLoading(true);
+  };
+
+  // Load full detail (with customizations) for the selected product. The
+  // choices and quantity are cleared by `selectProduct` below, at the moment
+  // the shopper picks a different item — doing it here meant a render with the
+  // previous product's answers still attached to the new one.
   useEffect(() => {
     if (!selectedId) return;
     let cancelled = false;
-    setDetailLoading(true);
-    setChoices({});
-    setQuantity(1);
     apiClient
       .get(`/products/${selectedId}`)
       .then((res) => {
@@ -84,7 +99,9 @@ export default function CustomizationPage() {
     };
   }, [selectedId]);
 
-  const customizations = detail?.customizations ?? [];
+  // Memoised because it feeds a useMemo below: `?? []` builds a fresh array on
+  // every render, which would make that dependency change every time.
+  const customizations = useMemo(() => detail?.customizations ?? [], [detail]);
 
   const extraCost = useMemo(() => {
     return customizations.reduce((sum, c) => {
@@ -95,7 +112,11 @@ export default function CustomizationPage() {
     }, 0);
   }, [customizations, choices]);
 
-  const unitPrice = (detail?.price ?? 0) + extraCost;
+  // Sizes in stock. A product with sizes must have one chosen: stock and price
+  // are per size, and the cart checks the size's stock, not the product's.
+  const variants = useMemo(() => detail?.variants ?? [], [detail]);
+  const chosenVariant = variants.find((v) => v.id === variantId) ?? null;
+  const unitPrice = (chosenVariant?.price ?? detail?.price ?? 0) + extraCost;
 
   const setChoice = (id: string, value: string) =>
     setChoices((prev) => ({ ...prev, [id]: value }));
@@ -114,17 +135,24 @@ export default function CustomizationPage() {
       toast.error(`Please complete: ${missing.map((c) => c.name).join(', ')}`);
       return;
     }
+    if (variants.length > 0 && !chosenVariant) {
+      toast.error('Choose a size first.');
+      return;
+    }
     const customization = customizations.reduce<Record<string, string>>((acc, c) => {
       if (choices[c.id] && choices[c.id].trim()) acc[c.name] = choices[c.id].trim();
       return acc;
     }, {});
+    const hasCustomization = Object.keys(customization).length > 0;
 
     setAdding(true);
     try {
       const res = await apiClient.post('/cart/items', {
         productId: detail.id,
         quantity,
-        customization,
+        ...(chosenVariant ? { variantId: chosenVariant.id } : {}),
+        // Left out when empty, so identical plain lines merge in the cart.
+        ...(hasCustomization ? { customization } : {}),
       });
       const cart = res.data?.data?.cart;
       const added = cart?.items?.find(
@@ -184,7 +212,7 @@ export default function CustomizationPage() {
                 {products.map((p) => (
                   <button
                     key={p.id}
-                    onClick={() => setSelectedId(p.id)}
+                    onClick={() => selectProduct(p.id)}
                     className={`text-left border p-2 transition-colors ${
                       selectedId === p.id
                         ? 'border-ink bg-surface-2'
@@ -281,7 +309,31 @@ export default function CustomizationPage() {
                     showLabel
                   />
                   <p>{detail.name}</p>
-                  <p className="text-sm text-neutral-500 mb-4">Base {formatCurrency(detail.price)}</p>
+                  <p className="text-sm text-neutral-500 mb-4">
+                    Base {formatCurrency(chosenVariant?.price ?? detail.price)}
+                  </p>
+
+                  {variants.length > 0 && (
+                    <div className="mb-4">
+                      <label htmlFor="customize-size" className="block text-sm font-medium text-neutral-700 mb-2">
+                        Size <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        id="customize-size"
+                        value={variantId}
+                        onChange={(e) => setVariantId(e.target.value)}
+                        className="w-full"
+                      >
+                        <option value="">Select a size…</option>
+                        {variants.map((v) => (
+                          <option key={v.id} value={v.id} disabled={v.quantity <= 0}>
+                            {[v.color, v.size].filter(Boolean).join(' / ') || v.name}
+                            {v.quantity <= 0 ? ' — sold out' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
 
                   <div className="mb-4">
                     <label className="block text-sm font-medium text-neutral-700 mb-2">

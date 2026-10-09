@@ -1,15 +1,19 @@
 /**
- * Design-file validation and preview handling.
+ * Design-file validation, preview handling and upload.
  *
- * Files are validated and previewed entirely in the browser. Uploading to
- * storage happens at cart/quote submission time — `uploadDesignFile` below is
- * the single place to add that call.
+ * Files are checked in the browser first (extension, size) for a fast answer,
+ * then sent to `POST /api/custom-wear/artwork`, which decides the real type
+ * from the bytes, re-encodes it and returns the stored URL.
  */
 
 import { customWearContent } from '@/config/custom-wear/content';
 import type { DesignUpload } from '@/types/custom-wear';
+import { uploadArtwork, type UploadedArtwork } from './api';
 
-const RASTER_PREVIEWABLE = new Set(['png', 'jpg', 'jpeg', 'svg']);
+const RASTER_PREVIEWABLE = new Set(['png', 'jpg', 'jpeg', 'webp', 'svg']);
+
+/** What the artwork endpoint accepts. Larger files are refused server-side. */
+export const ARTWORK_SERVER_MAX_MB = 15;
 
 export interface UploadValidationConfig {
   acceptedExtensions: string[];
@@ -52,8 +56,9 @@ export function validateDesignFile(
 
   if (file.size === 0) return 'That file is empty.';
 
-  if (file.size > config.maxFileSizeMb * 1024 * 1024) {
-    return `File is ${formatFileSize(file.size)}. The limit is ${config.maxFileSizeMb} MB.`;
+  const limitMb = Math.min(config.maxFileSizeMb, ARTWORK_SERVER_MAX_MB);
+  if (file.size > limitMb * 1024 * 1024) {
+    return `File is ${formatFileSize(file.size)}. The limit is ${limitMb} MB.`;
   }
 
   return null;
@@ -93,20 +98,10 @@ export function releaseDesignUpload(upload: DesignUpload): void {
   }
 }
 
-/** True for formats the print team can process today. */
-export function isBackendSupported(extension: string): boolean {
-  return !customWearContent.upload.backendPendingExtensions.includes(extension);
-}
-
 /**
- * INTEGRATION POINT — artwork storage.
- *
- * There is no upload endpoint yet, so this intentionally does nothing but
- * report that. Implement `POST /api/custom-wear/designs` (multipart) and return
- * the stored URL here; `DesignUploader` already surfaces the resulting status.
+ * Store the file on the server. The record moves from `ready` (validated in
+ * the browser) to carrying a `url`; the caller tracks `uploading` / `error`.
  */
-export async function uploadDesignFile(): Promise<never> {
-  throw new Error(
-    'Artwork storage is not connected yet. Files stay in the browser and their names are attached to the cart item or quote request.'
-  );
+export async function uploadDesignFile(file: File): Promise<UploadedArtwork> {
+  return uploadArtwork(file);
 }

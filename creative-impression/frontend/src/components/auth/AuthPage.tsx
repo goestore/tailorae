@@ -32,6 +32,20 @@ export function AuthPage({ defaultMode }: { defaultMode: 'signin' | 'signup' }) 
 
   const redirectTo = safeRedirect(searchParams.get('redirect'));
 
+  // Where the confirmation link in the sign-up email lands.
+  const verified = searchParams.get('verified');
+  const verifiedNotice =
+    verified === 'verified'
+      ? { ok: true, text: 'Your email address is confirmed. Sign in to continue.' }
+      : verified === 'already'
+        ? { ok: true, text: 'This address was already confirmed. Sign in to continue.' }
+        : verified === 'invalid'
+          ? {
+              ok: false,
+              text: 'That confirmation link has expired or was already used. Sign in and send a new one from your account.',
+            }
+          : null;
+
   const completeLogin = async (user: unknown, token: string) => {
     localStorage.setItem('token', token);
     dispatch(loginSuccess({ user: user as never, token }));
@@ -89,13 +103,28 @@ export function AuthPage({ defaultMode }: { defaultMode: 'signin' | 'signup' }) 
   };
 
   return (
-    <AuthToggle
+    <>
+      {verifiedNotice && (
+        <div
+          role="status"
+          className="mx-auto mt-6 max-w-[480px] border px-4 py-3 text-[14px]"
+          style={{
+            borderColor: verifiedNotice.ok ? 'var(--brand)' : 'var(--sale)',
+            background: verifiedNotice.ok ? 'var(--brand-soft)' : 'transparent',
+            color: 'var(--ink)',
+          }}
+        >
+          {verifiedNotice.text}
+        </div>
+      )}
+      <AuthToggle
       defaultMode={defaultMode}
       isLoading={isLoading}
       error={error}
       onSignIn={handleSignIn}
       onSignUp={handleSignUp}
       onModeChange={() => setError(undefined)}
-    />
+      />
+    </>
   );
 }

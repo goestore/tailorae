@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
-import { Breadcrumbs, Button, LoadingSpinner } from '@/components/common';
+import { Breadcrumbs, Button, SkeletonList } from '@/components/common';
 import { ProductCard, RecentlyViewed } from '@/components/product';
 import { apiClient } from '@/lib/api-client';
 import { getApiErrorMessage } from '@/lib/api-utils';
@@ -28,17 +28,20 @@ export default function WishlistPage() {
     }
   }, [isInitialized, user, router]);
 
-  const load = useCallback(() => {
-    setIsLoading(true);
-    apiClient
-      .get('/users/wishlist')
-      .then((res) => setItems(res.data?.data?.wishlist ?? []))
-      .catch((err) => toast.error(getApiErrorMessage(err, 'Could not load your wishlist.')))
-      .finally(() => setIsLoading(false));
-  }, []);
+  // Nothing is set synchronously here: the effect below only starts the fetch,
+  // and every setState lands in a callback once it resolves.
+  const load = useCallback(
+    () =>
+      apiClient
+        .get('/users/wishlist')
+        .then((res) => setItems(res.data?.data?.wishlist ?? []))
+        .catch((err) => toast.error(getApiErrorMessage(err, 'Could not load your wishlist.')))
+        .finally(() => setIsLoading(false)),
+    []
+  );
 
   useEffect(() => {
-    if (user) load();
+    if (user) void load();
   }, [user, load]);
 
   const remove = async (productId: string) => {
@@ -62,7 +65,7 @@ export default function WishlistPage() {
     return (
       <main className="section-y">
         <div className="container-max flex justify-center py-20">
-          <LoadingSpinner />
+          <SkeletonList rows={3} />
         </div>
       </main>
     );

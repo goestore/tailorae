@@ -1,26 +1,20 @@
 'use client';
 
 import React, { useState } from 'react';
+import Link from 'next/link';
+import { useSelector } from 'react-redux';
 import { customWearContent } from '@/config/custom-wear/content';
 import { submitQuoteRequest } from '@/lib/custom-wear/api';
+import { placementsFor, storedUploads } from '@/lib/custom-wear/cart';
 import { trackCustomWearEvent } from '@/lib/custom-wear/analytics';
 import { Modal } from '@/components/common';
+import type { RootState } from '@/store';
 import type {
   CustomWearProduct,
   CustomizationSelection,
-  QuoteRequestPayload,
+  QuoteContactPayload,
   QuoteRequestResult,
 } from '@/types/custom-wear';
-
-export interface QuoteSheetProps {
-  isOpen: boolean;
-  onClose: () => void;
-  product: CustomWearProduct;
-  colorId: string | null;
-  sizes: string[];
-  quantity: number;
-  customization: CustomizationSelection;
-}
 
 interface FormState {
   customerName: string;
@@ -47,29 +41,51 @@ const EMPTY: FormState = {
 const isEmail = (value: string) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value.trim());
 const isPhone = (value: string) => /^\d{10}$/.test(value.replace(/\D/g, ''));
 
+export interface QuoteContactSheetProps {
+  isOpen: boolean;
+  onClose: () => void;
+  /** One line describing what is being quoted. */
+  summary: React.ReactNode;
+  /** Blocks submission with this message (e.g. artwork still uploading). */
+  blockedReason?: string | null;
+  /** Stores the request; resolves only once the backend has kept it. */
+  submit: (contact: QuoteContactPayload, notes: string) => Promise<QuoteRequestResult>;
+  onSubmitted?: (result: QuoteRequestResult) => void;
+}
+
 /**
- * Quote request.
- *
- * Only four fields are required — who you are, how to reach you and where it
- * ships. Everything about the garment itself is already known from the build,
- * so it is summarised rather than re-asked.
+ * The contact half of a quote request: who you are, how to reach you and where
+ * it ships. Shared by the product page (one garment) and the cart's custom-wear
+ * section (several garments, one quote each).
  */
-export const QuoteSheet: React.FC<QuoteSheetProps> = ({
+export const QuoteContactSheet: React.FC<QuoteContactSheetProps> = ({
   isOpen,
   onClose,
-  product,
-  colorId,
-  sizes,
-  quantity,
-  customization,
+  summary,
+  blockedReason,
+  submit,
+  onSubmitted,
 }) => {
+  const user = useSelector((state: RootState) => state.auth.user);
   const [form, setForm] = useState<FormState>(EMPTY);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
   const [isSubmitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [result, setResult] = useState<QuoteRequestResult | null>(null);
 
-  const color = product.colors.find((entry) => entry.id === colorId);
+  // A signed-in customer's name and email are known; fill them in once.
+  const [prefilledFor, setPrefilledFor] = useState<string | null>(null);
+  if (user && prefilledFor !== user.id) {
+    setPrefilledFor(user.id);
+    setForm((current) => ({
+      ...current,
+      customerName:
+        current.customerName || [user.firstName, user.lastName].filter(Boolean).join(' '),
+      email: current.email || user.email,
+      phone: current.phone || user.phone || '',
+    }));
+  }
+
   const set = (key: keyof FormState, value: string) => {
     setForm((current) => ({ ...current, [key]: value }));
     setErrors((current) => ({ ...current, [key]: undefined }));
@@ -88,49 +104,25 @@ export const QuoteSheet: React.FC<QuoteSheetProps> = ({
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (!validate()) return;
+    if (blockedReason || !validate()) return;
 
     setSubmitting(true);
     setSubmitError(null);
-
-    const payload: QuoteRequestPayload = {
-      productId: product.id,
-      productSlug: product.slug,
-      productName: product.name,
-      sku: product.sku,
-      colorId: color?.id ?? null,
-      colorName: color?.name ?? null,
-      sizes,
-      quantity,
-      placements: customization.placements.map((placement) => ({
-        location: placement.location,
-        method: placement.method,
-        templateId: placement.templateId,
-        designFileName:
-          customization.uploads.find((upload) => upload.id === placement.uploadId)?.name ?? null,
-        widthPercent: Math.round(placement.scale * 100),
-      })),
-      designFileNames: customization.uploads
-        .filter((upload) => upload.status !== 'error')
-        .map((upload) => upload.name),
-      notes: [customization.notes, form.notes].filter(Boolean).join('\n\n'),
-      customerName: form.customerName.trim(),
-      company: form.company.trim(),
-      email: form.email.trim(),
-      phone: form.phone.trim(),
-      country: form.country,
-      postcode: form.postcode.trim(),
-      requiredBy: form.requiredBy,
-    };
-
     try {
-      const response = await submitQuoteRequest(payload);
+      const response = await submit(
+        {
+          customerName: form.customerName.trim(),
+          company: form.company.trim(),
+          email: form.email.trim(),
+          phone: form.phone.trim(),
+          country: form.country,
+          postcode: form.postcode.trim(),
+          requiredBy: form.requiredBy,
+        },
+        form.notes.trim()
+      );
       setResult(response);
-      trackCustomWearEvent('custom_wear_quote_submitted', {
-        productId: product.id,
-        quantity,
-        reference: response.reference,
-      });
+      onSubmitted?.(response);
     } catch (caught) {
       setSubmitError(
         caught instanceof Error ? caught.message : 'We could not submit that. Please try again.'
@@ -145,18 +137,13 @@ export const QuoteSheet: React.FC<QuoteSheetProps> = ({
     // Keep a failed attempt's data; clear only after a success.
     if (result) {
       setResult(null);
-      setForm(EMPTY);
+      setForm((current) => ({ ...EMPTY, customerName: current.customerName, email: current.email }));
       setErrors({});
       setSubmitError(null);
     }
   };
 
-  const field = (
-    key: keyof FormState,
-    label: string,
-    type = 'text',
-    required = false
-  ) => (
+  const field = (key: keyof FormState, label: string, type = 'text', required = false) => (
     <label className="cw-art-field">
       <span>
         {label}
@@ -178,28 +165,36 @@ export const QuoteSheet: React.FC<QuoteSheetProps> = ({
     </label>
   );
 
+  const statusHref = result
+    ? `/custom-wear/quotes?reference=${encodeURIComponent(result.reference)}&email=${encodeURIComponent(
+        form.email.trim()
+      )}`
+    : '/custom-wear/quotes';
+
   return (
     <Modal isOpen={isOpen} onClose={handleClose} title={result ? 'Request received' : 'Request a quote'}>
       {result ? (
         <div className="cw-quote-done">
-          <p className="cw-quote-ref">{result.reference}</p>
+          {result.references.map((reference) => (
+            <p key={reference} className="cw-quote-ref">
+              {reference}
+            </p>
+          ))}
           <p>
-            {result.persisted
-              ? 'Our team will reply with pricing, lead times and a digital proof.'
-              : 'Your request was received and logged. A quote backend is not connected yet, so keep this reference and follow up if you do not hear back.'}
+            Saved. Our team will reply to {form.email.trim()} with pricing, lead times and a
+            digital proof. Keep {result.references.length > 1 ? 'these references' : 'this reference'}{' '}
+            to check the status.
           </p>
+          <Link href={statusHref} className="cw-cta cw-cta--outline w-full text-center" onClick={handleClose}>
+            Check status
+          </Link>
           <button suppressHydrationWarning type="button" onClick={handleClose} className="cw-cta cw-cta--accent w-full">
             Done
           </button>
         </div>
       ) : (
         <form onSubmit={handleSubmit} noValidate className="cw-quote">
-          <p className="cw-quote-summary">
-            {product.name} · {color?.name ?? 'colour TBC'} ·{' '}
-            {sizes.length > 0 ? sizes.join(', ') : 'sizes TBC'} · {quantity} units ·{' '}
-            {customization.placements.length} print area
-            {customization.placements.length === 1 ? '' : 's'}
-          </p>
+          <p className="cw-quote-summary">{summary}</p>
 
           <div className="cw-quote-grid">
             {field('customerName', 'Name', 'text', true)}
@@ -238,16 +233,16 @@ export const QuoteSheet: React.FC<QuoteSheetProps> = ({
             />
           </label>
 
-          {submitError && (
+          {(submitError || blockedReason) && (
             <p role="alert" className="cw-art-error">
-              {submitError}
+              {submitError ?? blockedReason}
             </p>
           )}
 
           <button
             suppressHydrationWarning
             type="submit"
-            disabled={isSubmitting}
+            disabled={isSubmitting || Boolean(blockedReason)}
             className="cw-cta cw-cta--accent w-full"
           >
             {isSubmitting ? 'Sending…' : 'Send request'}
@@ -255,5 +250,79 @@ export const QuoteSheet: React.FC<QuoteSheetProps> = ({
         </form>
       )}
     </Modal>
+  );
+};
+
+export interface QuoteSheetProps {
+  isOpen: boolean;
+  onClose: () => void;
+  product: CustomWearProduct;
+  colorId: string | null;
+  sizes: string[];
+  quantity: number;
+  customization: CustomizationSelection;
+}
+
+/**
+ * Quote request for the garment on the product page. Everything about the
+ * garment is already known from the build, so it is summarised rather than
+ * re-asked; uploaded artwork travels as its stored URLs.
+ */
+export const QuoteSheet: React.FC<QuoteSheetProps> = ({
+  isOpen,
+  onClose,
+  product,
+  colorId,
+  sizes,
+  quantity,
+  customization,
+}) => {
+  const color = product.colors.find((entry) => entry.id === colorId);
+  const uploading = customization.uploads.some((upload) => upload.status === 'uploading');
+
+  const submit = async (contact: QuoteContactPayload, notes: string) => {
+    const stored = storedUploads(customization);
+    const response = await submitQuoteRequest({
+      productId: product.id,
+      productSlug: product.slug,
+      productName: product.name,
+      sku: product.sku,
+      colorId: color?.id ?? null,
+      colorName: color?.name ?? null,
+      sizes,
+      quantity,
+      placements: placementsFor(customization),
+      designFileNames: stored.map((upload) => upload.name),
+      designFiles: stored.map((upload) => upload.url as string),
+      notes: [customization.notes, notes].filter(Boolean).join('\n\n'),
+      ...contact,
+    });
+    trackCustomWearEvent('custom_wear_quote_submitted', {
+      productId: product.id,
+      quantity,
+      reference: response.reference,
+    });
+    return response;
+  };
+
+  return (
+    <QuoteContactSheet
+      isOpen={isOpen}
+      onClose={onClose}
+      blockedReason={uploading ? 'Your artwork is still uploading. This will unlock in a moment.' : null}
+      submit={submit}
+      summary={
+        <>
+          {product.name} · {color?.name ?? 'colour TBC'} ·{' '}
+          {sizes.length > 0 ? sizes.join(', ') : 'sizes TBC'} · {quantity} units ·{' '}
+          {customization.placements.length} print area
+          {customization.placements.length === 1 ? '' : 's'}
+          {storedUploads(customization).length > 0 &&
+            ` · ${storedUploads(customization).length} artwork file${
+              storedUploads(customization).length === 1 ? '' : 's'
+            }`}
+        </>
+      }
+    />
   );
 };

@@ -1,6 +1,14 @@
 import React from 'react';
+import type { Metadata } from 'next';
 import { Card, Button } from '@/components/common';
 import Link from 'next/link';
+
+export const metadata: Metadata = {
+  title: 'About Us | Creative Impression',
+  description:
+    'Fifteen years of apparel manufacturing, private label and export experience — and the eCommerce support to take a brand from offline to online.',
+  alternates: { canonical: '/info/about' },
+};
 
 const services = [
   {

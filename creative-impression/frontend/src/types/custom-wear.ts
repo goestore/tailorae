@@ -344,6 +344,8 @@ export interface DesignUpload {
   status: DesignUploadStatus;
   /** Object URL for raster previews; undefined for vector/print formats. */
   previewUrl?: string;
+  /** Stored artwork path (`/uploads/artwork/...`) once the upload succeeded. */
+  url?: string;
   error?: string;
 }
 
@@ -469,6 +471,8 @@ export interface QuoteRequestPayload {
   /** One entry per decorated area — what goes where, and how. */
   placements: QuotePlacement[];
   designFileNames: string[];
+  /** Stored artwork URLs returned by `POST /api/custom-wear/artwork`. */
+  designFiles: string[];
   notes: string;
 
   customerName: string;
@@ -483,13 +487,66 @@ export interface QuoteRequestPayload {
 export interface QuoteRequestResult {
   /** Reference issued by the server, e.g. `CWQ-2026-001245`. */
   reference: string;
-  /**
-   * `true` once a quote backend is wired up. While it is `false` the request
-   * was accepted and logged by the Next.js route handler but not stored in the
-   * product database — the UI says so rather than implying otherwise.
-   */
-  persisted: boolean;
+  /** Every reference issued — one per garment line for a batch request. */
+  references: string[];
+  /** Always `true`: a result only exists once the backend stored the request. */
+  persisted: true;
   receivedAt: string;
+}
+
+/** Contact details shared by every line of a quote request. */
+export type QuoteContactPayload = Pick<
+  QuoteRequestPayload,
+  'customerName' | 'company' | 'email' | 'phone' | 'country' | 'postcode' | 'requiredBy'
+>;
+
+/** One garment line of a batch request (the cart's custom-wear section). */
+export type QuoteLinePayload = Omit<QuoteRequestPayload, keyof QuoteContactPayload>;
+
+export type CustomWearQuoteStatus = 'NEW' | 'CONTACTED' | 'QUOTED' | 'WON' | 'LOST';
+
+/** A stored quote as the customer sees it (no internal notes). */
+export interface CustomWearQuoteSummary {
+  reference: string;
+  status: CustomWearQuoteStatus;
+  productName: string;
+  productSlug: string;
+  sku: string;
+  colorName: string | null;
+  sizes: string[];
+  quantity: number;
+  method: string | null;
+  locations: string[];
+  designFiles: string[];
+  quotedPrice: number | null;
+  requiredBy: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * A configured garment waiting in the cart's custom-wear section. Made to order
+ * and priced by a person, so it becomes a quote request, never a payment.
+ */
+export interface CustomWearQuoteLine {
+  id: string;
+  productId: string;
+  productSlug: string;
+  productName: string;
+  sku: string;
+  image?: string;
+  colorId: string | null;
+  colorName: string | null;
+  sizes: string[];
+  quantity: number;
+  /** Indicative only — the real price comes back on the quote. */
+  estimatedUnitPrice: number;
+  estimatedTotal: number;
+  placements: QuotePlacement[];
+  designFileNames: string[];
+  designFiles: string[];
+  notes: string;
+  addedAt: string;
 }
 
 // ============================================

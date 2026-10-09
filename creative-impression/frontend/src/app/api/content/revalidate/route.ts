@@ -22,14 +22,29 @@ import { contentCacheTag } from '@/content/source';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-const bodySchema = z.object({
-  // Matches the namespaces the registry defines: lowercase words and hyphens.
-  namespace: z
-    .string()
-    .min(1)
-    .max(64)
-    .regex(/^[a-z0-9-]+$/, 'A namespace is lowercase letters, digits and hyphens.'),
-});
+/**
+ * Catalogue caches the backend may drop by name.
+ *
+ * An allowlist rather than a free-text tag: `revalidateTag` takes any string,
+ * and accepting one from a request would let a caller invalidate anything the
+ * app ever tags, turning this into a cache-stampede lever.
+ */
+const CATALOG_TAGS = ['brands', 'sellers', 'products'] as const;
+
+const bodySchema = z
+  .object({
+    // Matches the namespaces the registry defines: lowercase words and hyphens.
+    namespace: z
+      .string()
+      .min(1)
+      .max(64)
+      .regex(/^[a-z0-9-]+$/, 'A namespace is lowercase letters, digits and hyphens.')
+      .optional(),
+    tag: z.enum(CATALOG_TAGS).optional(),
+  })
+  .refine((body) => Boolean(body.namespace) !== Boolean(body.tag), {
+    message: 'Send exactly one of `namespace` or `tag`.',
+  });
 
 /** Length-independent comparison, so a wrong secret cannot be timed out character by character. */
 function secretMatches(provided: string, expected: string): boolean {
@@ -73,11 +88,12 @@ export async function POST(request: Request) {
     );
   }
 
-  const tag = contentCacheTag(parsed.data.namespace);
+  // A catalogue tag is used verbatim; a content namespace is namespaced first.
+  const tag = parsed.data.tag ?? contentCacheTag(parsed.data.namespace!);
   // 'max' marks the tag stale rather than expiring it, so the next visitor is
   // served the old copy while the new one is fetched behind them. No request
   // pays for the refresh.
   revalidateTag(tag, 'max');
 
-  return NextResponse.json({ success: true, namespace: parsed.data.namespace, tag });
+  return NextResponse.json({ success: true, namespace: parsed.data.namespace ?? null, tag });
 }

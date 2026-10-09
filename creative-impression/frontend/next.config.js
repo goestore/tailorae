@@ -68,9 +68,15 @@ const nextConfig = {
             key: 'X-Content-Type-Options',
             value: 'nosniff',
           },
+          // Same-origin framing only: the admin's storefront preview (/admin/preview)
+          // embeds the storefront in an iframe. Other origins stay blocked.
           {
             key: 'X-Frame-Options',
-            value: 'DENY',
+            value: 'SAMEORIGIN',
+          },
+          {
+            key: 'Content-Security-Policy',
+            value: "frame-ancestors 'self'",
           },
           {
             key: 'X-XSS-Protection',

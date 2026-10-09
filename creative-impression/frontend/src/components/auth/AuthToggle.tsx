@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState } from 'react';
-import { AuthForm } from './AuthForm';
-import { Card } from '@/components/common';
+import Link from 'next/link';
+import { AuthForm, type AuthField } from './AuthForm';
+import { AuthShell } from './AuthShell';
 
 type AuthMode = 'signin' | 'signup';
 
@@ -17,6 +18,73 @@ interface AuthToggleProps {
   onModeChange?: (mode: AuthMode) => void;
 }
 
+const SIGN_IN_FIELDS: AuthField[] = [
+  {
+    name: 'email',
+    label: 'Email Address',
+    type: 'email',
+    placeholder: 'you@example.com',
+    required: true,
+    autoComplete: 'email',
+  },
+  {
+    name: 'password',
+    label: 'Password',
+    type: 'password',
+    placeholder: 'Enter your password',
+    required: true,
+    autoComplete: 'current-password',
+  },
+];
+
+// `minLength` mirrors the API's own rule, so an eight-character floor is
+// enforced before the request rather than reported back as a server error.
+const SIGN_UP_FIELDS: AuthField[] = [
+  {
+    name: 'firstName',
+    label: 'First Name',
+    type: 'text',
+    placeholder: 'First name',
+    required: true,
+    autoComplete: 'given-name',
+  },
+  {
+    name: 'lastName',
+    label: 'Last Name',
+    type: 'text',
+    placeholder: 'Last name',
+    required: true,
+    autoComplete: 'family-name',
+  },
+  {
+    name: 'email',
+    label: 'Email Address',
+    type: 'email',
+    placeholder: 'you@example.com',
+    required: true,
+    autoComplete: 'email',
+  },
+  {
+    name: 'password',
+    label: 'Password',
+    type: 'password',
+    placeholder: 'Create a strong password',
+    required: true,
+    autoComplete: 'new-password',
+    minLength: 8,
+    helpText: 'At least 8 characters.',
+  },
+  {
+    name: 'confirmPassword',
+    label: 'Confirm Password',
+    type: 'password',
+    placeholder: 'Type it once more',
+    required: true,
+    autoComplete: 'new-password',
+    matches: { field: 'password', message: 'The two passwords do not match' },
+  },
+];
+
 export const AuthToggle: React.FC<AuthToggleProps> = ({
   defaultMode = 'signin',
   isLoading = false,
@@ -26,54 +94,6 @@ export const AuthToggle: React.FC<AuthToggleProps> = ({
   onModeChange,
 }) => {
   const [mode, setMode] = useState<AuthMode>(defaultMode);
-
-  const signInFields = [
-    {
-      name: 'email',
-      label: 'Email Address',
-      type: 'email' as const,
-      placeholder: 'you@example.com',
-      required: true,
-    },
-    {
-      name: 'password',
-      label: 'Password',
-      type: 'password' as const,
-      placeholder: 'Enter your password',
-      required: true,
-    },
-  ];
-
-  const signUpFields = [
-    {
-      name: 'firstName',
-      label: 'First Name',
-      type: 'text' as const,
-      placeholder: 'First name',
-      required: true,
-    },
-    {
-      name: 'lastName',
-      label: 'Last Name',
-      type: 'text' as const,
-      placeholder: 'Last name',
-      required: true,
-    },
-    {
-      name: 'email',
-      label: 'Email Address',
-      type: 'email' as const,
-      placeholder: 'you@example.com',
-      required: true,
-    },
-    {
-      name: 'password',
-      label: 'Password',
-      type: 'password' as const,
-      placeholder: 'Create a strong password',
-      required: true,
-    },
-  ];
 
   const switchMode = (nextMode: AuthMode) => {
     setMode(nextMode);
@@ -88,66 +108,56 @@ export const AuthToggle: React.FC<AuthToggleProps> = ({
     }
   };
 
+  const tabs = (
+    <div className="mb-8 grid grid-cols-2 gap-px bg-line">
+      {(['signin', 'signup'] as const).map((tab) => (
+        <button
+          key={tab}
+          type="button"
+          onClick={() => switchMode(tab)}
+          aria-pressed={mode === tab}
+          className={`px-4 py-3 text-sm transition-colors ${
+            mode === tab ? 'bg-ink text-white' : 'bg-surface text-ink-2 hover:bg-surface-2'
+          }`}
+        >
+          {tab === 'signin' ? 'Sign In' : 'Sign Up'}
+        </button>
+      ))}
+    </div>
+  );
+
   return (
-    <main className="auth-shell flex min-h-[calc(100vh-120px)] items-center justify-center px-4 py-10 md:py-16">
-      <div className="w-full max-w-md">
-        <Card className="auth-card p-6 md:p-9">
-          <p className="mb-7 text-center text-[11px] uppercase tracking-[0.16em] text-[var(--brand-700)]">Creative Impression</p>
-          <div className="mb-8 grid grid-cols-2 gap-px bg-line">
-            <button
-              onClick={() => switchMode('signin')}
-              className={`px-4 py-3 text-sm transition-colors ${
-                mode === 'signin'
-                  ? 'bg-ink text-white'
-                  : 'bg-white text-ink-2 hover:bg-surface-2'
-              }`}
-            >
-              Sign In
-            </button>
-            <button
-              onClick={() => switchMode('signup')}
-              className={`px-4 py-3 text-sm transition-colors ${
-                mode === 'signup'
-                  ? 'bg-ink text-white'
-                  : 'bg-white text-ink-2 hover:bg-surface-2'
-              }`}
-            >
-              Sign Up
-            </button>
-          </div>
-
-          {/* Form Content */}
-          {mode === 'signin' && (
-            <div>
-              <h1 className="mb-2 text-center text-3xl">Welcome back</h1>
-              <p className="mb-8 text-center text-ink-3">Sign in to manage your orders and saved details.</p>
-
-              <AuthForm
-                onSubmit={handleFormSubmit}
-                fields={signInFields}
-                submitButtonText="Sign In"
-                isLoading={isLoading}
-                error={error}
-              />
+    <AuthShell
+      nav={tabs}
+      title={mode === 'signin' ? 'Welcome back' : 'Create an account'}
+      description={
+        mode === 'signin'
+          ? 'Sign in to manage your orders and saved details.'
+          : 'A faster way to manage orders and custom work.'
+      }
+    >
+      {/* Remounted per mode so a half-typed password never carries across. */}
+      <AuthForm
+        key={mode}
+        onSubmit={handleFormSubmit}
+        fields={mode === 'signin' ? SIGN_IN_FIELDS : SIGN_UP_FIELDS}
+        submitButtonText={mode === 'signin' ? 'Sign In' : 'Create Account'}
+        isLoading={isLoading}
+        error={error}
+        aside={
+          mode === 'signin' ? (
+            <div className="-mt-1 text-right">
+              <Link
+                href="/auth/forgot-password"
+                className="text-[13px] underline underline-offset-2 hover:text-ink"
+                style={{ color: 'var(--ink-3)' }}
+              >
+                Forgotten your password?
+              </Link>
             </div>
-          )}
-
-          {mode === 'signup' && (
-            <div>
-              <h1 className="mb-2 text-center text-3xl">Create an account</h1>
-              <p className="mb-8 text-center text-ink-3">A faster way to manage orders and custom work.</p>
-
-              <AuthForm
-                onSubmit={handleFormSubmit}
-                fields={signUpFields}
-                submitButtonText="Create Account"
-                isLoading={isLoading}
-                error={error}
-              />
-            </div>
-          )}
-        </Card>
-      </div>
-    </main>
+          ) : null
+        }
+      />
+    </AuthShell>
   );
 };

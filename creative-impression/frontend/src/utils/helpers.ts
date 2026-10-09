@@ -123,7 +123,18 @@ export const calculateTax = (amount: number, taxRate: number = 18): number => {
   return Math.round((amount * taxRate) / 100);
 };
 
-export const calculateBulkDiscount = (quantity: number, price: number, discountTiers: any[]): number => {
+/** One quantity band: everything this needs of a bulk pricing row. */
+export interface DiscountTier {
+  minQty: number;
+  maxQty?: number | null;
+  discount: number;
+}
+
+export const calculateBulkDiscount = (
+  quantity: number,
+  price: number,
+  discountTiers: DiscountTier[]
+): number => {
   const tier = discountTiers.find((t) => quantity >= t.minQty && (!t.maxQty || quantity <= t.maxQty));
   if (tier) {
     return Math.round((tier.discount / 100) * price);
@@ -149,7 +160,7 @@ export const groupBy = <T, K extends PropertyKey>(array: T[], getKey: (item: T) 
   );
 };
 
-export const unique = <T>(array: T[], key?: (item: T) => any): T[] => {
+export const unique = <T>(array: T[], key?: (item: T) => unknown): T[] => {
   if (key) {
     return Array.from(new Map(array.map((item) => [key(item), item])).values());
   }
@@ -160,8 +171,10 @@ export const unique = <T>(array: T[], key?: (item: T) => any): T[] => {
 // OBJECT UTILITIES
 // ============================================
 
-export const removeEmpty = (obj: Record<string, any>): Record<string, any> => {
-  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v != null && v !== ''));
+export const removeEmpty = <T extends Record<string, unknown>>(obj: T): Partial<T> => {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, value]) => value != null && value !== '')
+  ) as Partial<T>;
 };
 
 export const pick = <T, K extends keyof T>(obj: T, ...keys: K[]): Pick<T, K> => {
@@ -186,7 +199,7 @@ export const getStorageItem = <T>(key: string, defaultValue?: T): T | null => {
   }
 };
 
-export const setStorageItem = (key: string, value: any): void => {
+export const setStorageItem = (key: string, value: unknown): void => {
   if (typeof window === 'undefined') return;
   try {
     localStorage.setItem(key, JSON.stringify(value));

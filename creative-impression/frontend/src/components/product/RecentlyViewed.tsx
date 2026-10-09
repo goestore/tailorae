@@ -30,10 +30,10 @@ export const RecentlyViewed: React.FC<RecentlyViewedProps> = ({
 
   useEffect(() => {
     const ids = getRecentlyViewedIds().filter((id) => id !== excludeId);
-    if (ids.length === 0) {
-      setProducts([]);
-      return;
-    }
+    // Nothing to show and nothing to clear: `products` only ever holds what a
+    // previous run of this effect fetched for the same rail, and the section
+    // is hidden when the list is empty.
+    if (ids.length === 0) return;
 
     let cancelled = false;
     apiClient

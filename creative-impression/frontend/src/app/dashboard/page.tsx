@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useDispatch, useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
-import { DashboardMenu } from '@/components/dashboard';
+import { DashboardMenu, ReturnRequestModal } from '@/components/dashboard';
 import { Card, Button, Input, LoadingSpinner } from '@/components/common';
 import { apiClient } from '@/lib/api-client';
 import { getApiErrorMessage } from '@/lib/api-utils';
@@ -53,21 +53,24 @@ function DashboardContent() {
     }
   }, [isInitialized, user, router]);
 
-  const loadOrders = useCallback(() => {
-    setOrdersLoading(true);
-    apiClient
-      .get('/orders')
-      .then((res) => setOrders(res.data?.data?.orders ?? []))
-      .catch((err) => toast.error(getApiErrorMessage(err, 'Could not load your orders.')))
-      .finally(() => {
-        setOrdersLoading(false);
-        setOrdersLoaded(true);
-      });
-  }, []);
+  // Nothing is set synchronously here: the effect below only starts the fetch,
+  // and every setState lands in a callback once it resolves.
+  const loadOrders = useCallback(
+    () =>
+      apiClient
+        .get('/orders')
+        .then((res) => setOrders(res.data?.data?.orders ?? []))
+        .catch((err) => toast.error(getApiErrorMessage(err, 'Could not load your orders.')))
+        .finally(() => {
+          setOrdersLoading(false);
+          setOrdersLoaded(true);
+        }),
+    []
+  );
 
   useEffect(() => {
     if (user && activeSection === 'orders' && !ordersLoaded) {
-      loadOrders();
+      void loadOrders();
     }
   }, [user, activeSection, ordersLoaded, loadOrders]);
 
@@ -113,6 +116,8 @@ function DashboardContent() {
       <div className="container-max">
         <header className="page-intro page-intro--compact"><p>Account</p><h1>My account</h1></header>
 
+        {!user.emailVerified && <VerifyEmailBanner />}
+
         <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
           <div className="md:col-span-1">
             <DashboardMenu activeSection={activeSection} onSectionChange={handleSectionChange} />
@@ -136,6 +141,7 @@ function DashboardContent() {
                 loaded={ordersLoaded}
                 cancellingId={cancellingId}
                 onCancel={cancelOrder}
+                onReload={loadOrders}
               />
             )}
 
@@ -192,12 +198,14 @@ function OrdersPanel({
   loaded,
   cancellingId,
   onCancel,
+  onReload,
 }: {
   orders: Order[];
   loading: boolean;
   loaded: boolean;
   cancellingId: string | null;
   onCancel: (id: string) => void;
+  onReload: () => void;
 }) {
   if (loading && !loaded) {
     return <LoadingSpinner className="min-h-[30vh]" size="lg" />;
@@ -221,6 +229,9 @@ function OrdersPanel({
       {orders.map((order) => {
         const itemCount = order.items?.reduce((sum, i) => sum + i.quantity, 0) ?? 0;
         const canCancel = order.status === 'PENDING' || order.status === 'CONFIRMED';
+        // The API accepts a return on delivered orders only, and one per
+        // order — mirrored here so the button is not offered into a 409.
+        const canReturn = order.status === 'DELIVERED' && !order.returnRequest;
         return (
           <Card key={order.id} className="p-5">
             <div className="flex flex-wrap items-start justify-between gap-4">
@@ -247,8 +258,26 @@ function OrdersPanel({
                 </span>
               </div>
             </div>
-            {canCancel && (
-              <div className="mt-4 border-t border-neutral-100 pt-3 text-right">
+            <div className="mt-4 flex flex-wrap items-center justify-end gap-3 border-t border-neutral-100 pt-3">
+              {order.returnRequest && (
+                <span className="mr-auto text-sm text-neutral-500">
+                  Return {order.returnRequest.status.toLowerCase()}
+                </span>
+              )}
+              <Link
+                href={`/track-order?order=${encodeURIComponent(order.orderNumber)}`}
+                className="text-sm underline underline-offset-2 text-neutral-500 hover:text-ink"
+              >
+                Track
+              </Link>
+              <Link
+                href={`/invoice/${order.id}`}
+                className="text-sm underline underline-offset-2 text-neutral-500 hover:text-ink"
+              >
+                Invoice
+              </Link>
+              {canReturn && <ReturnRequestModal order={order} onRequested={onReload} />}
+              {canCancel && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -258,11 +287,49 @@ function OrdersPanel({
                 >
                   Cancel Order
                 </Button>
-              </div>
-            )}
+              )}
+            </div>
           </Card>
         );
       })}
+    </div>
+  );
+}
+
+/**
+ * Unconfirmed accounts get one line and a resend button. The address comes
+ * from the session on the server, so this cannot be pointed at anyone else.
+ */
+function VerifyEmailBanner() {
+  const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle');
+  const resend = async () => {
+    setState('sending');
+    try {
+      const res = await apiClient.post('/auth/resend-verification');
+      toast.success(res.data?.message ?? 'Confirmation link sent.');
+      setState('sent');
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Could not send the confirmation email.'));
+      setState('idle');
+    }
+  };
+  return (
+    <div
+      className="mb-5 flex flex-wrap items-center justify-between gap-3 border px-4 py-3 text-[14px]"
+      style={{ borderColor: 'var(--brand)', background: 'var(--brand-soft)' }}
+    >
+      <p className="m-0" style={{ color: 'var(--ink-2)' }}>
+        <strong className="text-ink">Confirm your email address.</strong> We sent a link when you
+        signed up.
+      </p>
+      <button
+        type="button"
+        onClick={resend}
+        disabled={state !== 'idle'}
+        className="btn btn-primary btn-sm"
+      >
+        {state === 'sending' ? 'Sending…' : state === 'sent' ? 'Link sent' : 'Resend link'}
+      </button>
     </div>
   );
 }
@@ -280,7 +347,8 @@ function ProfilePanel({ user }: { user: User }) {
       const res = await apiClient.put('/users/profile', {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        phone: phone.trim() || undefined,
+        // null clears a saved number; undefined would leave it untouched.
+        phone: phone.trim() || null,
       });
       const updated = res.data?.data?.user as User | undefined;
       if (updated) dispatch(updateUser(updated));

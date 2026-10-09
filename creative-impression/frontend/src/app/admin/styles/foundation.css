@@ -1,0 +1,538 @@
+/* Editor and preview layouts, in the light admin system. */
+
+.admin-preview-link {
+  border: 1px solid var(--a-edge-strong);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 980px;
+  background: var(--a-surface-2);
+  color: var(--a-text);
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: background-color var(--a-dur-fast) var(--a-ease-out);
+}
+.admin-preview-link:hover {
+  background: var(--a-overlay);
+}
+
+/* Segmented control: a filled track with a lighter selected pill. */
+.admin-segmented-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  padding: 3px;
+  overflow-x: auto;
+  border-radius: 980px;
+  background: var(--a-surface-2);
+  border: 1px solid var(--a-edge);
+}
+.admin-segmented-item {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 14px;
+  border-radius: 980px;
+  color: var(--a-text-dim);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  transition:
+    background-color var(--a-dur-fast) var(--a-ease-out),
+    color var(--a-dur-fast) var(--a-ease-out);
+}
+.admin-segmented-item:hover {
+  color: var(--a-text);
+}
+.admin-segmented-item--active {
+  background: var(--a-surface) !important;
+  color: var(--a-text);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.1), 0 0 0 1px var(--a-edge);
+}
+
+/* ===== Storefront preview ================================================ */
+.admin-preview-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+}
+.admin-device-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+}
+.admin-device-picker button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--a-radius-sm);
+  background: transparent;
+  color: var(--a-text-dim);
+  font-family: var(--a-font);
+  font-size: 13px;
+  font-weight: 550;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.admin-device-picker button:hover {
+  background: var(--a-surface-2);
+  color: var(--a-text);
+}
+.admin-device-picker button small {
+  color: var(--a-text-faint);
+  font-size: 12px;
+  font-weight: 450;
+}
+.admin-device-picker button.is-active {
+  background: #ebebeb;
+  color: var(--a-text);
+  font-weight: 650;
+}
+.admin-preview-meta {
+  color: var(--a-text-dim);
+  font-size: 12px;
+}
+.admin-preview-stage {
+  width: 100%;
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: var(--a-radius);
+  background: var(--a-surface);
+  box-shadow: var(--a-lift-card);
+  transition: width 0.2s ease;
+}
+.admin-preview-stage--tablet {
+  width: min(100%, 768px);
+}
+.admin-preview-stage--phone {
+  width: min(100%, 390px);
+}
+.admin-preview-chrome {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 32px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--a-edge);
+  background: var(--a-surface-2);
+}
+.admin-preview-chrome > span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #d4d4d4;
+}
+.admin-preview-chrome > p {
+  margin: 0 auto;
+  color: var(--a-text-dim);
+  font-size: 12px;
+}
+.admin-preview-frame {
+  position: relative;
+  height: max(360px, calc(100vh - 260px));
+}
+.admin-preview-frame iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+}
+.admin-preview-frame .admin-empty {
+  position: absolute;
+  inset: 0;
+  justify-content: center;
+  background: var(--a-surface);
+}
+.admin-preview-note {
+  max-width: 72ch;
+  margin: 12px 0 0;
+  color: var(--a-text-dim);
+  font-size: 12px;
+  line-height: 16px;
+}
+@media (max-width: 640px) {
+  .admin-device-picker {
+    width: 100%;
+  }
+  .admin-device-picker button {
+    flex: 1;
+    justify-content: center;
+  }
+  .admin-device-picker button small {
+    display: none;
+  }
+}
+
+/* ===== Content editor ===================================================== */
+.ce-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: -4px 0 16px;
+}
+.ce-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.ce-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--a-text);
+  font-size: 13px;
+  font-weight: 450;
+}
+
+/* One field: label column, control column, hairline between fields. */
+.ce-field {
+  display: grid;
+  gap: 8px;
+  align-items: start;
+  padding: 16px;
+  border-bottom: 1px solid var(--a-edge);
+}
+.ce-field:last-child {
+  border-bottom: 0;
+}
+@media (min-width: 768px) {
+  .ce-field {
+    grid-template-columns: 13rem minmax(0, 1fr);
+    gap: 24px;
+  }
+}
+.ce-field--changed {
+  box-shadow: inset 3px 0 0 var(--a-warn-fill);
+}
+.ce-field-label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+@media (min-width: 768px) {
+  .ce-field-label {
+    padding-top: 6px;
+  }
+}
+.ce-label {
+  margin: 0;
+  color: var(--a-text);
+  font-size: 13px;
+  font-weight: 550;
+  line-height: 20px;
+}
+.ce-control {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.ce-help {
+  margin: 0;
+  color: var(--a-text-dim);
+  font-size: 12px;
+  line-height: 16px;
+}
+.ce-error {
+  margin: 0;
+  color: var(--a-bad);
+  font-size: 12px;
+  line-height: 16px;
+}
+.ce-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.ce-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 8px;
+  background: var(--a-neutral-bg);
+  color: var(--a-text);
+  font-size: 12px;
+  font-weight: 550;
+  line-height: 16px;
+  white-space: nowrap;
+}
+.ce-badge--attention {
+  background: var(--a-attention-bg);
+  color: var(--a-serious);
+}
+.ce-live {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  color: var(--a-text-dim);
+  font-size: 12px;
+}
+.ce-live > span:nth-child(2) {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Rows inside a field (section order, list items, picks): white, hairlines. */
+.ce-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--a-card-edge);
+  border-radius: var(--a-radius-sm);
+  overflow: hidden;
+  background: var(--a-surface);
+}
+.ce-row + .ce-row {
+  border-top: 1px solid var(--a-edge);
+}
+.ce-row-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 6px 8px;
+}
+.ce-grip {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 16px;
+  color: #8a8a8a;
+}
+.ce-row-index {
+  flex-shrink: 0;
+  width: 16px;
+  color: var(--a-text-dim);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+.ce-row-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--a-text);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.admin-shell button.ce-row-name {
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  font-family: var(--a-font);
+  text-align: left;
+  cursor: pointer;
+}
+.admin-shell button.ce-row-name:hover {
+  text-decoration: underline;
+}
+.ce-row-meta {
+  display: block;
+  overflow: hidden;
+  color: var(--a-text-dim);
+  font-size: 12px;
+  text-overflow: ellipsis;
+}
+.ce-row-actions {
+  display: flex;
+  flex-shrink: 0;
+  gap: 4px;
+}
+.admin-shell .btn.ce-icon-btn {
+  width: 28px;
+  min-width: 28px;
+  padding: 0;
+  color: var(--a-text);
+}
+.admin-shell .btn.ce-icon-btn:disabled {
+  opacity: 0.35;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+.admin-shell .btn.ce-icon-btn--remove {
+  color: var(--a-bad);
+}
+.admin-shell .btn.ce-icon-btn--remove:hover:not(:disabled) {
+  background: var(--a-bad-bg);
+  color: var(--a-bad);
+}
+.ce-row-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 12px 16px 40px;
+  border-top: 1px solid var(--a-edge);
+}
+.ce-subfield {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ce-thumb {
+  display: block;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  background-color: var(--a-surface-2);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+/* Empty / placeholder well: solid, light, text plus a secondary button. */
+.ce-well {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 8px 8px 8px 12px;
+  border-radius: var(--a-radius-sm);
+  background: var(--a-surface-2);
+  color: var(--a-text-dim);
+  font-size: 13px;
+  line-height: 20px;
+}
+.ce-well > p {
+  flex: 1 1 240px;
+  margin: 0;
+  color: var(--a-text-dim);
+  font-size: 13px;
+  line-height: 20px;
+}
+.ce-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.ce-count {
+  color: var(--a-text-dim);
+  font-size: 12px;
+}
+.ce-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--a-card-edge);
+  border-radius: var(--a-radius-sm);
+  background: var(--a-surface);
+}
+.ce-library {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.ce-library-item {
+  display: block;
+  width: 100%;
+  padding: 4px;
+  border: 1px solid var(--a-edge);
+  border-radius: var(--a-radius-sm);
+  background: var(--a-surface);
+  text-align: left;
+  cursor: pointer;
+}
+.ce-library-item[aria-pressed='true'] {
+  border-color: var(--a-text);
+  box-shadow: 0 0 0 1px var(--a-text);
+}
+
+/* Publish dock. Sticky only while there is something to save; otherwise a
+   slim static status line that cannot cover anything. */
+.admin-shell .admin-apple-dock.ce-dock--idle {
+  position: static;
+  padding: 0 4px;
+  background: transparent;
+  box-shadow: none;
+}
+.admin-route:has(.ce-dock--idle) {
+  padding-bottom: 0;
+}
+.ce-dock-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+.ce-dock-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: var(--a-text);
+  font-size: 13px;
+}
+.ce-dock--idle .ce-dock-status {
+  color: var(--a-text-dim);
+  font-size: 12px;
+}
+.ce-dock-status .ce-invalid {
+  color: var(--a-bad);
+}
+.ce-dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--a-good-fill);
+}
+.ce-dot--pending {
+  background: var(--a-warn-fill);
+}
+.ce-confirm {
+  padding: 12px;
+  border-radius: var(--a-radius-sm);
+  background: var(--a-surface-2);
+}
+.ce-confirm-title {
+  margin: 0;
+  color: var(--a-text);
+  font-size: 13px;
+  font-weight: 650;
+}
+.ce-confirm ul {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 13rem;
+  margin: 8px 0 0;
+  padding: 0 4px 0 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.ce-confirm li p {
+  margin: 0;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

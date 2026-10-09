@@ -15,6 +15,8 @@ export const cartInclude = {
           quantity: true,
         },
       },
+      // Which size and colour the shopper picked; the cart line has to say.
+      variant: { select: { id: true, size: true, color: true, sku: true } },
     },
     orderBy: { createdAt: 'asc' as const },
   },
@@ -47,6 +49,7 @@ export const shapeCart = (cart: CartWithItems) => {
     customization: item.customization,
     mockupImage: item.mockupImage,
     product: item.product,
+    variant: item.variant,
   }));
 
   const subtotal = round2(items.reduce((sum, item) => sum + item.price * item.quantity, 0));

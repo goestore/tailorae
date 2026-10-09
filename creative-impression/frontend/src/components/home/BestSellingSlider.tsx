@@ -17,96 +17,13 @@ export interface BestSellingProduct {
 }
 
 export interface BestSellingSliderProps {
-  products?: BestSellingProduct[];
+  products: BestSellingProduct[];
   title?: string;
 }
 
-const DEFAULT_PRODUCTS: BestSellingProduct[] = [
-  {
-    id: '1',
-    name: 'Premium Polo T-Shirt',
-    image: '/images/Women Polo T-Shirt.webp',
-    link: '/products/womens/polo-t-shirt',
-    mrp: '₹799',
-    sellingPrice: '₹499',
-    discount: '38%',
-  },
-  {
-    id: '2',
-    name: 'Classic Round Neck',
-    image: '/images/Mens Polo T-Shirt.webp',
-    link: '/products/mens/round-neck-tshirts',
-    mrp: '₹599',
-    sellingPrice: '₹399',
-    discount: '33%',
-  },
-  {
-    id: '3',
-    name: 'Formal Men Shirt',
-    image: '/images/Mens Shirt.webp',
-    link: '/products/mens/shirts',
-    mrp: '₹1,299',
-    sellingPrice: '₹899',
-    discount: '31%',
-  },
-  {
-    id: '4',
-    name: 'Trendy Women Top',
-    image: '/images/Women Top.webp',
-    link: '/products/womens/tops-tunics',
-    mrp: '₹899',
-    sellingPrice: '₹599',
-    discount: '33%',
-  },
-  {
-    id: '5',
-    name: 'Kids Polo T-Shirt',
-    image: '/images/Boys Polo T-Shirts.webp',
-    link: '/products/kids/boys-polo-tshirt',
-    mrp: '₹499',
-    sellingPrice: '₹349',
-    discount: '30%',
-  },
-  {
-    id: '6',
-    name: 'Custom Print Tee',
-    image: '/images/Round Neck T-Shirt.webp',
-    link: '/customization',
-    mrp: '₹699',
-    sellingPrice: '₹449',
-    discount: '36%',
-  },
-  {
-    id: '7',
-    name: 'Winter Sweatshirt',
-    image: '/images/WINTER.webp',
-    link: '/products/mens/round-neck-tshirts',
-    mrp: '₹1,499',
-    sellingPrice: '₹999',
-    discount: '33%',
-  },
-  {
-    id: '8',
-    name: 'Plus Size Top',
-    image: '/images/Female Model.webp',
-    link: '/products/womens/plus-size',
-    mrp: '₹1,099',
-    sellingPrice: '₹749',
-    discount: '32%',
-  },
-  {
-    id: '9',
-    name: 'Corporate Uniform Set',
-    image: '/images/Male Model.webp',
-    link: '/b2b',
-    mrp: '₹1,899',
-    sellingPrice: '₹1,299',
-    discount: '32%',
-  },
-];
 
 export const BestSellingSlider: React.FC<BestSellingSliderProps> = ({
-  products = DEFAULT_PRODUCTS,
+  products,
   title = 'BEST SELLING',
 }) => {
   const [missingImages, setMissingImages] = useState<Set<string>>(new Set());
@@ -130,7 +47,9 @@ export const BestSellingSlider: React.FC<BestSellingSliderProps> = ({
   return (
     <section className="bg-white">
       <div className="container-max">
-        <h2 className="heading-rule mb-4 md:mb-5">{title}</h2>
+        <div className="section-head">
+          <h2 className="heading-rule">{title}</h2>
+        </div>
 
         <ScrollRail label="best selling">
           {products.map((product) => {
@@ -155,31 +74,27 @@ export const BestSellingSlider: React.FC<BestSellingSliderProps> = ({
                       height={420}
                       sizes="(max-width: 640px) 60vw, 240px"
                       className="h-full w-full object-cover"
+                      // Imported listings point at marketplace CDNs that are not
+                      // in next.config's allowlist; those load as plain images
+                      // instead of crashing the whole homepage.
+                      unoptimized={/^https?:\/\//.test(product.image)}
                       onError={() => handleImageError(product.id)}
                     />
                   )}
                 </div>
 
-                {/* The reserved title height keeps price rows aligned across the row. */}
+                {/* Same caption as every other product card (BaseProductCard). */}
                 <div className="pcard-body">
-                  <h3 className="line-clamp-2 text-[13px] font-normal leading-[1.3] text-ink">
-                    {product.name}
+                  <h3 className="pcard-name">
+                    <span className="pcard-title" title={product.name}>
+                      {product.name}
+                    </span>
                   </h3>
-                  <div className="mt-0.5 flex flex-wrap items-baseline gap-1.5">
-                    {product.sellingPrice && (
-                      <span className="text-[13px] font-semibold text-ink">
-                        {product.sellingPrice}
-                      </span>
-                    )}
-                    {product.mrp && (
-                      <span className="text-[11px] text-ink-3 line-through">{product.mrp}</span>
-                    )}
-                    {product.discount && (
-                      <span className="text-[11px] font-semibold" style={{ color: 'var(--sale)' }}>
-                        {product.discount} off
-                      </span>
-                    )}
-                  </div>
+                  <p className="pcard-price">
+                    {product.sellingPrice}
+                    {product.mrp && <span className="pcard-compare">{product.mrp}</span>}
+                    {product.discount && <span className="pcard-off">{product.discount}</span>}
+                  </p>
                 </div>
               </Link>
             );

@@ -5,9 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useSelector } from 'react-redux';
-import { Button } from '@/components/common';
 import { RootState } from '@/store';
-import { formatCurrency } from '@/utils/helpers';
 import { AuthToggleButtons } from './AuthToggleButtons';
 
 export const NavigationBar: React.FC = () => {
@@ -17,7 +15,7 @@ export const NavigationBar: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   const { user } = useSelector((state: RootState) => state.auth);
-  const { items: cartItems, total } = useSelector((state: RootState) => state.cart);
+  const { items: cartItems } = useSelector((state: RootState) => state.cart);
 
   const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
@@ -34,7 +32,9 @@ export const NavigationBar: React.FC = () => {
     e.preventDefault();
     const query = searchQuery.trim();
     if (query === '') return;
-    router.push(`/products?search=${encodeURIComponent(query)}`);
+    // The listing reads `q`. This pushed `search`, so every search from the
+    // header landed on an unfiltered catalogue with the box apparently ignored.
+    router.push(`/products?q=${encodeURIComponent(query)}`);
     setIsSearchOpen(false);
     setIsMobileMenuOpen(false);
   };
@@ -156,8 +156,25 @@ export const NavigationBar: React.FC = () => {
                 </svg>
               </button>
 
+              {/* Wishlist — signed-out shoppers get the login redirect from the
+                  page itself, so the entry point stays where they expect it. */}
+              <Link
+                href="/wishlist"
+                aria-label="Wishlist"
+                className="hidden text-neutral-600 hover:text-primary-600 sm:block"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M20.8 6.6a5.1 5.1 0 0 0-7.2 0L12 8.2l-1.6-1.6a5.1 5.1 0 0 0-7.2 7.2l1.6 1.6L12 22.6l7.2-7.2 1.6-1.6a5.1 5.1 0 0 0 0-7.2Z"
+                  />
+                </svg>
+              </Link>
+
               {/* Cart */}
-              <Link href="/cart" className="relative text-neutral-600 hover:text-primary-600">
+              <Link href="/cart" aria-label="Cart" className="relative text-neutral-600 hover:text-primary-600">
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path
                     strokeLinecap="round"

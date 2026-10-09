@@ -1,160 +1,706 @@
 'use client';
 
-import { use, useEffect, useMemo, useState, type FormEvent } from 'react';
+import React, { use, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api-client';
 import { getApiErrorMessage } from '@/lib/api-utils';
+import { statusLabel } from '@/lib/admin-orders';
+import { deleteBrand, type AdminBrand } from '@/lib/admin-brands';
+import { deleteCoupon, type AdminCoupon } from '@/lib/admin-coupons';
+import { Search as SearchIcon } from '@/components/admin/icons';
+import { BrandEditor, ConfirmDialog, CouponEditor, StockCell } from './editors';
+import {
+  ATTENTION_KEYS,
+  ATTENTION_LINKS,
+  SECTIONS,
+  kpiLabel,
+  kpiValue,
+  text,
+  type Column,
+  type Row,
+  type RowAction,
+  type Section,
+} from './sections';
 
-type Section = {
-  title: string;
-  description: string;
-  endpoint: string;
-  collection?: string;
-  columns?: Array<{ label: string; value: (item: Record<string, unknown>) => string }>;
-  action?: { label: (item: Record<string, unknown>) => string; path: (item: Record<string, unknown>) => string; body: (item: Record<string, unknown>) => Record<string, unknown>; method?: 'patch' | 'put'; disabled?: (item: Record<string, unknown>) => boolean };
+/**
+ * The operations tables — one screen, one config per module.
+ *
+ * The important correction here is that two of these endpoints have always
+ * been paged. The screen used to fetch them with no parameters, take the
+ * twenty rows the server chose to send, and print "12 of 20 records" under
+ * them — which reads as the whole database. An order placed last month simply
+ * was not on the screen, the search box could not find it, and the honest
+ * conclusion from what was displayed was that it did not exist.
+ *
+ * So paged modules now own a page, a page size and a server-side search, and
+ * report the server's total rather than the size of their own slice. The
+ * unpaged ones keep filtering in the browser, which is correct there because
+ * the browser genuinely holds every row.
+ */
+
+const PAGE_SIZES = [25, 50, 100];
+
+/** Short columns hug their content; the one marked `grow` takes the slack. */
+const cellStyle = (column: Column): React.CSSProperties => ({
+  textAlign: column.align ?? 'left',
+  whiteSpace: column.grow ? 'normal' : 'nowrap',
+  width: column.grow ? undefined : '1%',
+});
+const actionCellStyle: React.CSSProperties = { width: '1%', whiteSpace: 'nowrap', textAlign: 'right' };
+/** Selects in a toolbar size to their options rather than to the row. */
+const toolbarSelect: React.CSSProperties = { width: 'auto', flex: '0 0 auto' };
+/**
+ * The shared "table in a padded card" rule bleeds the table 16px past each
+ * edge; an index card has no padding, so the table sits flush instead, and
+ * the toolbar's bottom rule already separates it from the search row.
+ */
+const indexTableWrap: React.CSSProperties = { width: '100%', margin: 0, borderTop: 0 };
+const dangerText: React.CSSProperties = { color: 'var(--a-bad)' };
+
+const kpiGrid: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+  gap: 12,
+  marginBottom: 16,
 };
 
-const text = (value: unknown) => (value === null || value === undefined ? '—' : String(value));
-const date = (value: unknown) => (value ? new Date(String(value)).toLocaleDateString() : '—');
-const nextOrderStatus: Record<string, string> = { PENDING: 'CONFIRMED', CONFIRMED: 'PROCESSING', PROCESSING: 'READY_FOR_SHIPMENT', READY_FOR_SHIPMENT: 'SHIPPED', SHIPPED: 'DELIVERED' };
-
-const SECTIONS: Record<string, Section> = {
-  analytics: { title: 'Analytics', description: 'Store performance at a glance.', endpoint: '/admin/reports' },
-  inventory: { title: 'Inventory', description: 'Current stock across the catalogue.', endpoint: '/admin/inventory', collection: 'products', columns: [
-    { label: 'Product', value: (x) => text(x.name) }, { label: 'SKU', value: (x) => text(x.sku) }, { label: 'Stock', value: (x) => text(x.quantity) }, { label: 'Status', value: (x) => text(x.status) },
-  ] },
-  orders: { title: 'Orders', description: 'All customer orders and their current fulfilment status.', endpoint: '/admin/orders', collection: 'orders', columns: [
-    { label: 'Order', value: (x) => text(x.orderNumber) }, { label: 'Customer', value: (x) => text((x.user as Record<string, unknown>)?.email) }, { label: 'Status', value: (x) => text(x.status) }, { label: 'Total', value: (x) => `₹${text(x.total)}` }, { label: 'Placed', value: (x) => date(x.createdAt) },
-  ], action: { label: (x) => nextOrderStatus[text(x.status)] ? `Mark ${nextOrderStatus[text(x.status)].replace(/_/g, ' ').toLowerCase()}` : 'No next step', path: (x) => `/admin/orders/${text(x.id)}/status`, body: (x) => ({ status: nextOrderStatus[text(x.status)] }), disabled: (x) => !nextOrderStatus[text(x.status)] } },
-  returns: { title: 'Returns', description: 'Review and process customer return requests.', endpoint: '/admin/returns', collection: 'requests', columns: [
-    { label: 'Order', value: (x) => text((x.order as Record<string, unknown>)?.orderNumber) }, { label: 'Reason', value: (x) => text(x.reason) }, { label: 'Detail', value: (x) => text(x.description) }, { label: 'Status', value: (x) => text(x.status) }, { label: 'Requested', value: (x) => date(x.createdAt) },
-  ], action: { label: (x) => x.status === 'APPROVED' ? 'Complete' : 'Approve', path: (x) => `/admin/returns/${text(x.id)}`, body: (x) => ({ status: x.status === 'APPROVED' ? 'COMPLETED' : 'APPROVED' }) } },
-  exchanges: { title: 'Exchanges', description: 'Review exchange requests separately from returns.', endpoint: '/admin/returns?type=EXCHANGE', collection: 'requests', columns: [
-    { label: 'Order', value: (x) => text((x.order as Record<string, unknown>)?.orderNumber) }, { label: 'Reason', value: (x) => text(x.reason) }, { label: 'Detail', value: (x) => text(x.description) }, { label: 'Status', value: (x) => text(x.status) }, { label: 'Requested', value: (x) => date(x.createdAt) },
-  ], action: { label: (x) => x.status === 'APPROVED' ? 'Complete' : 'Approve', path: (x) => `/admin/returns/${text(x.id)}`, body: (x) => ({ status: x.status === 'APPROVED' ? 'COMPLETED' : 'APPROVED' }) } },
-  cod: { title: 'COD insights', description: 'Cash-on-delivery exposure and outcomes.', endpoint: '/admin/cod-insights' },
-  coupons: { title: 'Coupons', description: 'Active and scheduled promotion codes.', endpoint: '/admin/coupons', collection: 'coupons', columns: [
-    { label: 'Code', value: (x) => text(x.code) }, { label: 'Discount', value: (x) => `${text(x.discountValue)} ${text(x.discountType)}` }, { label: 'Used', value: (x) => text(x.usageCount) }, { label: 'Active', value: (x) => x.isActive ? 'Active' : 'Inactive' },
-  ], action: { label: (x) => x.isActive ? 'Deactivate' : 'Activate', path: (x) => `/admin/coupons/${text(x.id)}`, body: (x) => ({ isActive: !Boolean(x.isActive) }), method: 'put' } },
-  customers: { title: 'Customers', description: 'Customer accounts, roles, and account health.', endpoint: '/admin/users', collection: 'users', columns: [
-    { label: 'Customer', value: (x) => [x.firstName, x.lastName].filter(Boolean).join(' ') || text(x.email) }, { label: 'Email', value: (x) => text(x.email) }, { label: 'Role', value: (x) => text(x.role) }, { label: 'Status', value: (x) => text(x.status) },
-  ], action: { label: (x) => x.status === 'ACTIVE' ? 'Suspend' : 'Activate', path: (x) => `/admin/users/${text(x.id)}`, body: (x) => ({ status: x.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' }), method: 'put' } },
-  reviews: { title: 'Reviews', description: 'Moderate customer feedback before it appears in the shop.', endpoint: '/admin/reviews', collection: 'reviews', columns: [
-    { label: 'Product', value: (x) => text((x.product as Record<string, unknown>)?.name) }, { label: 'Customer', value: (x) => text((x.user as Record<string, unknown>)?.email) }, { label: 'Rating', value: (x) => `${text(x.rating)}/5` }, { label: 'Review', value: (x) => text(x.comment) }, { label: 'Published', value: (x) => x.isPublished ? 'Yes' : 'No' },
-  ], action: { label: (x) => x.isPublished ? 'Hide' : 'Publish', path: (x) => `/admin/reviews/${text(x.id)}`, body: (x) => ({ isPublished: !Boolean(x.isPublished) }) } },
-  'contact-requests': { title: 'Contact requests', description: 'Messages submitted through the storefront contact form.', endpoint: '/admin/contact-requests', collection: 'requests', columns: [
-    { label: 'Name', value: (x) => text(x.name) }, { label: 'Email', value: (x) => text(x.email) }, { label: 'Subject', value: (x) => text(x.subject) }, { label: 'Message', value: (x) => text(x.message) }, { label: 'Status', value: (x) => text(x.status) }, { label: 'Received', value: (x) => date(x.createdAt) },
-  ], action: { label: (x) => x.status === 'RESOLVED' ? 'Close' : 'Resolve', path: (x) => `/admin/contact-requests/${text(x.id)}`, body: (x) => ({ status: x.status === 'RESOLVED' ? 'CLOSED' : 'RESOLVED' }), disabled: (x) => x.status === 'CLOSED' } },
+const KpiCard: React.FC<{ name: string; value: unknown; href?: string }> = ({ name, value, href }) => {
+  const card = (
+    <div className="admin-card">
+      <p
+        className="admin-kpi-label"
+        title={kpiLabel(name)}
+        style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+      >
+        {kpiLabel(name)}
+      </p>
+      <p className="admin-kpi-value">{kpiValue(name, value)}</p>
+    </div>
+  );
+  return href ? (
+    <Link href={href} className="admin-kpi-link">
+      {card}
+    </Link>
+  ) : (
+    card
+  );
 };
 
-export default function AdminOperationsPage({ params }: { params: Promise<{ section: string }> }) {
-  const { section } = use(params);
+interface Request {
+  page: number;
+  limit: number;
+  search: string;
+  status: string;
+}
+
+interface Loaded {
+  /** The request this data answers. Anything else on screen is stale. */
+  key: string;
+  payload: Record<string, unknown>;
+  rows: Row[];
+  total: number;
+  totalPages: number;
+}
+
+async function fetchSection(config: Section, request: Request) {
+  const response = await apiClient.get(config.endpoint, {
+    params: config.paginated
+      ? {
+          page: request.page,
+          limit: request.limit,
+          ...(request.search ? { search: request.search } : {}),
+          ...(request.status && config.statusParam ? { [config.statusParam]: request.status } : {}),
+        }
+      : undefined,
+  });
+  const payload = (response.data?.data ?? {}) as Record<string, unknown>;
+  const rows =
+    config.collection && Array.isArray(payload[config.collection])
+      ? (payload[config.collection] as Row[])
+      : [];
+  const pagination = payload.pagination as { total?: number; totalPages?: number } | undefined;
+  return {
+    payload,
+    rows,
+    total: pagination?.total ?? rows.length,
+    totalPages: pagination?.totalPages ?? 1,
+  };
+}
+
+/** The status a row is filtered on, whether it keeps one or only a flag. */
+const rowStatus = (row: Row): string =>
+  row.status === undefined
+    ? row.isActive === undefined
+      ? ''
+      : row.isActive
+        ? 'ACTIVE'
+        : 'INACTIVE'
+    : text(row.status);
+
+/**
+ * Remounted per section by its key, so switching modules cannot carry a page
+ * number or a half-typed search across to a table it means nothing in.
+ */
+function OperationsSection({ section }: { section: string }) {
   const config = SECTIONS[section];
-  const [data, setData] = useState<Record<string, unknown> | null>(null);
+
+  const [request, setRequest] = useState<Request>({ page: 1, limit: 25, search: '', status: '' });
+  const [searchInput, setSearchInput] = useState('');
+  const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [actionId, setActionId] = useState<string | null>(null);
-  const [query, setQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
-  const [coupon, setCoupon] = useState({ code: '', discountType: 'PERCENTAGE', discountValue: '', startDate: '', endDate: '' });
-  const [creatingCoupon, setCreatingCoupon] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  // Brand and coupon authoring. `null` inside the flag means "a new one".
+  const [brandEditor, setBrandEditor] = useState<{ brand: AdminBrand | null } | null>(null);
+  const [couponEditor, setCouponEditor] = useState<{ coupon: AdminCoupon | null } | null>(null);
+  const [removing, setRemoving] = useState<Row | null>(null);
+  const [isRemoving, setIsRemoving] = useState(false);
+
+  const requestKey = config?.paginated
+    ? `${section}:${request.page}:${request.limit}:${request.search}:${request.status}`
+    : section;
+
+  const load = useCallback(() => {
+    if (!config) return Promise.resolve();
+    const key = requestKey;
+    return fetchSection(config, request)
+      .then((result) => {
+        setLoaded({ key, ...result });
+        setError(null);
+      })
+      .catch((err) => setError(getApiErrorMessage(err, 'Could not load this admin module.')));
+  }, [config, request, requestKey]);
 
   useEffect(() => {
-    if (!config) return;
-    apiClient
-      .get(config.endpoint)
-      .then((res) => setData(res.data?.data ?? {}))
-      .catch((err) => setError(getApiErrorMessage(err, 'Could not load this admin module.')));
-  }, [config]);
+    void load();
+  }, [load]);
 
-  const rows = useMemo(() => config?.collection && Array.isArray(data?.[config.collection]) ? data?.[config.collection] as Record<string, unknown>[] : [], [config, data]);
-  const filteredRows = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-    return rows.filter((row) => {
-      const status = row.status === undefined ? (row.isActive === undefined ? '' : row.isActive ? 'ACTIVE' : 'INACTIVE') : text(row.status);
-      return (statusFilter === '' || status === statusFilter) && (needle === '' || JSON.stringify(row).toLowerCase().includes(needle));
-    });
-  }, [query, rows, statusFilter]);
-  const statuses = useMemo(() => [...new Set(rows.map((row) => row.status === undefined ? (row.isActive === undefined ? '' : row.isActive ? 'ACTIVE' : 'INACTIVE') : text(row.status)).filter(Boolean))].sort(), [rows]);
+  // Typing in a server-searched table should not fire a request per keystroke.
+  // Unpaged tables filter locally and never reach this.
+  useEffect(() => {
+    if (!config?.paginated) return;
+    const needle = searchInput.trim();
+    const timer = setTimeout(() => {
+      setRequest((current) =>
+        current.search === needle ? current : { ...current, search: needle, page: 1 }
+      );
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [config, searchInput]);
 
-  const runAction = async (row: Record<string, unknown>) => {
-    if (!config?.action) return;
-    const id = text(row.id);
-    setActionId(id);
+  const rows = useMemo(() => loaded?.rows ?? [], [loaded]);
+  const isStale = !loaded || loaded.key !== requestKey;
+
+  /** What the table shows. Already narrowed by the server on paged modules. */
+  const visibleRows = useMemo(() => {
+    if (config?.paginated) return rows;
+    const needle = searchInput.trim().toLowerCase();
+    return rows.filter(
+      (row) =>
+        (request.status === '' || rowStatus(row) === request.status) &&
+        (needle === '' || JSON.stringify(row).toLowerCase().includes(needle))
+    );
+  }, [config, request.status, rows, searchInput]);
+
+  const statusOptions = useMemo(() => {
+    if (config?.statusOptions) return [...config.statusOptions];
+    return [...new Set(rows.map(rowStatus).filter(Boolean))].sort();
+  }, [config, rows]);
+
+  const total = config?.paginated ? (loaded?.total ?? 0) : rows.length;
+  const totalPages = Math.max(1, loaded?.totalPages ?? 1);
+  const firstOnPage = total === 0 ? 0 : (request.page - 1) * request.limit + 1;
+  const lastOnPage = Math.min(total, (request.page - 1) * request.limit + visibleRows.length);
+
+  const patchRow = (id: unknown, changes: Row) =>
+    setLoaded((current) =>
+      current
+        ? { ...current, rows: current.rows.map((row) => (row.id === id ? { ...row, ...changes } : row)) }
+        : current
+    );
+
+  const runAction = async (row: Row, action: RowAction, index: number) => {
+    const busyKey = `${text(row.id)}:${index}`;
+    setBusyAction(busyKey);
     setError(null);
+    setNotice(null);
     try {
-      await apiClient[config.action.method ?? 'patch'](config.action.path(row), config.action.body(row));
-      setData((current) => current && config.collection ? {
-        ...current,
-        [config.collection]: (current[config.collection] as Record<string, unknown>[]).map((item) => item.id === row.id ? { ...item, ...config.action!.body(row) } : item),
-      } : current);
+      await apiClient[action.method ?? 'patch'](action.path(row), action.body(row));
+      // Refetched rather than merged locally: on a paged, server-filtered table
+      // the changed row may no longer belong on this page at all.
+      await load();
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not update this record.'));
     } finally {
-      setActionId(null);
+      setBusyAction(null);
     }
   };
 
-  const createCoupon = async (event: FormEvent) => {
-    event.preventDefault();
+  /**
+   * Every row the current filter matches, not merely the page on screen.
+   * An export that quietly stopped at twenty-five rows would be the same bug
+   * this screen was fixed for.
+   */
+  const collectExportRows = async (): Promise<Row[]> => {
+    if (!config?.paginated) return visibleRows;
+    const collected: Row[] = [];
+    for (let page = 1; page <= 50; page += 1) {
+      const result = await fetchSection(config, { ...request, page, limit: 100 });
+      collected.push(...result.rows);
+      if (result.rows.length === 0 || collected.length >= result.total) break;
+    }
+    return collected;
+  };
+
+  const exportRows = async () => {
+    if (!config?.columns) return;
+    setIsExporting(true);
     setError(null);
-    setCreatingCoupon(true);
     try {
-      const response = await apiClient.post('/admin/coupons', { ...coupon, code: coupon.code.trim().toUpperCase(), discountValue: Number(coupon.discountValue) });
-      const created = response.data?.data?.coupon as Record<string, unknown>;
-      setData((current) => current ? { ...current, coupons: [created, ...((current.coupons as Record<string, unknown>[]) ?? [])] } : current);
-      setCoupon({ code: '', discountType: 'PERCENTAGE', discountValue: '', startDate: '', endDate: '' });
+      const exportable = await collectExportRows();
+      const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
+      const csv = [
+        config.columns.map((column) => escape(column.label)).join(','),
+        ...exportable.map((row) => config.columns!.map((column) => escape(column.value(row))).join(',')),
+      ].join('\n');
+      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${section}-${new Date().toISOString().slice(0, 10)}.csv`;
+      link.click();
+      URL.revokeObjectURL(url);
     } catch (err) {
-      setError(getApiErrorMessage(err, 'Could not create this coupon.'));
+      setError(getApiErrorMessage(err, 'Could not export these records.'));
     } finally {
-      setCreatingCoupon(false);
+      setIsExporting(false);
     }
   };
 
-  const exportRows = () => {
-    if (!config?.columns || filteredRows.length === 0) return;
-    const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
-    const csv = [
-      config.columns.map((column) => escape(column.label)).join(','),
-      ...filteredRows.map((row) => config.columns!.map((column) => escape(column.value(row))).join(',')),
-    ].join('\n');
-    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${section}-${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+  const confirmRemoval = async () => {
+    if (!removing) return;
+    setIsRemoving(true);
+    setError(null);
+    try {
+      const message =
+        section === 'brands'
+          ? await deleteBrand(text(removing.id))
+          : await deleteCoupon(text(removing.id));
+      setNotice(message);
+      setRemoving(null);
+      await load();
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setIsRemoving(false);
+    }
   };
 
-  if (!config) return <div className="admin-content"><p className="alert alert-error">This admin module does not exist.</p></div>;
+  if (!config) {
+    return (
+      <div className="admin-page-head">
+        <div>
+          <h1 className="admin-page-title">Not found</h1>
+          <p className="admin-page-sub">This admin module does not exist.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const hasFilters = searchInput !== '' || request.status !== '';
+  const hasRows = visibleRows.length > 0;
+  const hasRowActions = Boolean(
+    config.actions || config.href || section === 'brands' || section === 'coupons'
+  );
+  const countLabel = config.paginated
+    ? `${firstOnPage}–${lastOnPage} of ${total}`
+    : `${visibleRows.length} of ${rows.length}`;
+  const EmptyIcon = hasFilters ? SearchIcon : (config.empty?.icon ?? SearchIcon);
+
+  const summaryEntries = Object.entries(loaded?.payload ?? {});
+  const measures = summaryEntries.filter(([key]) => !ATTENTION_KEYS.has(key));
+  const attention = summaryEntries.filter(([key]) => ATTENTION_KEYS.has(key));
 
   return (
-    <div className="admin-content flex flex-col gap-6">
-      <header className="admin-page-header"><Link href="/admin">Admin</Link><h1 className="text-2xl text-ink">{config.title}</h1><p className="text-sm text-ink-2">{config.description}</p></header>
-      {error && <p className="alert alert-error">{error}</p>}
-      {!data && !error && <p className="text-sm text-ink-3">Loading…</p>}
-      {data && config.collection && <div className="admin-list-toolbar"><p>{filteredRows.length} of {rows.length} records</p><div>{statuses.length > 0 && <label><span>Status</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}><option value="">All states</option>{statuses.map((status) => <option key={status} value={status}>{status.replace(/_/g, ' ')}</option>)}</select></label>}<label><span>Search</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${config.title.toLowerCase()}`} /></label>{(query !== '' || statusFilter !== '') && <button type="button" className="admin-clear-filters" onClick={() => { setQuery(''); setStatusFilter(''); }}>Clear filters</button>}<button type="button" className="admin-export-button" disabled={filteredRows.length === 0} onClick={exportRows}>Export CSV <span aria-hidden="true">↓</span></button></div></div>}
-      {section === 'coupons' && <form className="admin-coupon-form" onSubmit={createCoupon}>
-        <div><label htmlFor="coupon-code">New promotion</label><input id="coupon-code" required value={coupon.code} placeholder="WELCOME10" onChange={(event) => setCoupon({ ...coupon, code: event.target.value })} /></div>
-        <div><label htmlFor="coupon-type">Discount type</label><select id="coupon-type" value={coupon.discountType} onChange={(event) => setCoupon({ ...coupon, discountType: event.target.value })}><option value="PERCENTAGE">Percentage</option><option value="FIXED_AMOUNT">Fixed amount</option></select></div>
-        <div><label htmlFor="coupon-value">Value</label><input id="coupon-value" required min="0" step="0.01" type="number" value={coupon.discountValue} onChange={(event) => setCoupon({ ...coupon, discountValue: event.target.value })} /></div>
-        <div><label htmlFor="coupon-start">Starts</label><input id="coupon-start" required type="date" value={coupon.startDate} onChange={(event) => setCoupon({ ...coupon, startDate: event.target.value })} /></div>
-        <div><label htmlFor="coupon-end">Ends</label><input id="coupon-end" required type="date" value={coupon.endDate} onChange={(event) => setCoupon({ ...coupon, endDate: event.target.value })} /></div>
-        <button type="submit" className="btn btn-primary btn-sm" disabled={creatingCoupon}>{creatingCoupon ? 'Creating…' : 'Create coupon'}</button>
-      </form>}
-      {data && !config.collection && (
-        <div className="grid grid-cols-2 gap-px border border-line bg-line sm:grid-cols-3">
-          {Object.entries(data).map(([key, value]) => {
-            const isCurrency = typeof value === 'number' && (key.toLowerCase().includes('revenue') || key.toLowerCase().includes('value'));
-            return (
-              <div key={key} className="bg-white p-5">
-                <p className="text-xs uppercase tracking-[.1em] text-ink-3">{key.replace(/([A-Z])/g, ' $1')}</p>
-                <p className="mt-2 text-2xl text-ink">{isCurrency ? `₹${text(value)}` : text(value)}</p>
-              </div>
-            );
-          })}
+    <div>
+      <div className="admin-page-head">
+        <div>
+          <h1 className="admin-page-title">{config.title}</h1>
+          <p className="admin-page-sub">{config.description}</p>
+        </div>
+        <div className="admin-page-actions">
+          {section === 'analytics' && (
+            <Link href="/admin" className="btn">
+              See full report on the Dashboard
+            </Link>
+          )}
+          {config.collection && total > 0 && (
+            <button
+              type="button"
+              className="btn"
+              disabled={isExporting}
+              onClick={() => void exportRows()}
+            >
+              {isExporting ? 'Exporting…' : 'Export CSV'}
+            </button>
+          )}
+          {section === 'brands' && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setBrandEditor({ brand: null })}
+            >
+              New brand
+            </button>
+          )}
+          {section === 'coupons' && (
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setCouponEditor({ coupon: null })}
+            >
+              New coupon
+            </button>
+          )}
+        </div>
+      </div>
+
+      {error && (
+        <div className="admin-alert admin-alert--warn" style={{ marginBottom: 16 }}>
+          <span>{error}</span>
         </div>
       )}
-      {data && config.collection && <div className="overflow-x-auto border border-line bg-white"><table className="admin-data-table w-full min-w-[620px] text-left text-sm"><thead className="border-b border-line bg-surface-2"><tr>{config.columns?.map((column) => <th key={column.label} className="px-4 py-3 text-xs uppercase tracking-[.1em] text-ink-3">{column.label}</th>)}{config.action && <th className="px-4 py-3 text-xs uppercase tracking-[.1em] text-ink-3">Action</th>}</tr></thead><tbody>{filteredRows.map((row, index) => <tr key={text(row.id) || index} className="border-b border-line last:border-0">{config.columns?.map((column) => <td key={column.label} className={`px-4 py-3 text-ink-2${['Message', 'Review', 'Detail'].includes(column.label) ? ' admin-data-table-copy' : ''}`}>{column.value(row)}</td>)}{config.action && <td className="px-4 py-3"><button type="button" className="btn btn-secondary btn-sm" disabled={actionId === text(row.id) || Boolean(config.action.disabled?.(row))} onClick={() => runAction(row)}>{actionId === text(row.id) ? 'Saving…' : config.action.label(row)}</button></td>}</tr>)}{filteredRows.length === 0 && <tr><td className="px-4 py-8 text-center text-ink-3" colSpan={(config.columns?.length ?? 0) + (config.action ? 1 : 0)}>{rows.length === 0 ? 'Nothing to show yet.' : 'No records match this search.'}</td></tr>}</tbody></table></div>}
+      {notice && (
+        <div className="admin-alert" style={{ marginBottom: 16 }}>
+          <span>{notice}</span>
+        </div>
+      )}
+
+      {!config.collection && (
+        <>
+          {isStale && !error && (
+            <div className="admin-card">
+              <p className="admin-kpi-sub">Loading…</p>
+            </div>
+          )}
+          {!isStale && measures.length > 0 && (
+            <div style={kpiGrid}>
+              {measures.map(([key, value]) => (
+                <KpiCard key={key} name={key} value={value} />
+              ))}
+            </div>
+          )}
+          {!isStale && attention.length > 0 && (
+            <>
+              <h2 className="admin-section-title" style={{ marginTop: 8 }}>
+                Needs attention
+              </h2>
+              <div style={kpiGrid}>
+                {attention.map(([key, value]) => (
+                  <KpiCard key={key} name={key} value={value} href={ATTENTION_LINKS[key]} />
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+
+      {config.collection && (
+        <div className="admin-card admin-index">
+          {(rows.length > 0 || hasFilters || config.paginated) && (
+            <div className="admin-toolbar">
+              <input
+                type="search"
+                aria-label={`Search ${config.title.toLowerCase()}`}
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
+                placeholder="Search"
+              />
+              {statusOptions.length > 0 && (
+                <select
+                  aria-label="Filter by status"
+                  style={toolbarSelect}
+                  value={request.status}
+                  onChange={(event) =>
+                    setRequest((current) => ({ ...current, status: event.target.value, page: 1 }))
+                  }
+                >
+                  <option value="">All statuses</option>
+                  {statusOptions.map((status) => (
+                    <option key={status} value={status}>
+                      {statusLabel(status)}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {hasFilters && (
+                <button
+                  type="button"
+                  className="btn btn-ghost"
+                  onClick={() => {
+                    setSearchInput('');
+                    setRequest((current) => ({ ...current, search: '', status: '', page: 1 }));
+                  }}
+                >
+                  Clear
+                </button>
+              )}
+              {hasRows && !isStale && (
+                <span className="admin-toolbar-meta" style={{ marginLeft: 'auto' }}>
+                  {countLabel}
+                </span>
+              )}
+            </div>
+          )}
+
+          {isStale && !error ? (
+            <div className="admin-empty">
+              <p className="admin-empty-text">Loading…</p>
+            </div>
+          ) : !hasRows ? (
+            <div className="admin-empty">
+              <span className="admin-empty-icon">
+                <EmptyIcon size={22} />
+              </span>
+              <p className="admin-empty-title">
+                {hasFilters ? 'No matches' : (config.empty?.title ?? 'Nothing here yet')}
+              </p>
+              <p className="admin-empty-text">
+                {hasFilters
+                  ? 'Try a different search or clear the filters.'
+                  : (config.empty?.text ?? 'Records will appear here as they come in.')}
+              </p>
+              {!hasFilters && section === 'coupons' && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => setCouponEditor({ coupon: null })}
+                >
+                  New coupon
+                </button>
+              )}
+              {!hasFilters && section === 'brands' && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={() => setBrandEditor({ brand: null })}
+                >
+                  New brand
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="admin-table-wrap" style={indexTableWrap}>
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    {config.columns?.map((column) => (
+                      <th key={column.label} style={cellStyle(column)}>
+                        {column.label}
+                      </th>
+                    ))}
+                    {hasRowActions && (
+                      <th style={actionCellStyle}>
+                        <span className="sr-only">Actions</span>
+                      </th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleRows.map((row, rowIndex) => (
+                    <tr key={text(row.id) || rowIndex}>
+                      {config.columns?.map((column, columnIndex) => (
+                        <td key={column.label} style={cellStyle(column)}>
+                          {section === 'inventory' && column.label === 'Stock' ? (
+                            <StockCell
+                              productId={text(row.id)}
+                              quantity={Number(row.quantity) || 0}
+                              onSaved={(quantity) => {
+                                patchRow(row.id, { quantity });
+                                setNotice(`Stock for ${text(row.name)} set to ${quantity}.`);
+                              }}
+                              onError={setError}
+                            />
+                          ) : columnIndex === 0 && config.href ? (
+                            <Link href={config.href(row)}>{column.value(row)}</Link>
+                          ) : column.render ? (
+                            column.render(row)
+                          ) : (
+                            column.value(row)
+                          )}
+                        </td>
+                      ))}
+                      {hasRowActions && (
+                        <td style={actionCellStyle}>
+                          <div className="admin-actions">
+                            {config.actions?.map((action, index) =>
+                              action.hidden?.(row) ? null : (
+                                <button
+                                  key={index}
+                                  type="button"
+                                  className="btn btn-sm"
+                                  disabled={busyAction === `${text(row.id)}:${index}`}
+                                  onClick={() => void runAction(row, action, index)}
+                                >
+                                  {busyAction === `${text(row.id)}:${index}`
+                                    ? 'Saving…'
+                                    : action.label(row)}
+                                </button>
+                              )
+                            )}
+                            {section === 'brands' && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm"
+                                  onClick={() =>
+                                    setBrandEditor({ brand: row as unknown as AdminBrand })
+                                  }
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-ghost"
+                                  style={dangerText}
+                                  onClick={() => setRemoving(row)}
+                                >
+                                  Remove
+                                </button>
+                              </>
+                            )}
+                            {section === 'coupons' && (
+                              <>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm"
+                                  onClick={() =>
+                                    setCouponEditor({ coupon: row as unknown as AdminCoupon })
+                                  }
+                                >
+                                  Edit
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-ghost"
+                                  style={dangerText}
+                                  onClick={() => setRemoving(row)}
+                                >
+                                  Delete
+                                </button>
+                              </>
+                            )}
+                            {config.href && (
+                              <Link href={config.href(row)} className="btn btn-sm btn-ghost">
+                                View
+                              </Link>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {config.paginated && hasRows && (
+            <div className="admin-index-footer">
+              <span className="admin-toolbar-meta">
+                Page {request.page} of {totalPages}
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <select
+                  aria-label="Records per page"
+                  style={toolbarSelect}
+                  value={request.limit}
+                  onChange={(event) =>
+                    setRequest((current) => ({
+                      ...current,
+                      limit: Number(event.target.value),
+                      page: 1,
+                    }))
+                  }
+                >
+                  {PAGE_SIZES.map((size) => (
+                    <option key={size} value={size}>
+                      {size} per page
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={request.page <= 1 || isStale}
+                  onClick={() =>
+                    setRequest((current) => ({ ...current, page: Math.max(1, current.page - 1) }))
+                  }
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  className="btn"
+                  disabled={request.page >= totalPages || isStale}
+                  onClick={() => setRequest((current) => ({ ...current, page: current.page + 1 }))}
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {brandEditor && (
+        <BrandEditor
+          brand={brandEditor.brand}
+          onClose={() => setBrandEditor(null)}
+          onSaved={(_brand, message) => {
+            setBrandEditor(null);
+            setNotice(message);
+            void load();
+          }}
+        />
+      )}
+
+      {couponEditor && (
+        <CouponEditor
+          coupon={couponEditor.coupon}
+          onClose={() => setCouponEditor(null)}
+          onSaved={(_coupon, message) => {
+            setCouponEditor(null);
+            setNotice(message);
+            void load();
+          }}
+        />
+      )}
+
+      {removing && (
+        <ConfirmDialog
+          title={section === 'brands' ? 'Remove brand' : 'Delete coupon'}
+          subject={text(removing.name ?? removing.code)}
+          detail={
+            section === 'brands'
+              ? Number((removing._count as Row)?.products ?? 0) > 0
+                ? `${text((removing._count as Row)?.products)} product(s) still carry this brand, so it will be deactivated rather than deleted — deleting would strip the label off every one of them.`
+                : 'Nothing carries this brand, so it will be deleted outright.'
+              : Number(removing.usageCount ?? 0) > 0
+                ? `This code has been redeemed ${text(removing.usageCount)} time(s). Past orders keep the discount they were placed with, but the code itself will be gone — deactivating instead keeps the record.`
+                : 'This code has never been redeemed and will be deleted outright.'
+          }
+          confirmLabel={section === 'brands' ? 'Remove brand' : 'Delete coupon'}
+          isBusy={isRemoving}
+          onConfirm={() => void confirmRemoval()}
+          onCancel={() => setRemoving(null)}
+        />
+      )}
     </div>
   );
+}
+
+export default function AdminOperationsPage({ params }: { params: Promise<{ section: string }> }) {
+  const { section } = use(params);
+  return <OperationsSection key={section} section={section} />;
 }

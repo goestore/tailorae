@@ -56,7 +56,10 @@ export const Skeleton: React.FC<SkeletonProps> = ({
   return (
     <div
       className={cn(
-        'animate-pulse rounded-md bg-neutral-200 dark:bg-neutral-700',
+        // Tokens, not Tailwind's neutral ramp: a placeholder that is a
+        // different grey from every surface around it reads as a broken
+        // image rather than as content arriving.
+        'skeleton-block animate-pulse',
         height,
         width,
         className
@@ -89,3 +92,50 @@ export const SkeletonText: React.FC<SkeletonTextProps> = ({
     </div>
   );
 };
+
+/**
+ * The shapes the storefront actually waits on.
+ *
+ * Every route that fetched anything rendered a centred spinner on an otherwise
+ * blank page — so a slow connection saw the header, a void, and then the whole
+ * page at once. A skeleton in roughly the shape of what is coming keeps the
+ * layout still and makes the wait legible. `Skeleton` and `SkeletonText` were
+ * already here and used by nothing; these give them somewhere to go.
+ */
+
+/** A cart or wishlist line: thumbnail, two lines of text, a price. */
+export const SkeletonLine: React.FC<{ className?: string }> = ({ className }) => (
+  <div className={cn('flex items-center gap-4 border-b border-line py-4', className)}>
+    <Skeleton height="h-20" width="w-16" className="flex-shrink-0" />
+    <div className="min-w-0 flex-1 space-y-2">
+      <Skeleton height="h-3.5" width="w-2/5" />
+      <Skeleton height="h-3" width="w-1/4" />
+    </div>
+    <Skeleton height="h-4" width="w-16" className="flex-shrink-0" />
+  </div>
+);
+
+/** A stack of lines, for a list whose length is not yet known. */
+export const SkeletonList: React.FC<{ rows?: number; className?: string }> = ({
+  rows = 3,
+  className,
+}) => (
+  <div className={className} aria-hidden="true">
+    {Array.from({ length: rows }).map((_, index) => (
+      <SkeletonLine key={index} />
+    ))}
+  </div>
+);
+
+/** A bordered panel with a heading and a few lines — an order card, a summary. */
+export const SkeletonPanel: React.FC<{ lines?: number; className?: string }> = ({
+  lines = 3,
+  className,
+}) => (
+  <div className={cn('border border-line p-5', className)} aria-hidden="true">
+    <Skeleton height="h-3" width="w-24" />
+    <div className="mt-4">
+      <SkeletonText lines={lines} lineHeight="h-3.5" />
+    </div>
+  </div>
+);

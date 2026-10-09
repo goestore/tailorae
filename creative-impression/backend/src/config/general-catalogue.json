@@ -1,0 +1,2038 @@
+{
+  "note": "Hand-written listing templates for non-apparel categories. Same shape as myntra-catalogue.json (which is generated and must not be edited). `options` names a list in `lists`; \"countries\", \"colours\" and \"ageGroups\" are borrowed from the Myntra catalogue at load time (see utils/product-spec.ts).",
+  "articleTypes": [
+    {
+      "articleType": "Footwear",
+      "slug": "footwear",
+      "template": "",
+      "sourceFile": "general-catalogue.json",
+      "family": "general",
+      "optionLabel": "UK size",
+      "sizes": "footwear-uk-sizes",
+      "columns": [
+        {
+          "key": "vendorArticleNumber",
+          "header": "Article number",
+          "label": "Article number",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "sku"
+        },
+        {
+          "key": "vendorArticleName",
+          "header": "Article name",
+          "label": "Article name",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "name"
+        },
+        {
+          "key": "brand",
+          "header": "Brand",
+          "label": "Brand",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "brand"
+        },
+        {
+          "key": "manufacturerNameAndAddressWithPincode",
+          "header": "Manufacturer Name and Address with Pincode",
+          "label": "Manufacturer Name and Address with Pincode",
+          "group": "business",
+          "required": true,
+          "kind": "longtext",
+          "scope": "product",
+          "field": "manufacturerDetails"
+        },
+        {
+          "key": "packerNameAndAddressWithPincode",
+          "header": "Packer Name and Address with Pincode",
+          "label": "Packer Name and Address with Pincode",
+          "group": "business",
+          "required": true,
+          "kind": "longtext",
+          "scope": "product",
+          "field": "packerDetails"
+        },
+        {
+          "key": "importerNameAndAddressWithPincode",
+          "header": "Importer Name and Address with Pincode",
+          "label": "Importer Name and Address with Pincode",
+          "group": "business",
+          "required": false,
+          "kind": "longtext",
+          "scope": "product",
+          "field": "importerDetails"
+        },
+        {
+          "key": "countryOfOrigin",
+          "header": "Country Of Origin",
+          "label": "Country Of Origin",
+          "group": "business",
+          "required": true,
+          "kind": "select",
+          "scope": "product",
+          "field": "countriesOfOrigin.0",
+          "options": "countries"
+        },
+        {
+          "key": "countryOfOrigin2",
+          "header": "Country Of Origin2",
+          "label": "Country Of Origin2",
+          "group": "business",
+          "required": false,
+          "kind": "select",
+          "scope": "product",
+          "field": "countriesOfOrigin.1",
+          "options": "countries"
+        },
+        {
+          "key": "brandSize",
+          "header": "UK size",
+          "label": "UK size",
+          "group": "business",
+          "required": true,
+          "kind": "select",
+          "scope": "variant",
+          "field": "size",
+          "options": "footwear-uk-sizes"
+        },
+        {
+          "key": "vendorSkuCode",
+          "header": "Variant SKU",
+          "label": "Variant SKU",
+          "group": "business",
+          "required": false,
+          "kind": "text",
+          "scope": "variant",
+          "field": "sku"
+        },
+        {
+          "key": "gtin",
+          "header": "GTIN",
+          "label": "GTIN",
+          "group": "business",
+          "required": false,
+          "kind": "text",
+          "scope": "variant",
+          "field": "gtin"
+        },
+        {
+          "key": "brandColourRemarks",
+          "header": "Brand colour",
+          "label": "Brand colour",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "brandColour"
+        },
+        {
+          "key": "prominentColour",
+          "header": "Prominent Colour",
+          "label": "Prominent Colour",
+          "group": "business",
+          "required": false,
+          "kind": "select",
+          "scope": "product",
+          "field": "primaryColour",
+          "options": "colours"
+        },
+        {
+          "key": "hsn",
+          "header": "HSN",
+          "label": "HSN",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "hsn"
+        },
+        {
+          "key": "mrp",
+          "header": "MRP",
+          "label": "MRP",
+          "group": "business",
+          "required": true,
+          "kind": "number",
+          "scope": "product",
+          "field": "originalPrice"
+        },
+        {
+          "key": "isp",
+          "header": "Selling price (ISP)",
+          "label": "Selling price (ISP)",
+          "group": "business",
+          "required": true,
+          "kind": "number",
+          "scope": "product",
+          "field": "price"
+        },
+        {
+          "key": "productDetails",
+          "header": "Product Details",
+          "label": "Product Details",
+          "group": "discoverability",
+          "required": false,
+          "kind": "longtext",
+          "scope": "product",
+          "field": "description"
+        },
+        {
+          "key": "productDisplayName",
+          "header": "Display name",
+          "label": "Display name",
+          "group": "discoverability",
+          "required": false,
+          "kind": "text",
+          "scope": "product",
+          "field": "displayName"
+        },
+        {
+          "key": "tags",
+          "header": "Tags",
+          "label": "Tags",
+          "group": "discoverability",
+          "required": false,
+          "kind": "text",
+          "scope": "product",
+          "field": "tags"
+        },
+        {
+          "key": "packageContains",
+          "header": "Package Contains",
+          "label": "Package Contains",
+          "group": "discoverability",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "packageContains"
+        },
+        {
+          "key": "ageGroup",
+          "header": "Age group",
+          "label": "Age group",
+          "group": "business",
+          "required": false,
+          "kind": "select",
+          "scope": "product",
+          "field": "ageGroup",
+          "options": "ageGroups"
+        },
+        {
+          "key": "upperMaterial",
+          "header": "Upper material",
+          "label": "Upper material",
+          "group": "discoverability",
+          "required": true,
+          "kind": "select",
+          "scope": "attribute",
+          "options": "footwear-upper",
+          "filterable": true
+        },
+        {
+          "key": "soleMaterial",
+          "header": "Sole material",
+          "label": "Sole material",
+          "group": "discoverability",
+          "required": true,
+          "kind": "select",
+          "scope": "attribute",
+          "options": "footwear-sole",
+          "filterable": true
+        },
+        {
+          "key": "closure",
+          "header": "Closure",
+          "label": "Closure",
+          "group": "discoverability",
+          "required": false,
+          "kind": "select",
+          "scope": "attribute",
+          "options": "footwear-closure",
+          "filterable": true
+        },
+        {
+          "key": "occasion",
+          "header": "Occasion",
+          "label": "Occasion",
+          "group": "discoverability",
+          "required": false,
+          "kind": "select",
+          "scope": "attribute",
+          "options": "footwear-occasion",
+          "filterable": true
+        },
+        {
+          "key": "heelHeight",
+          "header": "Heel height",
+          "label": "Heel height",
+          "group": "discoverability",
+          "required": false,
+          "kind": "select",
+          "scope": "attribute",
+          "options": "footwear-heel"
+        },
+        {
+          "key": "toeShape",
+          "header": "Toe shape",
+          "label": "Toe shape",
+          "group": "discoverability",
+          "required": false,
+          "kind": "select",
+          "scope": "attribute",
+          "options": "footwear-toe"
+        },
+        {
+          "key": "front",
+          "header": "Front Image",
+          "label": "Front Image",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "back",
+          "header": "Back Image",
+          "label": "Back Image",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "side",
+          "header": "Side Image",
+          "label": "Side Image",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "detail",
+          "header": "Detail Angle",
+          "label": "Detail Angle",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "additional1",
+          "header": "Additional Image 1",
+          "label": "Additional Image 1",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "additional2",
+          "header": "Additional Image 2",
+          "label": "Additional Image 2",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        }
+      ]
+    },
+    {
+      "articleType": "Electronics",
+      "slug": "electronics",
+      "template": "",
+      "sourceFile": "general-catalogue.json",
+      "family": "general",
+      "optionLabel": "Variant",
+      "columns": [
+        {
+          "key": "vendorArticleNumber",
+          "header": "Article number",
+          "label": "Article number",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "sku"
+        },
+        {
+          "key": "vendorArticleName",
+          "header": "Article name",
+          "label": "Article name",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "name"
+        },
+        {
+          "key": "brand",
+          "header": "Brand",
+          "label": "Brand",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "brand"
+        },
+        {
+          "key": "manufacturerNameAndAddressWithPincode",
+          "header": "Manufacturer Name and Address with Pincode",
+          "label": "Manufacturer Name and Address with Pincode",
+          "group": "business",
+          "required": true,
+          "kind": "longtext",
+          "scope": "product",
+          "field": "manufacturerDetails"
+        },
+        {
+          "key": "packerNameAndAddressWithPincode",
+          "header": "Packer Name and Address with Pincode",
+          "label": "Packer Name and Address with Pincode",
+          "group": "business",
+          "required": true,
+          "kind": "longtext",
+          "scope": "product",
+          "field": "packerDetails"
+        },
+        {
+          "key": "importerNameAndAddressWithPincode",
+          "header": "Importer Name and Address with Pincode",
+          "label": "Importer Name and Address with Pincode",
+          "group": "business",
+          "required": false,
+          "kind": "longtext",
+          "scope": "product",
+          "field": "importerDetails"
+        },
+        {
+          "key": "countryOfOrigin",
+          "header": "Country Of Origin",
+          "label": "Country Of Origin",
+          "group": "business",
+          "required": true,
+          "kind": "select",
+          "scope": "product",
+          "field": "countriesOfOrigin.0",
+          "options": "countries"
+        },
+        {
+          "key": "countryOfOrigin2",
+          "header": "Country Of Origin2",
+          "label": "Country Of Origin2",
+          "group": "business",
+          "required": false,
+          "kind": "select",
+          "scope": "product",
+          "field": "countriesOfOrigin.1",
+          "options": "countries"
+        },
+        {
+          "key": "brandSize",
+          "header": "Variant",
+          "label": "Variant",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "variant",
+          "field": "size"
+        },
+        {
+          "key": "vendorSkuCode",
+          "header": "Variant SKU",
+          "label": "Variant SKU",
+          "group": "business",
+          "required": false,
+          "kind": "text",
+          "scope": "variant",
+          "field": "sku"
+        },
+        {
+          "key": "gtin",
+          "header": "GTIN",
+          "label": "GTIN",
+          "group": "business",
+          "required": false,
+          "kind": "text",
+          "scope": "variant",
+          "field": "gtin"
+        },
+        {
+          "key": "brandColourRemarks",
+          "header": "Brand colour",
+          "label": "Brand colour",
+          "group": "business",
+          "required": false,
+          "kind": "text",
+          "scope": "product",
+          "field": "brandColour"
+        },
+        {
+          "key": "prominentColour",
+          "header": "Prominent Colour",
+          "label": "Prominent Colour",
+          "group": "business",
+          "required": false,
+          "kind": "select",
+          "scope": "product",
+          "field": "primaryColour",
+          "options": "colours"
+        },
+        {
+          "key": "hsn",
+          "header": "HSN",
+          "label": "HSN",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "hsn"
+        },
+        {
+          "key": "mrp",
+          "header": "MRP",
+          "label": "MRP",
+          "group": "business",
+          "required": true,
+          "kind": "number",
+          "scope": "product",
+          "field": "originalPrice"
+        },
+        {
+          "key": "isp",
+          "header": "Selling price (ISP)",
+          "label": "Selling price (ISP)",
+          "group": "business",
+          "required": true,
+          "kind": "number",
+          "scope": "product",
+          "field": "price"
+        },
+        {
+          "key": "productDetails",
+          "header": "Product Details",
+          "label": "Product Details",
+          "group": "discoverability",
+          "required": false,
+          "kind": "longtext",
+          "scope": "product",
+          "field": "description"
+        },
+        {
+          "key": "productDisplayName",
+          "header": "Display name",
+          "label": "Display name",
+          "group": "discoverability",
+          "required": false,
+          "kind": "text",
+          "scope": "product",
+          "field": "displayName"
+        },
+        {
+          "key": "tags",
+          "header": "Tags",
+          "label": "Tags",
+          "group": "discoverability",
+          "required": false,
+          "kind": "text",
+          "scope": "product",
+          "field": "tags"
+        },
+        {
+          "key": "packageContains",
+          "header": "Package Contains",
+          "label": "Package Contains",
+          "group": "discoverability",
+          "required": false,
+          "kind": "text",
+          "scope": "product",
+          "field": "packageContains"
+        },
+        {
+          "key": "modelNumber",
+          "header": "Model number",
+          "label": "Model number",
+          "group": "discoverability",
+          "required": true,
+          "kind": "text",
+          "scope": "attribute"
+        },
+        {
+          "key": "warrantyMonths",
+          "header": "Warranty (months)",
+          "label": "Warranty (months)",
+          "group": "discoverability",
+          "required": true,
+          "kind": "number",
+          "scope": "attribute"
+        },
+        {
+          "key": "powerSource",
+          "header": "Power source",
+          "label": "Power source",
+          "group": "discoverability",
+          "required": false,
+          "kind": "select",
+          "scope": "attribute",
+          "options": "electronics-power",
+          "filterable": true
+        },
+        {
+          "key": "voltage",
+          "header": "Voltage",
+          "label": "Voltage",
+          "group": "discoverability",
+          "required": false,
+          "kind": "text",
+          "scope": "attribute"
+        },
+        {
+          "key": "connectivity",
+          "header": "Connectivity",
+          "label": "Connectivity",
+          "group": "discoverability",
+          "required": false,
+          "kind": "select",
+          "scope": "attribute",
+          "options": "electronics-connectivity",
+          "filterable": true
+        },
+        {
+          "key": "inTheBox",
+          "header": "In the box",
+          "label": "In the box",
+          "group": "discoverability",
+          "required": false,
+          "kind": "longtext",
+          "scope": "attribute"
+        },
+        {
+          "key": "front",
+          "header": "Front Image",
+          "label": "Front Image",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "back",
+          "header": "Back Image",
+          "label": "Back Image",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "side",
+          "header": "Side Image",
+          "label": "Side Image",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "detail",
+          "header": "Detail Angle",
+          "label": "Detail Angle",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "additional1",
+          "header": "Additional Image 1",
+          "label": "Additional Image 1",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "additional2",
+          "header": "Additional Image 2",
+          "label": "Additional Image 2",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        }
+      ]
+    },
+    {
+      "articleType": "Home & Kitchen",
+      "slug": "home-kitchen",
+      "template": "",
+      "sourceFile": "general-catalogue.json",
+      "family": "general",
+      "optionLabel": "Size",
+      "columns": [
+        {
+          "key": "vendorArticleNumber",
+          "header": "Article number",
+          "label": "Article number",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "sku"
+        },
+        {
+          "key": "vendorArticleName",
+          "header": "Article name",
+          "label": "Article name",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "name"
+        },
+        {
+          "key": "brand",
+          "header": "Brand",
+          "label": "Brand",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "brand"
+        },
+        {
+          "key": "manufacturerNameAndAddressWithPincode",
+          "header": "Manufacturer Name and Address with Pincode",
+          "label": "Manufacturer Name and Address with Pincode",
+          "group": "business",
+          "required": true,
+          "kind": "longtext",
+          "scope": "product",
+          "field": "manufacturerDetails"
+        },
+        {
+          "key": "packerNameAndAddressWithPincode",
+          "header": "Packer Name and Address with Pincode",
+          "label": "Packer Name and Address with Pincode",
+          "group": "business",
+          "required": true,
+          "kind": "longtext",
+          "scope": "product",
+          "field": "packerDetails"
+        },
+        {
+          "key": "importerNameAndAddressWithPincode",
+          "header": "Importer Name and Address with Pincode",
+          "label": "Importer Name and Address with Pincode",
+          "group": "business",
+          "required": false,
+          "kind": "longtext",
+          "scope": "product",
+          "field": "importerDetails"
+        },
+        {
+          "key": "countryOfOrigin",
+          "header": "Country Of Origin",
+          "label": "Country Of Origin",
+          "group": "business",
+          "required": true,
+          "kind": "select",
+          "scope": "product",
+          "field": "countriesOfOrigin.0",
+          "options": "countries"
+        },
+        {
+          "key": "countryOfOrigin2",
+          "header": "Country Of Origin2",
+          "label": "Country Of Origin2",
+          "group": "business",
+          "required": false,
+          "kind": "select",
+          "scope": "product",
+          "field": "countriesOfOrigin.1",
+          "options": "countries"
+        },
+        {
+          "key": "brandSize",
+          "header": "Size",
+          "label": "Size",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "variant",
+          "field": "size"
+        },
+        {
+          "key": "vendorSkuCode",
+          "header": "Variant SKU",
+          "label": "Variant SKU",
+          "group": "business",
+          "required": false,
+          "kind": "text",
+          "scope": "variant",
+          "field": "sku"
+        },
+        {
+          "key": "gtin",
+          "header": "GTIN",
+          "label": "GTIN",
+          "group": "business",
+          "required": false,
+          "kind": "text",
+          "scope": "variant",
+          "field": "gtin"
+        },
+        {
+          "key": "brandColourRemarks",
+          "header": "Brand colour",
+          "label": "Brand colour",
+          "group": "business",
+          "required": false,
+          "kind": "text",
+          "scope": "product",
+          "field": "brandColour"
+        },
+        {
+          "key": "prominentColour",
+          "header": "Prominent Colour",
+          "label": "Prominent Colour",
+          "group": "business",
+          "required": false,
+          "kind": "select",
+          "scope": "product",
+          "field": "primaryColour",
+          "options": "colours"
+        },
+        {
+          "key": "hsn",
+          "header": "HSN",
+          "label": "HSN",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "hsn"
+        },
+        {
+          "key": "mrp",
+          "header": "MRP",
+          "label": "MRP",
+          "group": "business",
+          "required": true,
+          "kind": "number",
+          "scope": "product",
+          "field": "originalPrice"
+        },
+        {
+          "key": "isp",
+          "header": "Selling price (ISP)",
+          "label": "Selling price (ISP)",
+          "group": "business",
+          "required": true,
+          "kind": "number",
+          "scope": "product",
+          "field": "price"
+        },
+        {
+          "key": "productDetails",
+          "header": "Product Details",
+          "label": "Product Details",
+          "group": "discoverability",
+          "required": false,
+          "kind": "longtext",
+          "scope": "product",
+          "field": "description"
+        },
+        {
+          "key": "productDisplayName",
+          "header": "Display name",
+          "label": "Display name",
+          "group": "discoverability",
+          "required": false,
+          "kind": "text",
+          "scope": "product",
+          "field": "displayName"
+        },
+        {
+          "key": "tags",
+          "header": "Tags",
+          "label": "Tags",
+          "group": "discoverability",
+          "required": false,
+          "kind": "text",
+          "scope": "product",
+          "field": "tags"
+        },
+        {
+          "key": "packageContains",
+          "header": "Package Contains",
+          "label": "Package Contains",
+          "group": "discoverability",
+          "required": false,
+          "kind": "text",
+          "scope": "product",
+          "field": "packageContains"
+        },
+        {
+          "key": "material",
+          "header": "Material",
+          "label": "Material",
+          "group": "discoverability",
+          "required": true,
+          "kind": "select",
+          "scope": "attribute",
+          "options": "home-material",
+          "filterable": true
+        },
+        {
+          "key": "dimensions",
+          "header": "Dimensions",
+          "label": "Dimensions",
+          "group": "discoverability",
+          "required": false,
+          "kind": "text",
+          "scope": "attribute"
+        },
+        {
+          "key": "capacity",
+          "header": "Capacity",
+          "label": "Capacity",
+          "group": "discoverability",
+          "required": false,
+          "kind": "text",
+          "scope": "attribute"
+        },
+        {
+          "key": "care",
+          "header": "Care instructions",
+          "label": "Care instructions",
+          "group": "discoverability",
+          "required": false,
+          "kind": "longtext",
+          "scope": "attribute"
+        },
+        {
+          "key": "setCount",
+          "header": "Pieces in set",
+          "label": "Pieces in set",
+          "group": "discoverability",
+          "required": false,
+          "kind": "number",
+          "scope": "attribute"
+        },
+        {
+          "key": "front",
+          "header": "Front Image",
+          "label": "Front Image",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "back",
+          "header": "Back Image",
+          "label": "Back Image",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "side",
+          "header": "Side Image",
+          "label": "Side Image",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "detail",
+          "header": "Detail Angle",
+          "label": "Detail Angle",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "additional1",
+          "header": "Additional Image 1",
+          "label": "Additional Image 1",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "additional2",
+          "header": "Additional Image 2",
+          "label": "Additional Image 2",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        }
+      ]
+    },
+    {
+      "articleType": "Bags & Accessories",
+      "slug": "bags-accessories",
+      "template": "",
+      "sourceFile": "general-catalogue.json",
+      "family": "general",
+      "optionLabel": "Size",
+      "columns": [
+        {
+          "key": "vendorArticleNumber",
+          "header": "Article number",
+          "label": "Article number",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "sku"
+        },
+        {
+          "key": "vendorArticleName",
+          "header": "Article name",
+          "label": "Article name",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "name"
+        },
+        {
+          "key": "brand",
+          "header": "Brand",
+          "label": "Brand",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "brand"
+        },
+        {
+          "key": "manufacturerNameAndAddressWithPincode",
+          "header": "Manufacturer Name and Address with Pincode",
+          "label": "Manufacturer Name and Address with Pincode",
+          "group": "business",
+          "required": true,
+          "kind": "longtext",
+          "scope": "product",
+          "field": "manufacturerDetails"
+        },
+        {
+          "key": "packerNameAndAddressWithPincode",
+          "header": "Packer Name and Address with Pincode",
+          "label": "Packer Name and Address with Pincode",
+          "group": "business",
+          "required": true,
+          "kind": "longtext",
+          "scope": "product",
+          "field": "packerDetails"
+        },
+        {
+          "key": "importerNameAndAddressWithPincode",
+          "header": "Importer Name and Address with Pincode",
+          "label": "Importer Name and Address with Pincode",
+          "group": "business",
+          "required": false,
+          "kind": "longtext",
+          "scope": "product",
+          "field": "importerDetails"
+        },
+        {
+          "key": "countryOfOrigin",
+          "header": "Country Of Origin",
+          "label": "Country Of Origin",
+          "group": "business",
+          "required": true,
+          "kind": "select",
+          "scope": "product",
+          "field": "countriesOfOrigin.0",
+          "options": "countries"
+        },
+        {
+          "key": "countryOfOrigin2",
+          "header": "Country Of Origin2",
+          "label": "Country Of Origin2",
+          "group": "business",
+          "required": false,
+          "kind": "select",
+          "scope": "product",
+          "field": "countriesOfOrigin.1",
+          "options": "countries"
+        },
+        {
+          "key": "brandSize",
+          "header": "Size",
+          "label": "Size",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "variant",
+          "field": "size"
+        },
+        {
+          "key": "vendorSkuCode",
+          "header": "Variant SKU",
+          "label": "Variant SKU",
+          "group": "business",
+          "required": false,
+          "kind": "text",
+          "scope": "variant",
+          "field": "sku"
+        },
+        {
+          "key": "gtin",
+          "header": "GTIN",
+          "label": "GTIN",
+          "group": "business",
+          "required": false,
+          "kind": "text",
+          "scope": "variant",
+          "field": "gtin"
+        },
+        {
+          "key": "brandColourRemarks",
+          "header": "Brand colour",
+          "label": "Brand colour",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "brandColour"
+        },
+        {
+          "key": "prominentColour",
+          "header": "Prominent Colour",
+          "label": "Prominent Colour",
+          "group": "business",
+          "required": false,
+          "kind": "select",
+          "scope": "product",
+          "field": "primaryColour",
+          "options": "colours"
+        },
+        {
+          "key": "hsn",
+          "header": "HSN",
+          "label": "HSN",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "hsn"
+        },
+        {
+          "key": "mrp",
+          "header": "MRP",
+          "label": "MRP",
+          "group": "business",
+          "required": true,
+          "kind": "number",
+          "scope": "product",
+          "field": "originalPrice"
+        },
+        {
+          "key": "isp",
+          "header": "Selling price (ISP)",
+          "label": "Selling price (ISP)",
+          "group": "business",
+          "required": true,
+          "kind": "number",
+          "scope": "product",
+          "field": "price"
+        },
+        {
+          "key": "productDetails",
+          "header": "Product Details",
+          "label": "Product Details",
+          "group": "discoverability",
+          "required": false,
+          "kind": "longtext",
+          "scope": "product",
+          "field": "description"
+        },
+        {
+          "key": "productDisplayName",
+          "header": "Display name",
+          "label": "Display name",
+          "group": "discoverability",
+          "required": false,
+          "kind": "text",
+          "scope": "product",
+          "field": "displayName"
+        },
+        {
+          "key": "tags",
+          "header": "Tags",
+          "label": "Tags",
+          "group": "discoverability",
+          "required": false,
+          "kind": "text",
+          "scope": "product",
+          "field": "tags"
+        },
+        {
+          "key": "packageContains",
+          "header": "Package Contains",
+          "label": "Package Contains",
+          "group": "discoverability",
+          "required": false,
+          "kind": "text",
+          "scope": "product",
+          "field": "packageContains"
+        },
+        {
+          "key": "material",
+          "header": "Material",
+          "label": "Material",
+          "group": "discoverability",
+          "required": true,
+          "kind": "select",
+          "scope": "attribute",
+          "options": "bags-material",
+          "filterable": true
+        },
+        {
+          "key": "dimensions",
+          "header": "Dimensions",
+          "label": "Dimensions",
+          "group": "discoverability",
+          "required": false,
+          "kind": "text",
+          "scope": "attribute"
+        },
+        {
+          "key": "compartments",
+          "header": "Compartments",
+          "label": "Compartments",
+          "group": "discoverability",
+          "required": false,
+          "kind": "number",
+          "scope": "attribute"
+        },
+        {
+          "key": "closure",
+          "header": "Closure",
+          "label": "Closure",
+          "group": "discoverability",
+          "required": false,
+          "kind": "select",
+          "scope": "attribute",
+          "options": "bags-closure",
+          "filterable": true
+        },
+        {
+          "key": "front",
+          "header": "Front Image",
+          "label": "Front Image",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "back",
+          "header": "Back Image",
+          "label": "Back Image",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "side",
+          "header": "Side Image",
+          "label": "Side Image",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "detail",
+          "header": "Detail Angle",
+          "label": "Detail Angle",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "additional1",
+          "header": "Additional Image 1",
+          "label": "Additional Image 1",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "additional2",
+          "header": "Additional Image 2",
+          "label": "Additional Image 2",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        }
+      ]
+    },
+    {
+      "articleType": "Beauty & Personal Care",
+      "slug": "beauty-personal-care",
+      "template": "",
+      "sourceFile": "general-catalogue.json",
+      "family": "general",
+      "optionLabel": "Size",
+      "columns": [
+        {
+          "key": "vendorArticleNumber",
+          "header": "Article number",
+          "label": "Article number",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "sku"
+        },
+        {
+          "key": "vendorArticleName",
+          "header": "Article name",
+          "label": "Article name",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "name"
+        },
+        {
+          "key": "brand",
+          "header": "Brand",
+          "label": "Brand",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "brand"
+        },
+        {
+          "key": "manufacturerNameAndAddressWithPincode",
+          "header": "Manufacturer Name and Address with Pincode",
+          "label": "Manufacturer Name and Address with Pincode",
+          "group": "business",
+          "required": true,
+          "kind": "longtext",
+          "scope": "product",
+          "field": "manufacturerDetails"
+        },
+        {
+          "key": "packerNameAndAddressWithPincode",
+          "header": "Packer Name and Address with Pincode",
+          "label": "Packer Name and Address with Pincode",
+          "group": "business",
+          "required": true,
+          "kind": "longtext",
+          "scope": "product",
+          "field": "packerDetails"
+        },
+        {
+          "key": "importerNameAndAddressWithPincode",
+          "header": "Importer Name and Address with Pincode",
+          "label": "Importer Name and Address with Pincode",
+          "group": "business",
+          "required": false,
+          "kind": "longtext",
+          "scope": "product",
+          "field": "importerDetails"
+        },
+        {
+          "key": "countryOfOrigin",
+          "header": "Country Of Origin",
+          "label": "Country Of Origin",
+          "group": "business",
+          "required": true,
+          "kind": "select",
+          "scope": "product",
+          "field": "countriesOfOrigin.0",
+          "options": "countries"
+        },
+        {
+          "key": "countryOfOrigin2",
+          "header": "Country Of Origin2",
+          "label": "Country Of Origin2",
+          "group": "business",
+          "required": false,
+          "kind": "select",
+          "scope": "product",
+          "field": "countriesOfOrigin.1",
+          "options": "countries"
+        },
+        {
+          "key": "brandSize",
+          "header": "Size",
+          "label": "Size",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "variant",
+          "field": "size"
+        },
+        {
+          "key": "vendorSkuCode",
+          "header": "Variant SKU",
+          "label": "Variant SKU",
+          "group": "business",
+          "required": false,
+          "kind": "text",
+          "scope": "variant",
+          "field": "sku"
+        },
+        {
+          "key": "gtin",
+          "header": "GTIN",
+          "label": "GTIN",
+          "group": "business",
+          "required": false,
+          "kind": "text",
+          "scope": "variant",
+          "field": "gtin"
+        },
+        {
+          "key": "brandColourRemarks",
+          "header": "Brand colour",
+          "label": "Brand colour",
+          "group": "business",
+          "required": false,
+          "kind": "text",
+          "scope": "product",
+          "field": "brandColour"
+        },
+        {
+          "key": "prominentColour",
+          "header": "Prominent Colour",
+          "label": "Prominent Colour",
+          "group": "business",
+          "required": false,
+          "kind": "select",
+          "scope": "product",
+          "field": "primaryColour",
+          "options": "colours"
+        },
+        {
+          "key": "hsn",
+          "header": "HSN",
+          "label": "HSN",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "hsn"
+        },
+        {
+          "key": "mrp",
+          "header": "MRP",
+          "label": "MRP",
+          "group": "business",
+          "required": true,
+          "kind": "number",
+          "scope": "product",
+          "field": "originalPrice"
+        },
+        {
+          "key": "isp",
+          "header": "Selling price (ISP)",
+          "label": "Selling price (ISP)",
+          "group": "business",
+          "required": true,
+          "kind": "number",
+          "scope": "product",
+          "field": "price"
+        },
+        {
+          "key": "productDetails",
+          "header": "Product Details",
+          "label": "Product Details",
+          "group": "discoverability",
+          "required": false,
+          "kind": "longtext",
+          "scope": "product",
+          "field": "description"
+        },
+        {
+          "key": "productDisplayName",
+          "header": "Display name",
+          "label": "Display name",
+          "group": "discoverability",
+          "required": false,
+          "kind": "text",
+          "scope": "product",
+          "field": "displayName"
+        },
+        {
+          "key": "tags",
+          "header": "Tags",
+          "label": "Tags",
+          "group": "discoverability",
+          "required": false,
+          "kind": "text",
+          "scope": "product",
+          "field": "tags"
+        },
+        {
+          "key": "packageContains",
+          "header": "Package Contains",
+          "label": "Package Contains",
+          "group": "discoverability",
+          "required": false,
+          "kind": "text",
+          "scope": "product",
+          "field": "packageContains"
+        },
+        {
+          "key": "netQuantity",
+          "header": "Net Quantity",
+          "label": "Net Quantity",
+          "group": "discoverability",
+          "required": true,
+          "kind": "number",
+          "scope": "product",
+          "field": "netQuantity"
+        },
+        {
+          "key": "netQuantityUnit",
+          "header": "Net Quantity Unit",
+          "label": "Net Quantity Unit",
+          "group": "discoverability",
+          "required": true,
+          "kind": "select",
+          "scope": "product",
+          "field": "netQuantityUnit",
+          "options": "beauty-units"
+        },
+        {
+          "key": "skinOrHairType",
+          "header": "Skin or hair type",
+          "label": "Skin or hair type",
+          "group": "discoverability",
+          "required": false,
+          "kind": "select",
+          "scope": "attribute",
+          "options": "beauty-type",
+          "filterable": true
+        },
+        {
+          "key": "expiryMonths",
+          "header": "Shelf life (months)",
+          "label": "Shelf life (months)",
+          "group": "discoverability",
+          "required": false,
+          "kind": "number",
+          "scope": "attribute"
+        },
+        {
+          "key": "ingredients",
+          "header": "Ingredients",
+          "label": "Ingredients",
+          "group": "discoverability",
+          "required": false,
+          "kind": "longtext",
+          "scope": "attribute"
+        },
+        {
+          "key": "howToUse",
+          "header": "How to use",
+          "label": "How to use",
+          "group": "discoverability",
+          "required": false,
+          "kind": "longtext",
+          "scope": "attribute"
+        },
+        {
+          "key": "front",
+          "header": "Front Image",
+          "label": "Front Image",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "back",
+          "header": "Back Image",
+          "label": "Back Image",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "side",
+          "header": "Side Image",
+          "label": "Side Image",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "detail",
+          "header": "Detail Angle",
+          "label": "Detail Angle",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "additional1",
+          "header": "Additional Image 1",
+          "label": "Additional Image 1",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "additional2",
+          "header": "Additional Image 2",
+          "label": "Additional Image 2",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        }
+      ]
+    },
+    {
+      "articleType": "General product",
+      "slug": "general",
+      "template": "",
+      "sourceFile": "general-catalogue.json",
+      "family": "general",
+      "optionLabel": "Variant",
+      "columns": [
+        {
+          "key": "vendorArticleNumber",
+          "header": "Article number",
+          "label": "Article number",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "sku"
+        },
+        {
+          "key": "vendorArticleName",
+          "header": "Article name",
+          "label": "Article name",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "name"
+        },
+        {
+          "key": "brand",
+          "header": "Brand",
+          "label": "Brand",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "brand"
+        },
+        {
+          "key": "manufacturerNameAndAddressWithPincode",
+          "header": "Manufacturer Name and Address with Pincode",
+          "label": "Manufacturer Name and Address with Pincode",
+          "group": "business",
+          "required": true,
+          "kind": "longtext",
+          "scope": "product",
+          "field": "manufacturerDetails"
+        },
+        {
+          "key": "packerNameAndAddressWithPincode",
+          "header": "Packer Name and Address with Pincode",
+          "label": "Packer Name and Address with Pincode",
+          "group": "business",
+          "required": true,
+          "kind": "longtext",
+          "scope": "product",
+          "field": "packerDetails"
+        },
+        {
+          "key": "importerNameAndAddressWithPincode",
+          "header": "Importer Name and Address with Pincode",
+          "label": "Importer Name and Address with Pincode",
+          "group": "business",
+          "required": false,
+          "kind": "longtext",
+          "scope": "product",
+          "field": "importerDetails"
+        },
+        {
+          "key": "countryOfOrigin",
+          "header": "Country Of Origin",
+          "label": "Country Of Origin",
+          "group": "business",
+          "required": true,
+          "kind": "select",
+          "scope": "product",
+          "field": "countriesOfOrigin.0",
+          "options": "countries"
+        },
+        {
+          "key": "countryOfOrigin2",
+          "header": "Country Of Origin2",
+          "label": "Country Of Origin2",
+          "group": "business",
+          "required": false,
+          "kind": "select",
+          "scope": "product",
+          "field": "countriesOfOrigin.1",
+          "options": "countries"
+        },
+        {
+          "key": "brandSize",
+          "header": "Variant",
+          "label": "Variant",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "variant",
+          "field": "size"
+        },
+        {
+          "key": "vendorSkuCode",
+          "header": "Variant SKU",
+          "label": "Variant SKU",
+          "group": "business",
+          "required": false,
+          "kind": "text",
+          "scope": "variant",
+          "field": "sku"
+        },
+        {
+          "key": "gtin",
+          "header": "GTIN",
+          "label": "GTIN",
+          "group": "business",
+          "required": false,
+          "kind": "text",
+          "scope": "variant",
+          "field": "gtin"
+        },
+        {
+          "key": "brandColourRemarks",
+          "header": "Brand colour",
+          "label": "Brand colour",
+          "group": "business",
+          "required": false,
+          "kind": "text",
+          "scope": "product",
+          "field": "brandColour"
+        },
+        {
+          "key": "prominentColour",
+          "header": "Prominent Colour",
+          "label": "Prominent Colour",
+          "group": "business",
+          "required": false,
+          "kind": "select",
+          "scope": "product",
+          "field": "primaryColour",
+          "options": "colours"
+        },
+        {
+          "key": "hsn",
+          "header": "HSN",
+          "label": "HSN",
+          "group": "business",
+          "required": true,
+          "kind": "text",
+          "scope": "product",
+          "field": "hsn"
+        },
+        {
+          "key": "mrp",
+          "header": "MRP",
+          "label": "MRP",
+          "group": "business",
+          "required": true,
+          "kind": "number",
+          "scope": "product",
+          "field": "originalPrice"
+        },
+        {
+          "key": "isp",
+          "header": "Selling price (ISP)",
+          "label": "Selling price (ISP)",
+          "group": "business",
+          "required": true,
+          "kind": "number",
+          "scope": "product",
+          "field": "price"
+        },
+        {
+          "key": "productDetails",
+          "header": "Product Details",
+          "label": "Product Details",
+          "group": "discoverability",
+          "required": false,
+          "kind": "longtext",
+          "scope": "product",
+          "field": "description"
+        },
+        {
+          "key": "productDisplayName",
+          "header": "Display name",
+          "label": "Display name",
+          "group": "discoverability",
+          "required": false,
+          "kind": "text",
+          "scope": "product",
+          "field": "displayName"
+        },
+        {
+          "key": "tags",
+          "header": "Tags",
+          "label": "Tags",
+          "group": "discoverability",
+          "required": false,
+          "kind": "text",
+          "scope": "product",
+          "field": "tags"
+        },
+        {
+          "key": "packageContains",
+          "header": "Package Contains",
+          "label": "Package Contains",
+          "group": "discoverability",
+          "required": false,
+          "kind": "text",
+          "scope": "product",
+          "field": "packageContains"
+        },
+        {
+          "key": "front",
+          "header": "Front Image",
+          "label": "Front Image",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "back",
+          "header": "Back Image",
+          "label": "Back Image",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "side",
+          "header": "Side Image",
+          "label": "Side Image",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "detail",
+          "header": "Detail Angle",
+          "label": "Detail Angle",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "additional1",
+          "header": "Additional Image 1",
+          "label": "Additional Image 1",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        },
+        {
+          "key": "additional2",
+          "header": "Additional Image 2",
+          "label": "Additional Image 2",
+          "group": "imagery",
+          "required": false,
+          "kind": "image",
+          "scope": "image"
+        }
+      ]
+    }
+  ],
+  "lists": {
+    "footwear-uk-sizes": [
+      "UK 3",
+      "UK 3.5",
+      "UK 4",
+      "UK 4.5",
+      "UK 5",
+      "UK 5.5",
+      "UK 6",
+      "UK 6.5",
+      "UK 7",
+      "UK 7.5",
+      "UK 8",
+      "UK 8.5",
+      "UK 9",
+      "UK 9.5",
+      "UK 10",
+      "UK 10.5",
+      "UK 11",
+      "UK 11.5",
+      "UK 12"
+    ],
+    "footwear-upper": [
+      "Leather",
+      "Synthetic Leather",
+      "Suede",
+      "Nubuck",
+      "Canvas",
+      "Mesh",
+      "Knit",
+      "Textile",
+      "Rubber",
+      "PU",
+      "Other"
+    ],
+    "footwear-sole": [
+      "Rubber",
+      "EVA",
+      "PU",
+      "TPR",
+      "Phylon",
+      "PVC",
+      "Leather",
+      "Other"
+    ],
+    "footwear-closure": [
+      "Lace-Ups",
+      "Slip-On",
+      "Velcro",
+      "Buckle",
+      "Zip",
+      "Elastic",
+      "Other"
+    ],
+    "footwear-occasion": [
+      "Casual",
+      "Sports",
+      "Formal",
+      "Party",
+      "Ethnic",
+      "Outdoor"
+    ],
+    "footwear-heel": [
+      "Flat",
+      "Low (up to 1 in)",
+      "Medium (1-2 in)",
+      "High (2-3 in)",
+      "Very High (3 in and above)"
+    ],
+    "footwear-toe": [
+      "Round Toe",
+      "Pointed Toe",
+      "Square Toe",
+      "Almond Toe",
+      "Peep Toe",
+      "Open Toe"
+    ],
+    "electronics-power": [
+      "Battery",
+      "Rechargeable Battery",
+      "Mains (AC)",
+      "USB",
+      "Solar",
+      "Not Applicable"
+    ],
+    "electronics-connectivity": [
+      "Bluetooth",
+      "Wi-Fi",
+      "Wi-Fi and Bluetooth",
+      "USB",
+      "Wired",
+      "NFC",
+      "Not Applicable"
+    ],
+    "home-material": [
+      "Stainless Steel",
+      "Aluminium",
+      "Cast Iron",
+      "Copper",
+      "Glass",
+      "Ceramic",
+      "Porcelain",
+      "Wood",
+      "Bamboo",
+      "Plastic",
+      "Silicone",
+      "Cotton",
+      "Polyester",
+      "Other"
+    ],
+    "bags-material": [
+      "Leather",
+      "Synthetic Leather",
+      "Canvas",
+      "Nylon",
+      "Polyester",
+      "Jute",
+      "Cotton",
+      "Metal",
+      "Other"
+    ],
+    "bags-closure": [
+      "Zip",
+      "Magnetic",
+      "Buckle",
+      "Drawstring",
+      "Flap",
+      "Button",
+      "Open"
+    ],
+    "beauty-type": [
+      "All",
+      "Normal",
+      "Dry",
+      "Oily",
+      "Combination",
+      "Sensitive",
+      "Curly",
+      "Straight",
+      "Wavy",
+      "Colour-Treated"
+    ],
+    "beauty-units": [
+      "g",
+      "kg",
+      "ml",
+      "L",
+      "Count"
+    ]
+  }
+}

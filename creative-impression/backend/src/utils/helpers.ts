@@ -1,3 +1,4 @@
+import { canonicalFamily } from '@/utils/colour-families';
 import { ProductStatus } from '@prisma/client';
 
 /**
@@ -17,10 +18,30 @@ export class HttpError extends Error {
 export const isHttpError = (error: unknown): error is HttpError => error instanceof HttpError;
 
 /** Remove sensitive fields from a user record before returning it. */
-export const sanitizeUser = <T extends { password?: unknown; twoFactorSecret?: unknown }>(
+export const sanitizeUser = <
+  T extends {
+    password?: unknown;
+    twoFactorSecret?: unknown;
+    loginAttempts?: unknown;
+    lockUntil?: unknown;
+  },
+>(
   user: T
-): Omit<T, 'password' | 'twoFactorSecret'> => {
-  const { password: _password, twoFactorSecret: _twoFactorSecret, ...rest } = user;
+): Omit<T, 'password' | 'twoFactorSecret' | 'loginAttempts' | 'lockUntil'> => {
+  /**
+   * `loginAttempts` and `lockUntil` are the lockout counters. They are only
+   * ever the account holder's own numbers, so this is self-disclosure rather
+   * than a leak — but they are bookkeeping no client has a use for, and
+   * publishing how many attempts remain is a courtesy to anyone working
+   * through a password list against an account they have already reached.
+   */
+  const {
+    password: _password,
+    twoFactorSecret: _twoFactorSecret,
+    loginAttempts: _loginAttempts,
+    lockUntil: _lockUntil,
+    ...rest
+  } = user;
   return rest;
 };
 
@@ -65,6 +86,9 @@ const PRODUCT_STRING_FIELDS = [
   'description',
   'shortDescription',
   'categoryId',
+  // Nullable on the model, so an empty string has to clear it rather than
+  // store "" — handled where these are read, below.
+  'brandId',
   'sku',
   'barcode',
   'dimensions',
@@ -100,6 +124,10 @@ export const pickProductFields = (
     if (value === undefined) continue;
     if (typeof value !== 'string') {
       errors.push(`${field} must be a string`);
+    } else if (field === 'brandId' && value.trim() === '') {
+      // "No brand" is a real choice in a form, and it arrives as an empty
+      // string. Storing that would leave a foreign key pointing at nothing.
+      data[field] = null;
     } else {
       data[field] = value;
     }
@@ -137,6 +165,36 @@ export const pickProductFields = (
     }
   }
 
+  // Swatch colours: { "Navy Blue": "#1F2A44" }. Only #RRGGBB values are kept;
+  // null clears them all.
+  if (body.colourHexes !== undefined) {
+    const raw = body.colourHexes;
+    if (raw === null) {
+      data.colourHexes = null;
+    } else if (typeof raw !== 'object' || Array.isArray(raw)) {
+      errors.push('colourHexes must be an object of colour name to #RRGGBB');
+    } else {
+      const clean: Record<string, string> = {};
+      for (const [name, hex] of Object.entries(raw as Record<string, unknown>)) {
+        if (!name.trim()) continue;
+        if (typeof hex !== 'string' || !/^#[0-9a-f]{6}$/i.test(hex.trim())) {
+          errors.push(`Swatch for "${name}" must be a colour like #1F2A44`);
+          continue;
+        }
+        clean[name.trim().slice(0, 60)] = hex.trim().toUpperCase();
+      }
+      data.colourHexes = Object.keys(clean).length > 0 ? clean : null;
+    }
+  }
+
+  // The product's own colour family (listings without variants filter on it).
+  if (body.colorFamily !== undefined) {
+    if (body.colorFamily === null || body.colorFamily === '') data.colorFamily = null;
+    else if (typeof body.colorFamily !== 'string' || !canonicalFamily(body.colorFamily)) {
+      errors.push(`"${String(body.colorFamily)}" is not a colour family`);
+    } else data.colorFamily = canonicalFamily(body.colorFamily)!.name;
+  }
+
   if (body.status !== undefined) {
     const statuses = Object.values(ProductStatus) as string[];
     if (typeof body.status !== 'string' || !statuses.includes(body.status)) {
@@ -154,8 +212,118 @@ export const pickProductFields = (
     }
   }
 
+  pickListingFields(body, data, errors);
+
   return { data, errors };
 };
+
+/**
+ * Marketplace listing fields (the Myntra template's business, content and
+ * packaging columns). Shape is checked here; whether a value is one of
+ * Myntra's dropdown options is checked per article type by
+ * `validateListingValues` in utils/product-spec.ts.
+ */
+const LISTING_TEXT_FIELDS: Record<string, number> = {
+  articleType: 60,
+  styleGroupId: 80,
+  colourGroupId: 80,
+  displayName: 200,
+  listViewName: 120,
+  brandColour: 80,
+  primaryColour: 40,
+  secondaryColour: 40,
+  tertiaryColour: 40,
+  ageGroup: 40,
+  fashionType: 40,
+  usage: 40,
+  season: 40,
+  hsn: 8,
+  manufacturerDetails: 500,
+  packerDetails: 500,
+  importerDetails: 500,
+  styleNote: 2000,
+  materialCare: 1000,
+  sizeAndFit: 1000,
+  measurementBasis: 80,
+  netQuantityUnit: 20,
+  numberOfItems: 20,
+  multipackSet: 20,
+  packageContains: 200,
+};
+
+const IMAGE_ANGLES = ['front', 'back', 'side', 'detail', 'lookShot', 'additional1', 'additional2'];
+
+function pickListingFields(body: Record<string, unknown>, data: Record<string, unknown>, errors: string[]): void {
+  for (const [field, max] of Object.entries(LISTING_TEXT_FIELDS)) {
+    const value = body[field];
+    if (value === undefined) continue;
+    if (value === null || value === '') data[field] = null;
+    else if (typeof value !== 'string') errors.push(`${field} must be a string`);
+    else data[field] = value.trim().slice(0, max);
+  }
+
+  for (const field of ['year', 'netQuantity'] as const) {
+    const value = body[field];
+    if (value === undefined) continue;
+    if (value === null || value === '') {
+      data[field] = null;
+      continue;
+    }
+    const num = Number(value);
+    if (!Number.isInteger(num) || num < 0 || num > 100000) errors.push(`${field} must be a whole number`);
+    else data[field] = num;
+  }
+
+  for (const field of ['countriesOfOrigin', 'tags'] as const) {
+    const value = body[field];
+    if (value === undefined) continue;
+    if (!Array.isArray(value) || value.some((v) => typeof v !== 'string')) {
+      errors.push(`${field} must be a list of text values`);
+    } else {
+      data[field] = [...new Set((value as string[]).map((v) => v.trim()).filter(Boolean))].slice(
+        0,
+        field === 'tags' ? 30 : 5
+      );
+    }
+  }
+
+  if (body.attributes !== undefined) {
+    if (body.attributes === null) data.attributes = null;
+    else if (typeof body.attributes !== 'object' || Array.isArray(body.attributes)) {
+      errors.push('attributes must be an object');
+    } else data.attributes = { ...(body.attributes as Record<string, unknown>) };
+  }
+
+  if (body.imageAngles !== undefined) {
+    if (body.imageAngles === null) data.imageAngles = null;
+    else if (typeof body.imageAngles !== 'object' || Array.isArray(body.imageAngles)) {
+      errors.push('imageAngles must be an object');
+    } else {
+      const angles: Record<string, string> = {};
+      for (const [angle, url] of Object.entries(body.imageAngles as Record<string, unknown>)) {
+        if (!IMAGE_ANGLES.includes(angle)) errors.push(`${angle} is not an image angle`);
+        else if (url === null || url === '') continue;
+        else if (typeof url !== 'string' || url.length > 1000) errors.push(`${angle} image must be a URL`);
+        else angles[angle] = url;
+      }
+      data.imageAngles = angles;
+    }
+  }
+
+  if (body.bisCertificate !== undefined) {
+    if (body.bisCertificate === null) data.bisCertificate = null;
+    else if (typeof body.bisCertificate !== 'object' || Array.isArray(body.bisCertificate)) {
+      errors.push('bisCertificate must be an object');
+    } else {
+      const bis = body.bisCertificate as Record<string, unknown>;
+      const clean: Record<string, string> = {};
+      for (const key of ['number', 'imageUrl', 'expiryDate']) {
+        if (typeof bis[key] === 'string' && (bis[key] as string).trim()) clean[key] = (bis[key] as string).trim().slice(0, 500);
+      }
+      data.bisCertificate = Object.keys(clean).length ? clean : null;
+    }
+  }
+}
 
 // ============================================
 // Address input (shared by orders checkout and user address book)
@@ -219,3 +387,7 @@ export const parseDateInput = (value: unknown): Date | null | undefined => {
   const date = new Date(String(value));
   return Number.isNaN(date.getTime()) ? null : date;
 };
+
+/** Rupees, as they are written to a person: symbol, Indian grouping, two decimals. */
+export const formatRupees = (amount: number): string =>
+  `₹${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

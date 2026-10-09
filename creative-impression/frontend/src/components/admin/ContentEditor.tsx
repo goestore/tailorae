@@ -18,7 +18,8 @@ import { customWearContent } from '@/content/schema/customWear';
 import { customWearThemeContent } from '@/content/schema/customWearTheme';
 import { layoutContent } from '@/content/schema/layout';
 import { cn } from '@/utils/helpers';
-import { ContentField, LABEL_VOICE, formatContentValue } from './ContentField';
+import { CategoryTilesNote } from './CategoryTilesNote';
+import { ContentField, formatContentValue } from './ContentField';
 
 /**
  * The part of a `ContentDefinition` the editor needs.
@@ -381,8 +382,15 @@ const NamespaceEditor: React.FC<{ definition: EditableNamespace }> = ({ definiti
     return parts.join(' · ');
   };
 
+  /**
+   * Nothing to save, publish or confirm: the dock shrinks to a static status
+   * line. A sticky bar with only disabled buttons would cover the form for no
+   * reason.
+   */
+  const idle = loading || (unpublished.length === 0 && draft === null && confirming === null);
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="ce-stack">
       {loading && (
         <p role="status" className="alert alert-info text-sm">
           Loading what is currently live…
@@ -402,12 +410,11 @@ const NamespaceEditor: React.FC<{ definition: EditableNamespace }> = ({ definiti
       )}
 
       {unpublished.length > 0 && (
-        <label className="flex items-center gap-2 text-sm font-normal text-ink-2">
+        <label className="ce-filter">
           <input
             suppressHydrationWarning
             type="checkbox"
             checked={onlyChanged}
-            className="h-4 w-4 accent-[var(--brand)]"
             onChange={(event) => setOnlyChanged(event.target.checked)}
           />
           Show only the {unpublished.length} unpublished change{plural(unpublished.length)}
@@ -420,14 +427,18 @@ const NamespaceEditor: React.FC<{ definition: EditableNamespace }> = ({ definiti
           <section key={section.title} className="admin-apple-section">
             <header className="admin-apple-section-header">
               <h2 className="admin-apple-section-title">{section.title}</h2>
-              <span className="admin-apple-section-badge">
+              <span
+                className={cn('ce-badge', changedHere > 0 && 'ce-badge--attention')}
+              >
                 {changedHere > 0
                   ? `${changedHere} unpublished`
                   : `${section.entries.length} field${plural(section.entries.length)}`}
               </span>
             </header>
 
-            <div className="divide-y divide-black/[0.05]">
+            {definition.namespace === 'home' &&
+              section.entries.some((entry) => entry.path.startsWith('/categories/')) && <CategoryTilesNote />}
+            <div>
               {section.entries.map((entry) => (
                 <ContentField
                   key={entry.address}
@@ -453,25 +464,25 @@ const NamespaceEditor: React.FC<{ definition: EditableNamespace }> = ({ definiti
       {/* Bottom rather than top: the site header is already sticky, and the
           state of the draft has to stay readable next to the button that
           publishes it. */}
-      <div className="admin-apple-dock">
+      <div
+        className={cn('admin-apple-dock', idle && 'ce-dock--idle')}
+        role="region"
+        aria-label="Publishing"
+      >
         {confirming === 'publish' && (
-          <div className="border border-line-strong bg-surface-2 p-3">
-            <p className="text-sm font-semibold text-ink">
+          <div className="ce-confirm">
+            <p className="ce-confirm-title">
               Publish {unpublished.length} change{plural(unpublished.length)}?
             </p>
-            <p className="form-help mt-0.5">
-              These values replace what is live, and the draft is cleared.
-            </p>
-            <ul className="mt-2 max-h-52 space-y-2 overflow-y-auto pr-1">
+            <p className="ce-help">These values replace what is live, and the draft is cleared.</p>
+            <ul>
               {unpublished.map((entry) => (
                 <li key={entry.address} className="min-w-0">
-                  <p className={LABEL_VOICE}>{entry.trail.join(' › ')}</p>
-                  <p className="truncate text-xs text-ink-3 line-through">
+                  <p className="font-[550] text-[var(--a-text)]">{entry.trail.join(' › ')}</p>
+                  <p className="text-[var(--a-text-dim)] line-through">
                     {formatContentValue(liveValueOf(entry))}
                   </p>
-                  <p className="truncate text-xs text-ink">
-                    {formatContentValue(form[entry.path])}
-                  </p>
+                  <p className="text-[var(--a-text)]">{formatContentValue(form[entry.path])}</p>
                 </li>
               ))}
             </ul>
@@ -479,107 +490,99 @@ const NamespaceEditor: React.FC<{ definition: EditableNamespace }> = ({ definiti
         )}
 
         {confirming === 'discard' && (
-          <div className="border border-line-strong bg-surface-2 p-3">
-            <p className="text-sm font-semibold text-ink">Discard the draft?</p>
-            <p className="form-help mt-0.5">
+          <div className="ce-confirm">
+            <p className="ce-confirm-title">Discard the draft?</p>
+            <p className="ce-help">
               {unpublished.length} edit{plural(unpublished.length)} will be lost and every field
               goes back to what is published.
             </p>
           </div>
         )}
 
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <p className="flex flex-wrap items-center gap-2 text-sm text-ink-2">
+        <div className="ce-dock-row">
+          <p className="ce-dock-status" role="status">
             <span
               aria-hidden="true"
-              className={cn(
-                'h-2 w-2 shrink-0',
-                unpublished.length > 0 ? 'bg-primary-500' : 'bg-line-strong'
-              )}
+              className={cn('ce-dot', unpublished.length > 0 && 'ce-dot--pending')}
             />
-            {status()}
+            {loading ? 'Loading…' : status()}
             {invalid.length > 0 && (
-              <span className="text-red-600">
+              <span className="ce-invalid">
                 · {invalid.length} field{plural(invalid.length)} invalid
               </span>
             )}
           </p>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {confirming === null && (
-              <>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-ghost"
-                  disabled={busy || loading || (draft === null && unpublished.length === 0)}
-                  onClick={() => setConfirming('discard')}
-                >
-                  Discard draft
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-outline"
-                  disabled={busy || loading || unsaved.length === 0}
-                  onClick={saveDraft}
-                >
-                  {busy ? 'Working…' : 'Save draft'}
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-primary"
-                  disabled={busy || loading || unpublished.length === 0}
-                  // Confirm only once the values would actually be accepted.
-                  onClick={() => {
-                    if (!blocked()) setConfirming('publish');
-                  }}
-                >
-                  Publish…
-                </button>
-              </>
-            )}
+          {!idle && (
+            <div className="ce-inline">
+              {confirming === null && (
+                <>
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={busy || (draft === null && unpublished.length === 0)}
+                    onClick={() => setConfirming('discard')}
+                  >
+                    Discard draft
+                  </button>
+                  <button
+                    type="button"
+                    className="btn"
+                    disabled={busy || unsaved.length === 0}
+                    title={unsaved.length === 0 ? 'Every edit is already in the draft' : undefined}
+                    onClick={saveDraft}
+                  >
+                    {busy ? 'Working…' : 'Save draft'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={busy || unpublished.length === 0}
+                    // Confirm only once the values would actually be accepted.
+                    onClick={() => {
+                      if (!blocked()) setConfirming('publish');
+                    }}
+                  >
+                    Publish…
+                  </button>
+                </>
+              )}
 
-            {confirming === 'publish' && (
-              <>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-ghost"
-                  onClick={() => setConfirming(null)}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-primary"
-                  disabled={busy}
-                  onClick={publish}
-                >
-                  {busy
-                    ? 'Publishing…'
-                    : `Publish ${unpublished.length} change${plural(unpublished.length)}`}
-                </button>
-              </>
-            )}
+              {confirming === 'publish' && (
+                <>
+                  <button type="button" className="btn" onClick={() => setConfirming(null)}>
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={busy}
+                    onClick={publish}
+                  >
+                    {busy
+                      ? 'Publishing…'
+                      : `Publish ${unpublished.length} change${plural(unpublished.length)}`}
+                  </button>
+                </>
+              )}
 
-            {confirming === 'discard' && (
-              <>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-ghost"
-                  onClick={() => setConfirming(null)}
-                >
-                  Keep draft
-                </button>
-                <button
-                  type="button"
-                  className="btn btn-sm btn-danger"
-                  disabled={busy}
-                  onClick={discardDraft}
-                >
-                  {busy ? 'Discarding…' : 'Discard'}
-                </button>
-              </>
-            )}
-          </div>
+              {confirming === 'discard' && (
+                <>
+                  <button type="button" className="btn" onClick={() => setConfirming(null)}>
+                    Keep draft
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-danger"
+                    disabled={busy}
+                    onClick={discardDraft}
+                  >
+                    {busy ? 'Discarding…' : 'Discard'}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -623,7 +626,7 @@ export const ContentEditor: React.FC<ContentEditorProps> = ({ namespace }) => {
 
 /** The namespace switcher. It lives here because the registry does. */
 export const ContentNamespaceNav: React.FC<{ current: string }> = ({ current }) => (
-  <nav aria-label="Content namespaces" className="admin-segmented-control">
+  <nav aria-label="Content namespaces" className="ce-tabs">
     {NAMESPACES.map((entry) => {
       const active = entry.namespace === current;
       return (
@@ -631,7 +634,7 @@ export const ContentNamespaceNav: React.FC<{ current: string }> = ({ current }) 
           key={entry.namespace}
           href={`/admin/content/${entry.namespace}`}
           aria-current={active ? 'page' : undefined}
-          className={cn('admin-segmented-item', active && 'admin-segmented-item--active')}
+          className={cn('filter-pill', active && 'filter-pill--active')}
         >
           {namespaceLabel(entry.namespace)}
         </Link>

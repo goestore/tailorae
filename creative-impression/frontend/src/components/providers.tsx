@@ -8,6 +8,7 @@ import { store, AppDispatch } from '@/store';
 import { apiClient } from '@/lib/api-client';
 import { restoreSession, sessionInitialized } from '@/store/slices/auth';
 import { loadCart } from '@/store/slices/cart';
+import { hydrateQuoteLines } from '@/store/slices/customWear';
 import { Cart } from '@/types';
 
 /**
@@ -19,6 +20,11 @@ function SessionInit() {
   const dispatch = useDispatch<AppDispatch>();
 
   useEffect(() => {
+    // Custom-wear lines are kept in their own slice and storage key, so the
+    // server-cart `loadCart` below replaces only payable lines and never wipes
+    // them. Hydrated for guests too, so the header badge counts them.
+    dispatch(hydrateQuoteLines());
+
     const token = localStorage.getItem('token');
     if (!token) {
       dispatch(sessionInitialized());

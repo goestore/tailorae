@@ -4,13 +4,16 @@ import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useDispatch } from 'react-redux';
 import toast from 'react-hot-toast';
-import { CartSummary } from '@/components/cart';
-import { Button, Card, LoadingSpinner } from '@/components/common';
+import { CartSummary, CouponField, type AppliedCoupon } from '@/components/cart';
+import { Button, Card, SkeletonList, SkeletonPanel } from '@/components/common';
 import { ProductThumb } from '@/components/product';
+import { RecentlyViewed } from '@/components/product';
+import { CustomWearQuoteBasket } from '@/components/custom-wear/CustomWearQuoteBasket';
 import { apiClient } from '@/lib/api-client';
+import { useHasToken } from '@/hooks/useHasToken';
 import { calculateShipping, getApiErrorMessage } from '@/lib/api-utils';
 import { formatCurrency } from '@/utils/helpers';
-import { AppDispatch } from '@/store';
+import { AppDispatch, useAppSelector } from '@/store';
 import { loadCart } from '@/store/slices/cart';
 import { Cart } from '@/types';
 
@@ -19,6 +22,8 @@ interface ApiCartItem {
   id: string;
   productId: string;
   variantId?: string | null;
+  /** The size and colour picked on the product page. */
+  variant?: { id: string; size: string | null; color: string | null; sku: string } | null;
   quantity: number;
   price: number;
   customization?: Record<string, string> | null;
@@ -39,13 +44,40 @@ interface ApiCart {
   itemCount: number;
 }
 
+/**
+ * One customisation answer, as a line of text.
+ *
+ * The values are heterogeneous — the product page stores typed answers, custom
+ * wear stores placements and uploaded filenames — so an object interpolated
+ * straight into a template printed "[object Object]" on the cart line of every
+ * custom-wear order.
+ */
+const describeCustomization = (value: unknown): string => {
+  if (value === null || value === undefined) return '—';
+  if (Array.isArray(value)) {
+    return value.length === 1 ? '1 item' : `${value.length} items`;
+  }
+  if (typeof value === 'object') return 'set';
+  return String(value);
+};
+
 export default function CartPage() {
   const dispatch = useDispatch<AppDispatch>();
   const [cart, setCart] = useState<ApiCart | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyItemId, setBusyItemId] = useState<string | null>(null);
-  const [hasToken, setHasToken] = useState<boolean | null>(null);
+  // null until the browser takes over — see the hook.
+  const hasToken = useHasToken();
+  const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
+  // Custom-wear lines live in their own slice (they become quote requests, not
+  // payable lines), so loading the server cart below never touches them.
+  const hasQuoteLines = useAppSelector((state) => state.customWear.quoteLines.length > 0);
+
+  // Stable identity so CouponField does not re-validate on every cart render.
+  const handleCouponChange = useCallback((applied: AppliedCoupon | null) => {
+    setCoupon(applied);
+  }, []);
 
   const syncCart = useCallback(
     (nextCart: ApiCart) => {
@@ -57,11 +89,9 @@ export default function CartPage() {
 
   useEffect(() => {
     const token = localStorage.getItem('token');
-    setHasToken(Boolean(token));
-    if (!token) {
-      setIsLoading(false);
-      return;
-    }
+    // No token means no fetch. `isLoading` is not cleared here — the render
+    // guards below key off `hasToken`, which is already known by this point.
+    if (!token) return;
 
     let cancelled = false;
     apiClient
@@ -130,18 +160,36 @@ export default function CartPage() {
             </Link>
           </Card>
         </div>
+        {/* Custom wear needs no account: a guest can request the quote here. */}
+        <div className="container-max mt-8">
+          <CustomWearQuoteBasket />
+        </div>
       </main>
     );
   }
 
-  if (isLoading || hasToken === null) {
-    return <LoadingSpinner className="min-h-[50vh]" size="lg" />;
+  if (hasToken === null || (hasToken && isLoading)) {
+    // The basket's own shape while it loads, so the page does not jump when
+    // the lines arrive.
+    return (
+      <main className="section-y">
+        <div className="container-max">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-3">
+            <div className="border border-line p-4 md:col-span-2 md:p-6">
+              <SkeletonList rows={3} />
+            </div>
+            <SkeletonPanel lines={4} />
+          </div>
+        </div>
+      </main>
+    );
   }
 
   const items = cart?.items ?? [];
   const subtotal =
     cart?.subtotal ?? items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shipping = items.length > 0 ? calculateShipping(subtotal) : 0;
+  const discount = coupon?.discount ?? 0;
+  const shipping = items.length > 0 ? calculateShipping(subtotal, discount) : 0;
 
   return (
     <main className="section-y">
@@ -150,19 +198,49 @@ export default function CartPage() {
 
         {error && <div className="alert alert-error mb-6">{error}</div>}
 
-        {items.length === 0 ? (
-          <Card className="p-12 text-center">
-            <p className="text-5xl mb-4">🛒</p>
-            <h2 className="mb-2 text-2xl">Your cart is empty</h2>
-            <p className="text-neutral-600 mb-6">
-              Browse the catalog and add something you like.
-            </p>
-            <Link href="/products">
-              <Button variant="primary" size="lg">
-                Shop Products
-              </Button>
-            </Link>
-          </Card>
+        <CustomWearQuoteBasket className="mb-6" />
+
+        {items.length === 0 && hasQuoteLines ? null : items.length === 0 ? (
+          <>
+            {/* Matches the wishlist's empty state rather than the emoji that
+                was here: a reason, a way forward, and a second route for
+                someone who was not going to browse the whole catalogue. */}
+            <div className="border border-line px-6 py-14 text-center" style={{ background: 'var(--surface-2)' }}>
+              <p
+                className="m-0 text-[10.5px] font-semibold uppercase tracking-[0.14em]"
+                style={{ color: 'var(--ink-3)' }}
+              >
+                Your basket
+              </p>
+              <h2
+                className="m-0 mt-3 text-ink"
+                style={{ fontSize: 'clamp(20px, 2.6vw, 28px)', letterSpacing: '-0.02em' }}
+              >
+                Nothing in here yet
+              </h2>
+              <p
+                className="mx-auto mt-2 max-w-[42ch] text-[14.5px]"
+                style={{ color: 'var(--ink-2)', lineHeight: 1.7 }}
+              >
+                Anything you add stays in your basket across visits, so you can come back to it.
+              </p>
+              <div className="mt-6 flex flex-wrap justify-center gap-3">
+                <Link href="/products" className="btn btn-primary">
+                  Shop all products
+                </Link>
+                <Link href="/wishlist" className="btn btn-outline">
+                  View your wishlist
+                </Link>
+              </div>
+            </div>
+
+            {/* A shopper with an empty basket has usually just arrived or just
+                checked out; the things they were looking at are the shortest
+                path back to a purchase. */}
+            <div className="mt-14 border-t border-line pt-10">
+              <RecentlyViewed />
+            </div>
+          </>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {/* Cart Items */}
@@ -184,10 +262,20 @@ export default function CartPage() {
                       >
                         {item.product.name}
                       </Link>
+                      {(item.variant?.size || item.variant?.color) && (
+                        <p className="text-sm text-neutral-600">
+                          {[
+                            item.variant.color && `Colour: ${item.variant.color}`,
+                            item.variant.size && `Size: ${item.variant.size}`,
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </p>
+                      )}
                       {item.customization && Object.keys(item.customization).length > 0 && (
                         <p className="text-xs text-neutral-500 line-clamp-1">
                           {Object.entries(item.customization)
-                            .map(([key, value]) => `${key}: ${value}`)
+                            .map(([key, value]) => `${key}: ${describeCustomization(value)}`)
                             .join(' • ')}
                         </p>
                       )}
@@ -234,7 +322,14 @@ export default function CartPage() {
             </div>
 
             {/* Cart Summary Sidebar */}
-            <div>
+            <div className="flex flex-col gap-4">
+              {/* The code is validated here and carried to checkout, so a
+                  shopper finds out it does not apply before filling an address. */}
+              <CouponField
+                subtotal={subtotal}
+                onChange={handleCouponChange}
+                className="border border-line bg-white p-4"
+              />
               <CartSummary
                 items={items.map((item) => ({
                   id: item.id,
@@ -244,7 +339,8 @@ export default function CartPage() {
                 }))}
                 subtotal={subtotal}
                 shipping={shipping}
-                total={subtotal + shipping}
+                discount={discount}
+                total={subtotal - discount + shipping}
               />
             </div>
           </div>

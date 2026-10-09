@@ -1,6 +1,7 @@
 import React from 'react';
 import type { HomeSectionId } from '@/config/home-sections';
-import { selectCategoryTiles } from '@/config/home-categories';
+import { CATEGORY_TILES, tilesFromCategories } from '@/config/home-categories';
+import { fetchHomeCategories } from '@/lib/category-tree';
 import type { HomeContent } from '@/content/schema/home';
 import { loadSectionProducts, toBestSellingCard } from '@/lib/home-products';
 import { ProductCard, ViewAllTile } from '@/components/product';
@@ -42,11 +43,17 @@ const HomeHero: React.FC<HomeSectionProps> = ({ content }) => (
       alt: content.hero.leftAlt,
       // An empty link field means "not a link", so it must not become href="".
       href: content.hero.leftHref || undefined,
+      eyebrow: content.hero.leftEyebrow || undefined,
+      heading: content.hero.leftHeading || undefined,
+      cta: content.hero.leftCta || undefined,
     }}
     right={{
       image: content.hero.rightImage,
       alt: content.hero.rightAlt,
       href: content.hero.rightHref || undefined,
+      eyebrow: content.hero.rightEyebrow || undefined,
+      heading: content.hero.rightHeading || undefined,
+      cta: content.hero.rightCta || undefined,
     }}
     divider={1}
     className="home-hero"
@@ -54,14 +61,22 @@ const HomeHero: React.FC<HomeSectionProps> = ({ content }) => (
   />
 );
 
-const Categories: React.FC<HomeSectionProps> = ({ content }) => (
-  <div className={BAND}>
-    <CategoryCarousel
-      title={content.categories.heading}
-      categories={selectCategoryTiles(content.categories.picks)}
-    />
-  </div>
-);
+/**
+ * Explore all categories: the categories marked "Show on homepage" in the
+ * admin, in their homepage order. The compiled tiles stand in only while the
+ * API is unreachable.
+ */
+const Categories = async ({ content }: HomeSectionProps) => {
+  const live = await fetchHomeCategories();
+  return (
+    <div className={BAND}>
+      <CategoryCarousel
+        title={content.categories.heading}
+        categories={live ? tilesFromCategories(live) : CATEGORY_TILES}
+      />
+    </div>
+  );
+};
 
 /**
  * Best Selling.
@@ -72,13 +87,26 @@ const Categories: React.FC<HomeSectionProps> = ({ content }) => (
  */
 const BestSelling = async ({ content }: HomeSectionProps) => {
   const picks = content.bestSelling.picks;
-  const products = picks.length > 0 ? await loadSectionProducts(picks, '') : [];
+  // Fall back to what is actually selling rather than to nothing: an
+  // uncurated homepage should still show real stock.
+  const products = await loadSectionProducts(picks, '/products?sortBy=popular&limit=12');
+
+  /**
+   * Render no band at all when there is nothing real to put in it.
+   *
+   * Passing `undefined` here used to hand the slider its built-in
+   * `DEFAULT_PRODUCTS` — eight invented garments with invented prices and
+   * invented discounts, on the homepage, linking to category pages. A shop
+   * that advertises stock it does not have is worse than a shop with one
+   * section fewer, and the Featured band below already gets this right.
+   */
+  if (products.length === 0) return null;
 
   return (
     <div className={BAND}>
       <BestSellingSlider
         title={content.bestSelling.heading}
-        products={products.length > 0 ? products.map(toBestSellingCard) : undefined}
+        products={products.map(toBestSellingCard)}
       />
     </div>
   );
@@ -103,9 +131,8 @@ const Featured = async ({ content }: HomeSectionProps) => {
     <div className={BAND}>
       <section className="bg-white">
         <div className="container-max">
-          <div className="mb-4 flex items-end justify-between border-b border-line pb-3 md:mb-5">
+          <div className="section-head">
             <h2 className="heading-rule">{content.featured.heading}</h2>
-            <span className="hidden text-xs uppercase tracking-[0.12em] text-ink-3 sm:block">Selected for you</span>
           </div>
 
           <ScrollRail label="featured products">
@@ -151,7 +178,7 @@ const CtaBand: React.FC<HomeSectionProps> = ({ content }) => <OrderCta {...conte
 
 export const HOME_SECTION_COMPONENTS: Record<HomeSectionId, React.FC<HomeSectionProps>> = {
   hero: HomeHero,
-  categories: Categories,
+  categories: Categories as React.FC<HomeSectionProps>,
   'best-selling': BestSelling as React.FC<HomeSectionProps>,
   'why-choose-us': WhyChooseUsBand,
   'featured-products': Featured as React.FC<HomeSectionProps>,

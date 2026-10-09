@@ -1,45 +1,28 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { ProductForm } from '@/components/admin/ProductForm';
-import { listCategories, type AdminCategory } from '@/lib/admin-products';
+import { ListingForm } from '@/components/catalog/listing-form';
 
 /**
  * Add a product.
  *
- * Categories are fetched before the form renders because the form needs one to
- * start from — a category picker that populates a moment later would silently
- * reset a choice already made.
+ * Every listing carries the same data as a Myntra SKU template for its article
+ * type; the shared listing form reads that template from the API, so this page
+ * is only the frame around it.
  */
 export default function NewProductPage() {
-  const [categories, setCategories] = useState<AdminCategory[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    listCategories()
-      .then(setCategories)
-      .catch((err: Error) => {
-        setError(err.message);
-        setCategories([]);
-      });
-  }, []);
-
   return (
     <div className="admin-content flex flex-col gap-6">
-      <header className="admin-page-header">
-        <Link href="/admin/products" className="text-sm text-ink-3 hover:text-ink">
-          Products
-        </Link>
-        <h1 className="text-2xl text-ink">Add a product</h1>
+      <header className="admin-page-head" style={{ marginBottom: 0 }}>
+        <div>
+          <h1 className="admin-page-title">Add a product</h1>
+          <p className="admin-page-sub">
+            Pick the article type first. Save a draft any time; Publish unlocks once every field the
+            template requires is filled.
+          </p>
+        </div>
       </header>
 
-      {error && <p className="alert alert-error text-sm">{error}</p>}
-      {categories === null ? (
-        <p className="text-sm text-ink-3">Loading…</p>
-      ) : (
-        <ProductForm categories={categories} />
-      )}
+      <ListingForm mode="admin" />
     </div>
   );
 }

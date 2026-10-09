@@ -63,13 +63,15 @@ export const QuickAddButton: React.FC<QuickAddButtonProps> = ({ product, href })
     }
   };
 
+  // Ink, not yellow: half the product photos are shot on a yellow backdrop,
+  // where a yellow bar disappears (same rule as .badge-discount).
   return (
     <button
       type="button"
       onClick={handleClick}
       disabled={isAdding}
       aria-label={`${label} — ${product.name}`}
-      className="btn btn-primary absolute inset-x-2 bottom-2 z-10 rounded-none px-2 text-[12px] focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+      className="btn btn-secondary absolute inset-x-2 bottom-2 z-10 rounded-none px-2 text-[12px] focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
     >
       {isAdding ? 'Adding…' : label}
     </button>

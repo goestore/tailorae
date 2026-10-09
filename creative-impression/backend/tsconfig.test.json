@@ -1,0 +1,13 @@
+{
+  "//": "Test-only compiler options. `types` in tsconfig.json is deliberately ['node'] so the built server never pulls in test globals; ts-jest uses this instead, which adds them for test files only.",
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": ["node", "jest"],
+    // The project compiles with a hybrid module kind (Node16); ts-jest
+    // transpiles file-by-file and warns unless this is on. Test-only, so the
+    // server build is untouched.
+    "isolatedModules": true,
+    "noEmit": true
+  },
+  "include": ["src/**/*"]
+}

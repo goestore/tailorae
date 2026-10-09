@@ -28,7 +28,6 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
       {/* Content */}
       <div className="relative mx-auto flex min-h-[460px] max-w-7xl items-end px-5 py-12 sm:px-8 md:min-h-[560px] md:items-center lg:px-12">
         <div className="max-w-2xl text-white">
-          <p className="mb-4 text-xs uppercase tracking-[0.18em] text-[var(--brand)]">Creative Impression</p>
           <h1 className="mb-5 text-4xl leading-[1.05] md:text-6xl">{title}</h1>
           <p className="mb-8 max-w-xl text-base leading-relaxed text-white/80 md:text-lg">{subtitle}</p>
           <Link href={ctaLink}>

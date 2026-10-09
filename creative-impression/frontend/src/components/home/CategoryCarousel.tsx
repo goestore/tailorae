@@ -45,7 +45,9 @@ export const CategoryCarousel: React.FC<CategoryCarouselProps> = ({
   return (
     <section className="bg-white">
       <div className="container-max">
-        <h2 className="heading-rule mb-4 md:mb-5">{title}</h2>
+        <div className="section-head">
+          <h2 className="heading-rule">{title}</h2>
+        </div>
 
         <ScrollRail label="categories">
           {categories.map((category) => {

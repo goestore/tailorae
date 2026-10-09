@@ -9,8 +9,11 @@ import { AppDispatch, RootState } from '@/store';
 import { apiClient } from '@/lib/api-client';
 import { logout } from '@/store/slices/auth';
 import { clearCart } from '@/store/slices/cart';
+import { SearchAutocomplete } from '@/components/search';
 import { AuthToggleButtons } from './AuthToggleButtons';
 import { AnnouncementBar } from './AnnouncementBar';
+import { APPAREL_DEPARTMENTS, storeHref, type StoreCategory } from '@/lib/category-tree';
+import { DesktopNavPanel, MobileNavItem, isMega } from './NavMenus';
 
 /** Edit these values to change nav menu link styling (Home, Products, etc.). */
 export const NAV_MENU_STYLES = {
@@ -24,12 +27,16 @@ export const NAV_MENU_STYLES = {
 export type SubCategory = {
   name: string;
   href: string;
+  /** Third level: shown as links under this entry's column heading. */
+  children?: SubCategory[];
 };
 
 export type NavCategory = {
   name: string;
   href: string;
   subcategories?: SubCategory[];
+  /** False for groupings with no page of their own ("More"). */
+  showAll?: boolean;
 };
 
 export const HEADER_NAVIGATION: NavCategory[] = [
@@ -78,6 +85,84 @@ export const HEADER_NAVIGATION: NavCategory[] = [
   },
 ];
 
+/**
+ * The header labels the apparel departments have always had. Used only while
+ * the department keeps the name it was seeded with, so a rename in the admin
+ * shows up in the menu.
+ */
+const DEPARTMENT_LABELS: Record<string, { name: string; label: string }> = {
+  womens: { name: 'Women', label: 'Womens' },
+  mens: { name: 'Men', label: 'Mens' },
+  kids: { name: 'Kids', label: 'Kids' },
+};
+
+/** More than this many extra departments fold into one "More" menu, so the bar fits. */
+const MAX_INLINE_DEPARTMENTS = 2;
+
+/** A category and two levels under it: department → column headings → links. */
+const toNavCategory = (category: StoreCategory): NavCategory => {
+  const legacy = DEPARTMENT_LABELS[category.slug];
+  return {
+    name: legacy && legacy.name === category.name ? legacy.label : category.name,
+    href: storeHref(category),
+    subcategories: category.children.length
+      ? category.children.map((child) => ({
+          name: child.name,
+          href: storeHref(child),
+          children: child.children.length
+            ? child.children.map((grand) => ({ name: grand.name, href: storeHref(grand) }))
+            : undefined,
+        }))
+      : undefined,
+  };
+};
+
+/**
+ * The header menu, from the category tree.
+ *
+ * Home and New Arrivals, then Women, Men and Kids, then every other active
+ * department (Footwear, Electronics…), then Sale and Custom Wear. Each
+ * department's dropdown is its subcategories, with their own subcategories
+ * listed beneath them, so a category the admin creates appears without a
+ * code change. More than `maxInline` other departments fold into "More".
+ * With no tree (the API was down) the static menu is used as it is.
+ */
+export function buildNavigation(
+  categories: StoreCategory[] | null | undefined,
+  maxInline: number = MAX_INLINE_DEPARTMENTS
+): NavCategory[] {
+  if (!categories) return HEADER_NAVIGATION;
+  const apparelSlugs = APPAREL_DEPARTMENTS as readonly string[];
+  const apparel = APPAREL_DEPARTMENTS.map((slug) => categories.find((c) => c.slug === slug))
+    .filter((c): c is StoreCategory => Boolean(c))
+    .map(toNavCategory);
+  const departments = categories.filter((c) => !apparelSlugs.includes(c.slug)).map(toNavCategory);
+  const extra: NavCategory[] =
+    departments.length > maxInline
+      ? [
+          {
+            name: 'More',
+            href: departments[0].href,
+            showAll: false,
+            subcategories: departments.map((d) => ({
+              name: d.name,
+              href: d.href,
+              children: d.subcategories?.map(({ name, href }) => ({ name, href })),
+            })),
+          },
+        ]
+      : departments;
+
+  // The static entries that are not departments: Home, New Arrivals, Sale, Custom Wear.
+  const fixed = HEADER_NAVIGATION.filter((item) => {
+    const slug = item.href.match(/^\/products\/([^/]+)$/)?.[1];
+    return !slug || !apparelSlugs.includes(slug);
+  });
+  const at = fixed.findIndex((item) => item.href === '/products/sale');
+  const middle = [...apparel, ...extra];
+  return at === -1 ? [...fixed, ...middle] : [...fixed.slice(0, at), ...middle, ...fixed.slice(at)];
+}
+
 export interface HeaderProps {
   /**
    * The announcement bar's editable content, from the `brand` namespace.
@@ -90,18 +175,24 @@ export interface HeaderProps {
     scroll: boolean;
     speedSeconds: number;
   };
+  /** Active category tree from the server layout; null falls back to the static menu. */
+  categories?: StoreCategory[] | null;
 }
 
-export const Header: React.FC<HeaderProps> = ({ announcement }) => {
+export const Header: React.FC<HeaderProps> = ({ announcement, categories }) => {
+  const navigation = React.useMemo(() => buildNavigation(categories), [categories]);
+  /** Departments listed one by one in the drawer, where width is no constraint. */
+  const mobileNavigation = React.useMemo<NavCategory[]>(
+    () => buildNavigation(categories, Infinity),
+    [categories]
+  );
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isAccountMenuOpen, setIsAccountMenuOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null);
   const [expandedMobileSubmenu, setExpandedMobileSubmenu] = useState<string | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const dropdownRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const mobileSubmenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const hoverTimeoutRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const accountMenuRef = useRef<HTMLDivElement>(null);
 
@@ -112,16 +203,16 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
   const { user } = useSelector((state: RootState) => state.auth);
   const { items: cartItems } = useSelector((state: RootState) => state.cart);
 
-  const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  // Custom-wear pieces wait in the cart for a quote; each counts once rather
+  // than by units, which run to the hundreds on a team order.
+  const quoteLineCount = useSelector((state: RootState) => state.customWear.quoteLines.length);
+  const cartItemCount =
+    cartItems.reduce((sum, item) => sum + item.quantity, 0) + quoteLineCount;
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    const query = searchQuery.trim();
-    if (query) {
-      router.push(`/products?search=${encodeURIComponent(query)}`);
-      setIsSearchOpen(false);
-      setIsMobileMenuOpen(false);
-    }
+  /** Collapse the bar once a search has gone somewhere, or on a second Escape. */
+  const closeSearch = () => {
+    setIsSearchOpen(false);
+    setIsMobileMenuOpen(false);
   };
 
   const openDropdown = (name: string) => {
@@ -183,9 +274,14 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
       }
     };
     document.addEventListener('click', handleClickOutside);
+
+    // Captured now rather than read in the cleanup: by the time cleanup runs
+    // the ref may point at a different object, and the timers this effect
+    // started would be left running.
+    const timeouts = hoverTimeoutRef.current;
     return () => {
       document.removeEventListener('click', handleClickOutside);
-      Object.values(hoverTimeoutRef.current).forEach((timeout) => clearTimeout(timeout));
+      Object.values(timeouts).forEach((timeout) => clearTimeout(timeout));
     };
   }, [activeDropdown]);
 
@@ -226,7 +322,7 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full bg-white/98 backdrop-blur-md border-b border-line/60 shadow-[0_1px_0_rgba(17,17,17,0.06)]">
+    <header className="sticky top-0 z-40 w-full bg-white border-b border-line/60 shadow-[0_1px_0_rgba(17,17,17,0.06)]">
       {announcement?.enabled !== false && (
         <AnnouncementBar
           message={announcement?.message}
@@ -240,10 +336,10 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
         <div className="container-fluid">
           <div className="flex h-12 items-center gap-3 md:h-[56px] md:gap-6">
             {/* Left: mobile menu trigger */}
-            <div className="flex flex-1 items-center xl:hidden">
+            <div className="flex flex-1 items-center lg:hidden">
               <button
                 onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="flex h-9 w-9 flex-shrink-0 items-center justify-center text-ink-2 hover:bg-surface-2 rounded-lg transition-colors xl:hidden"
+                className="flex h-9 w-9 flex-shrink-0 items-center justify-center text-ink-2 hover:bg-surface-2 rounded-lg transition-colors lg:hidden"
                 aria-label={isMobileMenuOpen ? 'Close menu' : 'Open menu'}
                 suppressHydrationWarning={true}
               >
@@ -273,7 +369,7 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
             </div>
 
             {/* Center: logo */}
-            <div className="flex min-w-0 flex-shrink-0 justify-center xl:flex-1 xl:justify-start">
+            <div className="flex min-w-0 flex-shrink-0 justify-center lg:flex-1 lg:justify-start">
               <Link href="/" className="group/logo flex min-w-0 items-center gap-2 md:gap-2.5">
                 <Image
                   src="/images/IX%20Logo.JPG"
@@ -290,8 +386,8 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
             </div>
 
             {/* Desktop nav */}
-            <nav className="hidden flex-shrink-0 items-center justify-center gap-x-6 xl:flex 2xl:gap-x-8">
-              {HEADER_NAVIGATION.map((item) => {
+            <nav className="hidden flex-shrink-0 items-center justify-center gap-x-6 lg:flex xl:gap-x-8">
+              {navigation.map((item) => {
                 const hasDropdown = item.subcategories && item.subcategories.length > 0;
                 const isDropdownOpen = activeDropdown === item.name;
                 const navItemStyle: React.CSSProperties = {
@@ -325,6 +421,17 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
                     }}
                     onMouseEnter={() => handleMouseEnter(item.name)}
                     onMouseLeave={() => handleMouseLeave(item.name)}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Escape' || !isDropdownOpen) return;
+                      closeDropdown(item.name, 0);
+                      event.currentTarget.querySelector('button')?.focus();
+                    }}
+                    onBlur={(event) => {
+                      // Tabbing past the last link closes the menu.
+                      if (isDropdownOpen && !event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                        closeDropdown(item.name, 0);
+                      }
+                    }}
                   >
                     <button
                       suppressHydrationWarning
@@ -344,7 +451,9 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
 
                     {isDropdownOpen && (
                       <div
-                        className={`absolute left-0 top-full pt-3 transition-all duration-200 ease-out ${
+                        className={`absolute top-full pt-3 transition-all duration-200 ease-out ${
+                          isMega(item) ? 'left-1/2 -translate-x-1/2' : 'left-0'
+                        } ${
                           isAnimating
                             ? 'opacity-100 translate-y-0 pointer-events-auto'
                             : 'opacity-0 -translate-y-2 pointer-events-none'
@@ -354,24 +463,7 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
                         style={{ zIndex: 50 }}
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <div className="nav-dropdown-panel">
-                          {item.subcategories?.map((sub) => (
-                            <Link
-                              key={sub.name}
-                              href={sub.href}
-                              className="nav-dropdown-item"
-                              style={{
-                                fontFamily: NAV_MENU_STYLES.fontFamily,
-                                fontWeight: NAV_MENU_STYLES.fontWeight,
-                              }}
-                              onClick={() => {
-                                closeDropdown(item.name, 0);
-                              }}
-                            >
-                              {sub.name}
-                            </Link>
-                          ))}
-                        </div>
+                        <DesktopNavPanel item={item} onNavigate={() => closeDropdown(item.name, 0)} />
                       </div>
                     )}
                   </div>
@@ -385,6 +477,7 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
                 onClick={() => setIsSearchOpen(!isSearchOpen)}
                 className="flex h-9 w-9 items-center justify-center text-ink-2 transition-colors hover:bg-surface-2 rounded-lg"
                 aria-label="Toggle search"
+                aria-expanded={isSearchOpen}
                 suppressHydrationWarning={true}
               >
                 <svg
@@ -513,46 +606,19 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
           </div>
         </div>
 
-        {/* Expanding search bar */}
+        {/* Expanding search bar. Mounted only while open so the combobox takes
+            the caret on every opening, and drops its in-flight request and its
+            listbox on every closing. */}
         {isSearchOpen && (
           <div
             className="w-full border-t border-line/50 py-2.5 sm:py-3"
             style={{ animation: 'submenu-open 0.15s ease-out both' }}
           >
             <div className="container-fluid">
-              <form onSubmit={handleSearch}>
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="Search products..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full border border-line/70 bg-surface-2 py-2.5 pl-4 pr-10 text-sm focus:bg-white focus:border-[var(--brand)] focus:outline-none transition-colors rounded-lg"
-                    autoFocus
-                    suppressHydrationWarning={true}
-                  />
-                  <button
-                    type="submit"
-                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-ink-3 hover:text-ink transition-colors"
-                    aria-label="Search"
-                    suppressHydrationWarning={true}
-                  >
-                    <svg
-                      className="h-5 w-5"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                      />
-                    </svg>
-                  </button>
-                </div>
-              </form>
+              {/* Capped and centred: the header container runs the full width
+                  of a desktop, and a suggestion row stretched across 1400px
+                  puts the price a hand's width from the product name. */}
+              <SearchAutocomplete autoFocus onDismiss={closeSearch} className="mx-auto max-w-3xl" />
             </div>
           </div>
         )}
@@ -560,7 +626,7 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
         {/* Mobile menu */}
         {isMobileMenuOpen && (
           <div
-            className="mobile-drawer-overlay fixed inset-0 z-[60] bg-black/30 backdrop-blur-[2px] xl:hidden"
+            className="mobile-drawer-overlay fixed inset-0 z-[60] bg-black/30 backdrop-blur-[2px] lg:hidden"
             role="presentation"
             onClick={() => setIsMobileMenuOpen(false)}
           >
@@ -588,7 +654,7 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
                 </Link>
               </div>
               <div className="mobile-drawer-links">
-                {HEADER_NAVIGATION.map((item) => {
+                {mobileNavigation.map((item) => {
                   const hasSubcategories = item.subcategories && item.subcategories.length > 0;
                   const isExpanded = expandedMobileSubmenu === item.name;
                   const mobileItemStyle: React.CSSProperties = {
@@ -613,60 +679,17 @@ export const Header: React.FC<HeaderProps> = ({ announcement }) => {
                   }
 
                   return (
-                    <div key={item.name} className="mobile-drawer-group">
-                      <button
-                        suppressHydrationWarning
-                        type="button"
-                        onClick={() => handleMobileSubmenuClick(item.name)}
-                        className="mobile-drawer-link flex w-full items-center justify-between"
-                        style={mobileItemStyle}
-                        aria-expanded={isExpanded}
-                      >
-                        <span>{item.name}</span>
-                        <svg
-                          className={`h-4 w-4 flex-shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19 9l-7 7-7-7"
-                          />
-                        </svg>
-                      </button>
-
-                      {isExpanded && (
-                        <div
-                          className="mobile-drawer-submenu"
-                          ref={(el) => {
-                            mobileSubmenuRefs.current[item.name] = el;
-                          }}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          {item.subcategories?.map((sub) => (
-                            <Link
-                              key={sub.name}
-                              href={sub.href}
-                              className="mobile-drawer-sublink"
-                              style={{
-                                fontFamily: NAV_MENU_STYLES.fontFamily,
-                                fontWeight: NAV_MENU_STYLES.fontWeight,
-                                fontSize: '13px',
-                              }}
-                              onClick={() => {
-                                setExpandedMobileSubmenu(null);
-                                setIsMobileMenuOpen(false);
-                              }}
-                            >
-                              {sub.name}
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    <MobileNavItem
+                      key={item.name}
+                      item={item}
+                      style={mobileItemStyle}
+                      expanded={isExpanded}
+                      onToggle={() => handleMobileSubmenuClick(item.name)}
+                      onNavigate={() => {
+                        setExpandedMobileSubmenu(null);
+                        setIsMobileMenuOpen(false);
+                      }}
+                    />
                   );
                 })}
               </div>

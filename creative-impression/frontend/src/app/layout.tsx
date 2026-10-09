@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from 'next';
 import '../styles/globals.css';
-import '../styles/admin-command.css';
 import { Providers } from '@/components/providers';
 import { SiteFrame } from '@/components/layout/SiteFrame';
 import { brandContent } from '@/content/schema/brand';
 import { loadContent } from '@/content/source';
+import { siteUrl } from '@/lib/site-url';
+import { fetchCategoryTree } from '@/lib/category-tree';
 
 export const viewport: Viewport = {
   width: 'device-width',
@@ -22,6 +23,10 @@ export async function generateMetadata(): Promise<Metadata> {
   const title = `${brand.identity.name} | Premium Fashion & Custom Apparel`;
 
   return {
+    // Without this, a page-level `alternates.canonical` of "/products/foo"
+    // is emitted verbatim, and a relative canonical is not a canonical —
+    // crawlers need an absolute one. It also resolves relative OG images.
+    metadataBase: new URL(siteUrl()),
     title,
     description:
       'Shop premium fashion and custom apparel for B2B wholesale and B2C retail customers. Expert customization, fast delivery, and competitive pricing.',
@@ -76,15 +81,18 @@ function brandTokens(brand: Awaited<ReturnType<typeof loadContent<typeof brandCo
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const brand = await loadContent(brandContent);
+  // The header's departments come from the category tree; null (API down)
+  // keeps the static menu.
+  const [brand, categories] = await Promise.all([loadContent(brandContent), fetchCategoryTree()]);
 
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <meta httpEquiv="x-ua-compatible" content="ie=edge" />
-        <link rel="icon" href="/favicon.ico" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        {/* Favicons come from app/icon.png and app/apple-icon.png, which Next
+            links automatically. The old /favicon.ico tags pointed at files
+            that did not exist. */}
         <link rel="manifest" href="/manifest.json" />
         {/* Values are colours and lengths that the field validators have
             already constrained, so there is no arbitrary text in here. */}
@@ -92,7 +100,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         <Providers>
-          <SiteFrame announcement={brand.announcement}>{children}</SiteFrame>
+          <SiteFrame announcement={brand.announcement} categories={categories}>{children}</SiteFrame>
         </Providers>
       </body>
     </html>

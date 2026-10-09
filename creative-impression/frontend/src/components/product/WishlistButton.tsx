@@ -49,21 +49,23 @@ export const WishlistButton: React.FC<WishlistButtonProps> = ({
   const router = useRouter();
   const { user } = useSelector((state: RootState) => state.auth);
 
-  const [isSaved, setIsSaved] = useState(false);
+  // What the server said about this product, for the signed-in shopper. Signed
+  // out there is nothing to say, so the heart is read as empty rather than
+  // reset from an effect — which left a filled heart on screen for a frame
+  // after signing out.
+  const [savedForUser, setSavedForUser] = useState(false);
+  const isSaved = Boolean(user) && savedForUser;
   const [isBusy, setIsBusy] = useState(false);
 
   useEffect(() => {
-    if (!user) {
-      setIsSaved(false);
-      return;
-    }
+    if (!user) return;
     let cancelled = false;
     apiClient
       .get('/users/wishlist')
       .then((res) => {
         if (cancelled) return;
         const wishlist: WishlistItem[] = res.data?.data?.wishlist ?? [];
-        setIsSaved(wishlist.some((item) => item.productId === productId));
+        setSavedForUser(wishlist.some((item) => item.productId === productId));
       })
       .catch(() => {
         // An unreadable wishlist should not block saving — the add call is
@@ -83,7 +85,7 @@ export const WishlistButton: React.FC<WishlistButtonProps> = ({
 
     setIsBusy(true);
     const next = !isSaved;
-    setIsSaved(next);
+    setSavedForUser(next);
     try {
       if (next) {
         await apiClient.post('/users/wishlist', { productId });
@@ -93,7 +95,7 @@ export const WishlistButton: React.FC<WishlistButtonProps> = ({
         toast.success('Removed from wishlist');
       }
     } catch (err) {
-      setIsSaved(!next);
+      setSavedForUser(!next);
       toast.error(getApiErrorMessage(err, 'Could not update your wishlist.'));
     } finally {
       setIsBusy(false);

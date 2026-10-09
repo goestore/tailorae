@@ -1,0 +1,1059 @@
+/* ==========================================================================
+   LISTING FORM — shared by the admin console and the seller area.
+
+   Only tokens both themes define are read (--ink*, --surface*, --border,
+   --brand*). The admin shell re-points them to its light enterprise palette, so
+   one stylesheet renders yellow-branded on the storefront and monochrome in
+   the console. The few colours with meaning (good / bad / warn) are set here
+   per theme.
+   ========================================================================== */
+
+.lf-root {
+  container-type: inline-size;
+  width: 100%;
+  min-width: 0;
+}
+
+.lf {
+  --lf-good: #15803d;
+  --lf-bad: #b42318;
+  --lf-warn: #956400;
+  --lf-accent-text: var(--brand-700, #785000);
+  --lf-radius: 12px;
+  --lf-top: 84px;
+  --lf-edge: var(--border);
+  --lf-raise: 0 -8px 24px rgba(17, 17, 17, 0.08);
+
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    'nav'
+    'aside'
+    'main'
+    'footer';
+  gap: 16px;
+  min-width: 0;
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.admin-shell .lf {
+  --lf-good: var(--a-good);
+  --lf-bad: var(--a-bad);
+  --lf-warn: var(--a-warn);
+  --lf-accent-text: var(--a-accent);
+  --lf-radius: var(--a-radius);
+  --lf-top: 0px;
+  --lf-edge: var(--a-card-edge);
+  --lf-raise: var(--a-lift-2);
+}
+
+.lf-nav {
+  grid-area: nav;
+  min-width: 0;
+}
+.lf-main {
+  grid-area: main;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+.lf-aside {
+  grid-area: aside;
+  min-width: 0;
+}
+.lf-footer {
+  grid-area: footer;
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  padding-bottom: 8px;
+}
+
+/* ----- Section nav: chips on narrow screens, a list on wide ones ----- */
+.lf-nav ul {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 2px 0 6px;
+  list-style: none;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.lf-nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 13px;
+  white-space: nowrap;
+  cursor: pointer;
+  text-align: left;
+}
+.lf-nav-item:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.lf-nav-item[aria-current] {
+  background: var(--brand-soft);
+  border-color: var(--brand);
+  color: var(--ink);
+  font-weight: 600;
+}
+.lf-nav-count {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--lf-warn) 16%, transparent);
+  color: var(--lf-warn);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 18px;
+  text-align: center;
+}
+
+/* ----- Wide layouts ----- */
+@container (min-width: 760px) {
+  .lf {
+    grid-template-columns: minmax(0, 1fr) 260px;
+    grid-template-areas:
+      'nav nav'
+      'main aside'
+      'footer footer';
+  }
+  .lf-aside {
+    position: sticky;
+    top: calc(var(--lf-top) + 12px);
+    align-self: start;
+    max-height: calc(100vh - var(--lf-top) - 110px);
+    overflow-y: auto;
+  }
+}
+@container (min-width: 1080px) {
+  .lf {
+    grid-template-columns: 176px minmax(0, 1fr) 280px;
+    grid-template-areas:
+      'nav main aside'
+      'footer footer footer';
+  }
+  .lf-nav {
+    position: sticky;
+    top: calc(var(--lf-top) + 12px);
+    align-self: start;
+  }
+  .lf-nav ul {
+    flex-direction: column;
+    gap: 2px;
+    overflow: visible;
+  }
+  .lf-nav-item {
+    width: 100%;
+    border-color: transparent;
+    border-radius: 8px;
+    background: transparent;
+    font-size: 14px;
+  }
+}
+@container (max-width: 759px) {
+  .lf-aside .lf-check-list {
+    max-height: 200px;
+    overflow-y: auto;
+  }
+}
+
+/* ----- Sections ----- */
+.lf-section,
+.lf-checklist,
+.lf-copy,
+.lf-empty {
+  min-width: 0;
+  border: 1px solid var(--lf-edge);
+  border-radius: var(--lf-radius);
+  background: var(--surface);
+}
+.lf-section {
+  padding: 20px 22px 22px;
+  scroll-margin-top: calc(var(--lf-top) + 16px);
+}
+@container (max-width: 560px) {
+  .lf-section {
+    padding: 16px 14px 18px;
+  }
+}
+.lf-section-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px 12px;
+  margin-bottom: 16px;
+}
+.lf-section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--ink);
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.3;
+}
+.lf-step {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 600;
+}
+.lf-section-sub {
+  margin: 4px 0 0 34px;
+  color: var(--ink-3);
+  font-size: 13px;
+}
+.lf-subhead {
+  margin: 22px 0 10px;
+  color: var(--ink-3);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.lf-section-body > .lf-subhead:first-child {
+  margin-top: 0;
+}
+.lf-badge {
+  flex-shrink: 0;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.lf-badge--todo {
+  background: color-mix(in srgb, var(--lf-warn) 14%, transparent);
+  color: var(--lf-warn);
+}
+.lf-badge--done {
+  background: color-mix(in srgb, var(--lf-good) 14%, transparent);
+  color: var(--lf-good);
+}
+
+/* ----- Fields ----- */
+.lf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px 16px;
+  min-width: 0;
+}
+.lf-grid + .lf-grid {
+  margin-top: 14px;
+}
+.lf-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.lf-field--wide {
+  grid-column: 1 / -1;
+}
+.lf-section-body > .lf-field + .lf-field,
+.lf-section-body > .lf-field + .lf-grid,
+.lf-section-body > .lf-grid + .lf-field {
+  margin-top: 16px;
+}
+.lf .lf-label {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+.lf .lf-label--inline {
+  color: var(--ink);
+}
+.lf-req {
+  color: var(--lf-accent-text);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.lf-req-star {
+  margin-left: 2px;
+  color: var(--lf-accent-text);
+}
+.lf .lf-input {
+  width: 100%;
+  min-width: 0;
+  font-size: 14px;
+}
+.lf textarea.lf-input {
+  resize: vertical;
+  min-height: 72px;
+}
+.lf .lf-input--xs {
+  width: 84px;
+}
+.lf .lf-input--sm {
+  width: 112px;
+}
+.lf .lf-input--sku {
+  width: 200px;
+}
+.lf .lf-input--gtin {
+  width: 150px;
+}
+.lf .lf-input[aria-invalid='true'],
+.lf [data-missing] > .lf-input,
+.lf [data-missing] > .lf-select-wrap > select {
+  border-color: var(--lf-bad) !important;
+}
+.lf-select-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.lf .lf-filter {
+  font-size: 13px;
+}
+.lf-hint {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 1.45;
+}
+.lf-missing-msg {
+  margin: 0;
+  color: var(--lf-bad);
+  font-size: 12px;
+  font-weight: 500;
+}
+.lf-muted {
+  color: var(--ink-3);
+}
+.lf-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+.lf-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.lf-inline > .lf-input {
+  flex: 1 1 auto;
+}
+.lf-wrap {
+  flex-wrap: wrap;
+}
+.lf-link {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--lf-accent-text);
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.lf-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.lf-check input {
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+.lf-checks {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px 16px;
+  margin: 16px 0;
+}
+
+/* ----- Chips and pills ----- */
+.lf-chips-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.lf-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lf-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 100%;
+  padding: 2px 4px 2px 10px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 13px;
+}
+.lf-chip > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lf-chip-x {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.lf-chip-x:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+.lf-pill,
+.lf-size {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.3;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.lf-size {
+  min-width: 44px;
+  padding: 5px 10px;
+  border-radius: 8px;
+}
+.lf-pill:hover,
+.lf-size:hover {
+  border-color: var(--ink-3);
+  color: var(--ink);
+}
+.lf-pill[aria-pressed='true'],
+.lf-size[aria-pressed='true'] {
+  border-color: var(--brand);
+  background: var(--brand-soft);
+  color: var(--ink);
+  font-weight: 600;
+}
+.lf-size-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  max-height: 172px;
+  padding: 8px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+.lf-bulk {
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+/* ----- Tables (size rows, measurements) ----- */
+.lf-table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.lf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.lf-table th,
+.lf-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.lf-table tbody tr:last-child > * {
+  border-bottom: none;
+}
+.lf-table thead th {
+  background: var(--surface-2);
+  color: var(--ink-3);
+  font-size: 12px;
+  font-weight: 500;
+}
+.lf-table .lf-input {
+  min-height: 32px;
+  padding-top: 5px;
+  padding-bottom: 5px;
+  font-size: 13px;
+}
+.lf-row-name {
+  color: var(--ink);
+  font-weight: 600;
+}
+.lf-new {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--brand-soft);
+  color: var(--lf-accent-text);
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+.lf-table-scroll + .lf-hint {
+  margin-top: 8px;
+}
+
+/* ----- Images ----- */
+.lf-slots {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 12px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.lf-slot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.lf-slot[data-filled] {
+  border-color: color-mix(in srgb, var(--lf-good) 45%, var(--border));
+}
+.lf-slot[data-missing] {
+  border-color: var(--lf-bad);
+}
+.lf-slot-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+.lf-slot-state {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+.lf-slot[data-filled] .lf-slot-state {
+  color: var(--lf-good);
+  font-weight: 500;
+}
+.lf-slot-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.lf-thumb {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 120px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  object-fit: cover;
+}
+.lf-thumb--empty {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+/* ----- Checklist ----- */
+.lf-checklist {
+  padding: 16px;
+}
+.lf-checklist-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+.lf-checklist-title {
+  margin: 0;
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+}
+.lf-checklist-count {
+  margin: 0;
+  font-size: 13px;
+}
+.lf-checklist-count strong {
+  color: var(--ink);
+  font-size: 15px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.lf-progress {
+  height: 6px;
+  margin: 10px 0 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+.lf-progress > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand);
+  transition: width 0.25s ease;
+}
+.lf-progress > span[data-complete] {
+  background: var(--lf-good);
+}
+.lf-check-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.lf-check-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.3;
+  text-align: left;
+  cursor: pointer;
+}
+.lf-check-item:hover {
+  background: var(--surface-2);
+}
+.lf-check-item[data-done] {
+  color: var(--ink-3);
+}
+.lf-check-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.lf-check-section {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--ink-3);
+  font-size: 11px;
+}
+.lf-dot {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border: 2px solid var(--lf-warn);
+  border-radius: 50%;
+}
+.lf-tick {
+  flex-shrink: 0;
+  width: 12px;
+  color: var(--lf-good);
+  font-size: 12px;
+}
+.lf-all-done {
+  margin: 4px 0 0;
+  color: var(--lf-good);
+  font-size: 13px;
+  font-weight: 500;
+}
+.lf-done-block {
+  margin-top: 10px;
+  font-size: 13px;
+}
+.lf-server-missing {
+  margin: 0 0 10px;
+  padding: 10px;
+  border: 1px solid var(--lf-bad);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--lf-bad) 7%, transparent);
+}
+.lf-server-missing-title {
+  margin: 0 0 4px;
+  color: var(--lf-bad);
+  font-size: 13px;
+  font-weight: 600;
+}
+.lf-server-missing ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.lf-server-missing .lf-dot {
+  border-color: var(--lf-bad);
+}
+
+/* ----- Banners, confirm, copy, footer ----- */
+.lf-banner {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+  color: var(--ink);
+  font-size: 14px;
+}
+.lf-banner p {
+  margin: 0;
+}
+.lf-banner ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+}
+.lf-banner--error {
+  border-color: var(--lf-bad);
+  background: color-mix(in srgb, var(--lf-bad) 8%, var(--surface));
+}
+.lf-banner--success {
+  border-color: var(--lf-good);
+  background: color-mix(in srgb, var(--lf-good) 9%, var(--surface));
+}
+.lf-confirm {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--lf-warn);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--lf-warn) 8%, var(--surface));
+}
+.lf-confirm-title {
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+.lf-confirm .lf-inline {
+  margin-top: 10px;
+}
+.lf-copy {
+  padding: 12px 16px;
+}
+.lf-copy > summary,
+.lf-more > summary {
+  color: var(--lf-accent-text);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.lf-copy[open] > summary {
+  margin-bottom: 8px;
+}
+.lf-copy .lf-inline {
+  margin-top: 8px;
+}
+.lf-copy-results {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.lf-copy-results li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.lf-copy-name {
+  color: var(--ink);
+}
+.lf-more {
+  margin-top: 18px;
+}
+.lf-more > summary {
+  padding: 4px 0;
+}
+.lf-more[open] > summary {
+  margin-bottom: 12px;
+}
+.lf-empty {
+  margin: 0;
+  padding: 40px 20px;
+  color: var(--ink-3);
+  text-align: center;
+}
+.lf-loading {
+  padding: 32px 0;
+  color: var(--ink-3);
+}
+.lf-footer-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--lf-edge);
+  border-radius: var(--lf-radius);
+  background: var(--surface);
+  box-shadow: var(--lf-raise);
+}
+.admin-shell .lf-footer-inner {
+  background: var(--a-overlay);
+}
+.lf-footer-note {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+.lf-footer .lf-inline {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+@container (max-width: 480px) {
+  .lf-footer-inner {
+    padding: 10px 12px;
+  }
+  .lf-footer .lf-inline {
+    width: 100%;
+  }
+  .lf-cancel {
+    display: none !important;
+  }
+  .lf-footer .lf-inline > * {
+    flex: 1 1 0;
+  }
+  .lf-footer .lf-inline > span > .btn {
+    width: 100%;
+  }
+}
+
+/* Visually hidden labels are absolutely positioned; without a positioned
+   scroller they escape it and widen the page on phones. */
+.lf-nav ul,
+.lf-nav-item,
+.lf-table-scroll,
+.lf-size-box,
+.lf-check-list {
+  position: relative;
+}
+.lf-bulk > .lf-input {
+  flex: 0 0 96px;
+}
+
+/* ----- Searchable combobox (long option lists) ----------------------------- */
+.lf-combo {
+  position: relative;
+  min-width: 0;
+}
+.lf .lf-combo-input {
+  width: 100%;
+  padding-right: 52px;
+  cursor: text;
+}
+.lf-combo-caret {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  width: 8px;
+  height: 8px;
+  margin-top: -6px;
+  border-right: 1.5px solid var(--ink-3);
+  border-bottom: 1.5px solid var(--ink-3);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+.lf-combo-clear {
+  position: absolute;
+  top: 50%;
+  right: 28px;
+  width: 20px;
+  height: 20px;
+  margin-top: -10px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ink-3);
+  font-size: 16px;
+  line-height: 20px;
+  cursor: pointer;
+}
+.lf-combo-clear:hover {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+.lf-combo-list {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  max-height: 264px;
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow:
+    0 12px 32px rgba(16, 24, 40, 0.12),
+    0 2px 6px rgba(16, 24, 40, 0.06);
+}
+.lf-combo-option,
+.lf-combo-empty {
+  padding: 7px 10px;
+  border-radius: 6px;
+  color: var(--ink);
+  font-size: 13.5px;
+  line-height: 1.35;
+}
+.lf-combo-option {
+  cursor: pointer;
+}
+.lf-combo-option.is-active {
+  background: var(--surface-2);
+}
+.lf-combo-option.is-selected {
+  font-weight: 600;
+}
+.lf-combo-option.is-selected::after {
+  content: '✓';
+  float: right;
+  color: var(--ink-2);
+}
+.lf-combo-empty {
+  color: var(--ink-3);
+}
+
+/* ----- Rhythm: buttons beside a field share its height ---------------------- */
+.lf div:has(> .lf-input) > .btn,
+.lf div:has(> input) > .btn {
+  min-height: 36px;
+  align-self: stretch;
+}
+
+/* ----- Admin console: Shopify-admin density ---------------------------------
+   The console runs at Polaris scale: 13px text, 32px fields, 14px card titles,
+   sentence-case sub-headings, and a quiet "Required" marker instead of a
+   shouted one. The storefront seller area keeps its own, roomier scale. */
+.admin-shell .lf {
+  font-size: 13px;
+  line-height: 20px;
+}
+.admin-shell .lf-section {
+  padding: 16px;
+  border: 0;
+  box-shadow: var(--a-lift-card);
+}
+.admin-shell .lf-section-head {
+  margin-bottom: 12px;
+}
+.admin-shell .lf-section-title {
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 650;
+  line-height: 20px;
+  letter-spacing: 0;
+}
+.admin-shell .lf-step {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  background: var(--a-neutral-bg);
+  color: var(--a-text);
+  font-size: 11px;
+  font-weight: 650;
+}
+.admin-shell .lf-subhead {
+  margin: 20px 0 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--a-edge);
+  color: var(--a-text);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.admin-shell .lf-section-body > .lf-subhead:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.admin-shell .lf .lf-input {
+  font-size: 13px;
+}
+.admin-shell .lf-label {
+  color: var(--a-text);
+  font-size: 13px;
+  font-weight: 550;
+}
+.admin-shell .lf-req {
+  color: var(--a-text-dim);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.admin-shell .lf-hint {
+  color: var(--a-text-dim);
+  font-size: 12px;
+  line-height: 16px;
+}
+.admin-shell .lf-combo-list {
+  border: 0;
+  border-radius: 12px;
+  box-shadow: var(--a-lift-3);
+}
+
+/* A number field with its unit after the box ("55 | inch"). */
+.lf-affix {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.lf-affix .lf-input {
+  flex: 1;
+  min-width: 0;
+}
+.lf-affix-unit {
+  color: var(--ink-3);
+  font-size: 13px;
+  white-space: nowrap;
+}

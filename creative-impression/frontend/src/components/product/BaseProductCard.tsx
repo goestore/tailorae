@@ -14,6 +14,8 @@ import { ProductThumb } from './ProductThumb';
 export interface ProductCardModel {
   href: string;
   name: string;
+  /** The label above the product name, the way a marketplace card reads. */
+  brand?: string;
   alt?: string;
   image?: string;
   /** Cross-faded in on hover when the product has a second shot. */
@@ -44,6 +46,17 @@ export interface BaseProductCardProps {
    * rather than as "no photography yet".
    */
   mediaFallback?: React.ReactNode;
+  /**
+   * A single line under the price. The colour grid uses it for the swatch and
+   * colour name; it is the only thing allowed below the price, so a card stays
+   * one recognisable object however it is filled.
+   */
+  footnote?: React.ReactNode;
+  /**
+   * The colour this card stands for, as a small square at the end of the name
+   * line — the 9impression card. Shown on hover as the colour's name.
+   */
+  swatch?: React.ReactNode;
 }
 
 const IMAGE_SIZES = '(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw';
@@ -68,8 +81,10 @@ export const BaseProductCard: React.FC<BaseProductCardProps> = ({
   priority = false,
   mediaBar,
   mediaFallback,
+  footnote,
+  swatch,
 }) => {
-  const { href, name, alt, image, hoverImage, price, comparePrice, discountLabel } = model;
+  const { href, name, alt, image, hoverImage, price, comparePrice, discountLabel, brand } = model;
 
   return (
     <article className={`pcard group h-full ${className}`.trim()}>
@@ -111,11 +126,19 @@ export const BaseProductCard: React.FC<BaseProductCardProps> = ({
       </div>
 
       <div className="pcard-body">
-        <h3 style={{ margin: 0 }}>
-          <Link href={href} className="pcard-title">
-            {name}
-          </Link>
-        </h3>
+        {/* Brand first, product name second — the order every marketplace card
+            uses, because the brand is what a shopper scans for. */}
+        {brand && <p className="pcard-brand">{brand}</p>}
+        {/* One line, cut with an ellipsis (full name on hover): every card in a
+            row is the same height and the swatch sits level with the name. */}
+        <div className="pcard-titlerow">
+          <h3 className="pcard-name">
+            <Link href={href} className="pcard-title" title={name}>
+              {name}
+            </Link>
+          </h3>
+          {swatch}
+        </div>
 
         {model.outOfStock ? (
           <p className="pcard-price pcard-oos">Out of stock</p>
@@ -126,6 +149,8 @@ export const BaseProductCard: React.FC<BaseProductCardProps> = ({
             {discountLabel && <span className="pcard-off">{discountLabel}</span>}
           </p>
         )}
+
+        {footnote}
       </div>
     </article>
   );

@@ -225,12 +225,14 @@ export const customWearContent: CustomWearContent = {
   },
 
   upload: {
-    acceptedExtensions: ['png', 'jpg', 'jpeg', 'svg', 'pdf', 'ai', 'eps'],
-    backendPendingExtensions: ['ai', 'eps'],
-    maxFileSizeMb: 25,
+    // Matches POST /api/custom-wear/artwork: SVGs are rasterised to PNG there,
+    // and `.ai` is accepted when saved PDF-compatible (the default).
+    acceptedExtensions: ['png', 'jpg', 'jpeg', 'webp', 'svg', 'pdf', 'ai'],
+    backendPendingExtensions: [],
+    maxFileSizeMb: 15,
     maxFiles: 5,
     helpText:
-      'Vector artwork (SVG, PDF, AI, EPS) reproduces best. For raster files use 300 DPI at print size.',
+      'PDF or high-resolution PNG reproduces best. SVGs are converted to PNG. For raster files use 300 DPI at print size.',
   },
 };
 

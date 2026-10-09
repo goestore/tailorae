@@ -61,7 +61,7 @@ router.post('/items', authMiddleware, async (req: AuthRequest, res: Response) =>
       res.status(404).json({ success: false, message: 'Product not found' });
       return;
     }
-    if (product.status !== 'ACTIVE') {
+    if (product.status !== 'ACTIVE' || product.moderationStatus !== 'APPROVED') {
       res.status(400).json({ success: false, message: 'Product is not available' });
       return;
     }

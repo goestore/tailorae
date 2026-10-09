@@ -1,21 +1,25 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   PRODUCT_STATUSES,
   createProduct,
   discontinueProduct,
+  listBrands,
+  listSellerOptions,
   slugify,
   suggestSku,
   updateProduct,
+  type AdminBrand,
   type AdminCategory,
   type AdminProduct,
   type ProductInput,
   type ProductStatus,
+  type SellerOption,
 } from '@/lib/admin-products';
-import { cn } from '@/utils/helpers';
+import { cn, formatCurrency } from '@/utils/helpers';
 import { ImagePicker } from './ImagePicker';
 import { LABEL_VOICE } from './ContentField';
 
@@ -36,6 +40,7 @@ interface Draft {
   slug: string;
   sku: string;
   categoryId: string;
+  brandId: string;
   price: string;
   originalPrice: string;
   quantity: string;
@@ -48,6 +53,18 @@ interface Draft {
   isFeatured: boolean;
   isCustomizable: boolean;
   allowBulkOrders: boolean;
+  vendorId: string;
+  costPrice: string;
+  sizeGuide: string;
+  videoUrl: string;
+  barcode: string;
+  weight: string;
+  dimensions: string;
+  minOrderQuantity: string;
+  maxOrderQuantity: string;
+  metaTitle: string;
+  metaDescription: string;
+  metaKeywords: string;
 }
 
 const blankDraft = (categoryId: string): Draft => ({
@@ -55,6 +72,7 @@ const blankDraft = (categoryId: string): Draft => ({
   slug: '',
   sku: '',
   categoryId,
+  brandId: '',
   price: '',
   originalPrice: '',
   quantity: '0',
@@ -69,6 +87,19 @@ const blankDraft = (categoryId: string): Draft => ({
   isFeatured: false,
   isCustomizable: false,
   allowBulkOrders: false,
+  // Empty is house stock — the shop's own listing, owing no commission.
+  vendorId: '',
+  costPrice: '',
+  sizeGuide: '',
+  videoUrl: '',
+  barcode: '',
+  weight: '',
+  dimensions: '',
+  minOrderQuantity: '1',
+  maxOrderQuantity: '',
+  metaTitle: '',
+  metaDescription: '',
+  metaKeywords: '',
 });
 
 const fromProduct = (product: AdminProduct): Draft => ({
@@ -76,6 +107,7 @@ const fromProduct = (product: AdminProduct): Draft => ({
   slug: product.slug,
   sku: product.sku,
   categoryId: product.categoryId,
+  brandId: product.brandId ?? '',
   price: String(product.price ?? ''),
   originalPrice: product.originalPrice === null ? '' : String(product.originalPrice),
   quantity: String(product.quantity ?? 0),
@@ -88,6 +120,18 @@ const fromProduct = (product: AdminProduct): Draft => ({
   isFeatured: product.isFeatured,
   isCustomizable: product.isCustomizable,
   allowBulkOrders: product.allowBulkOrders,
+  vendorId: product.vendorId ?? '',
+  costPrice: product.costPrice === null ? '' : String(product.costPrice),
+  sizeGuide: product.sizeGuide ?? '',
+  videoUrl: product.videoUrl ?? '',
+  barcode: product.barcode ?? '',
+  weight: product.weight === null ? '' : String(product.weight),
+  dimensions: product.dimensions ?? '',
+  minOrderQuantity: String(product.minOrderQuantity ?? 1),
+  maxOrderQuantity: product.maxOrderQuantity === null ? '' : String(product.maxOrderQuantity),
+  metaTitle: product.metaTitle ?? '',
+  metaDescription: product.metaDescription ?? '',
+  metaKeywords: product.metaKeywords ?? '',
 });
 
 const FIELD = 'flex flex-col gap-1.5';
@@ -99,6 +143,15 @@ interface ProductFormProps {
 }
 
 export const ProductForm: React.FC<ProductFormProps> = ({ categories, product }) => {
+  // Fetched here rather than threaded through both call sites: the list is
+  // small, admin-only, and a failure degrades to "No brand".
+  const [brands, setBrands] = useState<AdminBrand[]>([]);
+  const [sellers, setSellers] = useState<SellerOption[]>([]);
+  useEffect(() => {
+    listBrands().then(setBrands).catch(() => {});
+    listSellerOptions().then(setSellers).catch(() => {});
+  }, []);
+
   const router = useRouter();
   const editing = product !== undefined;
 
@@ -129,6 +182,23 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, product })
 
   const price = Number(draft.price);
   const originalPrice = draft.originalPrice.trim() === '' ? null : Number(draft.originalPrice);
+  const costPrice = draft.costPrice.trim() === '' ? null : Number(draft.costPrice);
+  const minOrderQuantity = Number(draft.minOrderQuantity) || 1;
+  const maxOrderQuantity =
+    draft.maxOrderQuantity.trim() === '' ? null : Number(draft.maxOrderQuantity);
+
+  /**
+   * The discount badge on the product page, worked out rather than typed.
+   * Storing it lets the catalogue sort and filter by it without recomputing per
+   * row; deriving it here means it can never contradict the two prices above it.
+   */
+  const discountPercentage =
+    originalPrice !== null && originalPrice > price
+      ? Math.round(((originalPrice - price) / originalPrice) * 100)
+      : 0;
+
+  /** What is left after cost. Shown, never stored — margin is a fact about the two prices. */
+  const margin = costPrice !== null && costPrice > 0 && price > 0 ? price - costPrice : null;
 
   /** Everything that must be true before the API will accept this. */
   const problems: string[] = [];
@@ -145,6 +215,12 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, product })
   if (draft.status === 'ACTIVE' && draft.images.length === 0) {
     problems.push('Add at least one image before setting the product live.');
   }
+  if (costPrice !== null && (!Number.isFinite(costPrice) || costPrice < 0)) {
+    problems.push('Cost price must be a number, or empty.');
+  }
+  if (maxOrderQuantity !== null && maxOrderQuantity < minOrderQuantity) {
+    problems.push('The most someone may buy cannot be less than the least.');
+  }
 
   const save = async () => {
     if (problems.length > 0 || busy) return;
@@ -156,6 +232,8 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, product })
       slug: draft.slug.trim(),
       sku: draft.sku.trim(),
       categoryId: draft.categoryId,
+      // Empty string means "no brand" and the API turns it back into null.
+      brandId: draft.brandId,
       price,
       originalPrice,
       quantity: Number(draft.quantity) || 0,
@@ -168,6 +246,20 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, product })
       isFeatured: draft.isFeatured,
       isCustomizable: draft.isCustomizable,
       allowBulkOrders: draft.allowBulkOrders,
+      // Empty string is house stock, and the API maps it to null.
+      vendorId: draft.vendorId,
+      costPrice,
+      discountPercentage,
+      sizeGuide: draft.sizeGuide,
+      videoUrl: draft.videoUrl,
+      barcode: draft.barcode,
+      weight: draft.weight.trim() === '' ? null : Number(draft.weight),
+      dimensions: draft.dimensions,
+      minOrderQuantity,
+      maxOrderQuantity,
+      metaTitle: draft.metaTitle,
+      metaDescription: draft.metaDescription,
+      metaKeywords: draft.metaKeywords,
     };
 
     try {
@@ -269,6 +361,27 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, product })
                 sale badge.
               </p>
             </div>
+
+            <div className={FIELD}>
+              <label htmlFor="p-cost" className={LABEL_VOICE}>
+                Cost to us (₹)
+              </label>
+              <input
+                id="p-cost"
+                type="number"
+                min="0"
+                step="0.01"
+                value={draft.costPrice}
+                className="text-sm"
+                placeholder="Optional"
+                onChange={(event) => set('costPrice', event.target.value)}
+              />
+              <p className="form-help">
+                {margin === null
+                  ? 'Never shown to shoppers. Used to work out margin.'
+                  : `Margin ${formatCurrency(margin)} · ${Math.round((margin / price) * 100)}% of the sale price.`}
+              </p>
+            </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-2">
@@ -292,6 +405,49 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, product })
             </div>
 
             <div className={FIELD}>
+              <label htmlFor="p-brand" className={LABEL_VOICE}>
+                Brand
+              </label>
+              <select
+                id="p-brand"
+                value={draft.brandId}
+                className="text-sm"
+                onChange={(event) => set('brandId', event.target.value)}
+              >
+                {/* Optional on purpose: an own-label product carries no third
+                    party brand, and forcing one would invent data. */}
+                <option value="">No brand</option>
+                {brands.map((brand) => (
+                  <option key={brand.id} value={brand.id}>
+                    {brand.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={FIELD}>
+              <label htmlFor="p-seller" className={LABEL_VOICE}>
+                Sold by
+              </label>
+              <select
+                id="p-seller"
+                value={draft.vendorId}
+                className="text-sm"
+                onChange={(event) => set('vendorId', event.target.value)}
+              >
+                {/* House stock owes no commission and appears under no shop. */}
+                <option value="">Us — house stock</option>
+                {sellers.map((seller) => (
+                  <option key={seller.id} value={seller.id}>
+                    {seller.shopName}
+                    {seller.isVerified ? '' : ' — awaiting approval'}
+                    {seller.isActive ? '' : ' — suspended'}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={FIELD}>
               <label htmlFor="p-stock" className={LABEL_VOICE}>
                 Stock
               </label>
@@ -306,6 +462,13 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, product })
               />
             </div>
           </div>
+
+          {draft.vendorId !== '' && (
+            <p className="form-help">
+              This listing belongs to a seller: it appears on their shop page, and each order splits
+              their share out and pays them for it, less commission.
+            </p>
+          )}
 
           <div className={FIELD}>
             <label htmlFor="p-short" className={LABEL_VOICE}>
@@ -492,6 +655,210 @@ export const ProductForm: React.FC<ProductFormProps> = ({ categories, product })
               </label>
             ))}
           </fieldset>
+        </div>
+      </section>
+
+      <section className="border border-line bg-surface">
+        <header className="border-b border-line bg-surface-2 px-4 py-2.5">
+          <h2 className={cn(LABEL_VOICE, 'text-ink')}>Sizing &amp; shipping</h2>
+        </header>
+
+        <div className="flex flex-col gap-4 p-4">
+          <div className={FIELD}>
+            <label htmlFor="p-sizeguide" className={LABEL_VOICE}>
+              Size guide
+            </label>
+            <textarea
+              id="p-sizeguide"
+              rows={5}
+              value={draft.sizeGuide}
+              className="text-sm"
+              placeholder={'S \u2014 chest 38in, length 27in\nM \u2014 chest 40in, length 28in'}
+              onChange={(event) => set('sizeGuide', event.target.value)}
+            />
+            <p className="form-help">
+              Opens from the size guide link on the product page. Leave it empty and the shopper
+              gets the generic chart for the category instead.
+            </p>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className={FIELD}>
+              <label htmlFor="p-weight" className={LABEL_VOICE}>
+                Weight (kg)
+              </label>
+              <input
+                id="p-weight"
+                type="number"
+                min="0"
+                step="0.01"
+                value={draft.weight}
+                className="text-sm"
+                placeholder="0.25"
+                onChange={(event) => set('weight', event.target.value)}
+              />
+              <p className="form-help">Used to work out shipping.</p>
+            </div>
+
+            <div className={FIELD}>
+              <label htmlFor="p-dimensions" className={LABEL_VOICE}>
+                Dimensions
+              </label>
+              <input
+                id="p-dimensions"
+                type="text"
+                value={draft.dimensions}
+                className="text-sm"
+                placeholder="30 x 24 x 4 cm"
+                onChange={(event) => set('dimensions', event.target.value)}
+              />
+            </div>
+
+            <div className={FIELD}>
+              <label htmlFor="p-minqty" className={LABEL_VOICE}>
+                Least someone may buy
+              </label>
+              <input
+                id="p-minqty"
+                type="number"
+                min="1"
+                step="1"
+                value={draft.minOrderQuantity}
+                className="text-sm"
+                onChange={(event) => set('minOrderQuantity', event.target.value)}
+              />
+              <p className="form-help">The quantity the product page opens on.</p>
+            </div>
+
+            <div className={FIELD}>
+              <label htmlFor="p-maxqty" className={LABEL_VOICE}>
+                Most someone may buy
+              </label>
+              <input
+                id="p-maxqty"
+                type="number"
+                min="1"
+                step="1"
+                value={draft.maxOrderQuantity}
+                className="text-sm"
+                placeholder="No limit"
+                onChange={(event) => set('maxOrderQuantity', event.target.value)}
+              />
+            </div>
+
+            <div className={FIELD}>
+              <label htmlFor="p-barcode" className={LABEL_VOICE}>
+                Barcode
+              </label>
+              <input
+                id="p-barcode"
+                type="text"
+                value={draft.barcode}
+                spellCheck={false}
+                className="font-mono text-sm"
+                placeholder="EAN or UPC"
+                onChange={(event) => set('barcode', event.target.value)}
+              />
+            </div>
+
+            <div className={FIELD}>
+              <label htmlFor="p-video" className={LABEL_VOICE}>
+                Video URL
+              </label>
+              <input
+                id="p-video"
+                type="url"
+                value={draft.videoUrl}
+                spellCheck={false}
+                className="text-sm"
+                placeholder="https://..."
+                onChange={(event) => set('videoUrl', event.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="border border-line bg-surface">
+        <header className="border-b border-line bg-surface-2 px-4 py-2.5">
+          <h2 className={cn(LABEL_VOICE, 'text-ink')}>Search &amp; sharing</h2>
+        </header>
+
+        <div className="flex flex-col gap-4 p-4">
+          <p className="m-0 text-[13px] text-ink-3">
+            What Google and a shared link show. Leave these empty and the product&rsquo;s own name
+            and short description are used.
+          </p>
+
+          <div className={FIELD}>
+            <label htmlFor="p-metatitle" className={LABEL_VOICE}>
+              Title
+            </label>
+            <input
+              id="p-metatitle"
+              type="text"
+              value={draft.metaTitle}
+              className="text-sm"
+              placeholder={draft.name || 'Product name'}
+              onChange={(event) => set('metaTitle', event.target.value)}
+            />
+            <p className="form-help">
+              {(draft.metaTitle || draft.name).length} characters &mdash; Google shows about 60.
+            </p>
+          </div>
+
+          <div className={FIELD}>
+            <label htmlFor="p-metadesc" className={LABEL_VOICE}>
+              Description
+            </label>
+            <textarea
+              id="p-metadesc"
+              rows={3}
+              value={draft.metaDescription}
+              className="text-sm"
+              placeholder={draft.shortDescription || 'One or two lines about the product'}
+              onChange={(event) => set('metaDescription', event.target.value)}
+            />
+            <p className="form-help">
+              {(draft.metaDescription || draft.shortDescription).length} characters &mdash; Google
+              shows about 155.
+            </p>
+          </div>
+
+          <div className={FIELD}>
+            <label htmlFor="p-metakeywords" className={LABEL_VOICE}>
+              Keywords
+            </label>
+            <input
+              id="p-metakeywords"
+              type="text"
+              value={draft.metaKeywords}
+              className="text-sm"
+              placeholder="polo shirt, cotton polo, corporate uniform"
+              onChange={(event) => set('metaKeywords', event.target.value)}
+            />
+            <p className="form-help">
+              Comma separated. Search engines largely ignore these; the site&rsquo;s own search uses
+              them.
+            </p>
+          </div>
+
+          {/* What the fields above actually produce, laid out the way a search
+              result is. Cheaper to read than a character count alone. */}
+          <div className="border border-line p-3">
+            <p className={cn(LABEL_VOICE, 'm-0 mb-2 text-ink-3')}>Preview</p>
+            <p className="m-0 truncate text-[15px] text-ink">
+              {draft.metaTitle || draft.name || 'Product name'}
+            </p>
+            <p className="m-0 mt-0.5 text-[12px] text-ink-3">
+              /products/{draft.slug || 'product-slug'}
+            </p>
+            <p className="m-0 mt-1 text-[13px] text-ink-2">
+              {draft.metaDescription ||
+                draft.shortDescription ||
+                'No description yet \u2014 add a short description or a meta description.'}
+            </p>
+          </div>
         </div>
       </section>
 
