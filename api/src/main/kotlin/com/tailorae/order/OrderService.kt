@@ -235,9 +235,10 @@ class OrderService(
         return view(id)
     }
 
-    fun adminOrders(status: OrderStatus?, paymentStatus: PaymentStatus?, method: PaymentMethod?, query: String?, page: PageParams): Page<OrderSummaryView> {
+    fun adminOrders(status: OrderStatus?, paymentStatus: PaymentStatus?, method: PaymentMethod?, query: String?, page: PageParams, customerId: UUID? = null): Page<OrderSummaryView> {
         val where = buildString {
             append("where 1 = 1")
+            if (customerId != null) append(" and o.customer_id = :customer")
             if (status != null) append(" and o.status = :status")
             if (paymentStatus != null) append(" and o.payment_status = :pay")
             if (method != null) append(" and o.payment_method = :method")
@@ -245,6 +246,7 @@ class OrderService(
         }
         val params = buildMap<String, Any> {
             status?.let { put("status", it.name) }; paymentStatus?.let { put("pay", it.name) }; method?.let { put("method", it.name) }
+            customerId?.let { put("customer", it) }
             if (!query.isNullOrBlank()) put("q", "%${query.trim()}%")
         }
         return summaries(where, params, page)
@@ -309,6 +311,9 @@ class OrderService(
         setParent(orderId, o, update.status, "admin", adminId, update.message ?: "Status changed to ${update.status}")
         if (update.trackingNumber != null || update.carrier != null) {
             jdbc.sql("update customer_order set tracking_number = coalesce(:t, tracking_number), carrier = coalesce(:c, carrier) where id = :id")
+                .param("t", update.trackingNumber).param("c", update.carrier).param("id", orderId).update()
+            // Staff shipping on the shops' behalf: parts without their own tracking take this one.
+            jdbc.sql("update seller_order set tracking_number = coalesce(tracking_number, :t), carrier = coalesce(carrier, :c), updated_at = now() where order_id = :id and status not in ('CANCELLED', 'RETURNED')")
                 .param("t", update.trackingNumber).param("c", update.carrier).param("id", orderId).update()
         }
         audit.record("admin", adminId, "STATUS_${update.status}", "customer_order", orderId.toString())
@@ -383,6 +388,23 @@ class OrderService(
         return view(orderId)
     }
 
+    /**
+     * Staff record a payment that happened outside the gateway: cash collected
+     * early, or a COD refund paid by bank transfer.
+     */
+    @Transactional
+    fun setPaymentStatus(adminId: UUID, orderId: UUID, status: PaymentStatus, note: String) {
+        val o = state(orderId)
+        if (status !in setOf(PaymentStatus.PAID, PaymentStatus.REFUNDED)) throw BadRequestException("Record PAID or REFUNDED")
+        if (o.method == PaymentMethod.RAZORPAY && status == PaymentStatus.REFUNDED) throw ConflictException("Refund an online payment through Razorpay instead")
+        if (note.isBlank()) throw BadRequestException("Add a note with the reference or the reason")
+        jdbc.sql(
+            "update customer_order set payment_status = :p, refunded_paise = case when :p = 'REFUNDED' then total_paise else refunded_paise end, updated_at = now() where id = :id",
+        ).param("p", status.name).param("id", orderId).update()
+        timeline(orderId, "PAYMENT_$status", note.trim(), "admin", adminId)
+        audit.record("admin", adminId, "PAYMENT_$status", "customer_order", orderId.toString(), mapOf("paymentStatus" to o.paymentStatus), mapOf("paymentStatus" to status, "note" to note))
+    }
+
     // ================================================================ returns
 
     @Transactional
@@ -409,14 +431,16 @@ class OrderService(
         return view(orderId)
     }
 
-    fun returns(status: String?, page: PageParams): Page<Map<String, Any?>> {
-        val total = jdbc.sql("select count(*) from return_request where (cast(:s as text) is null or status = :s)").param("s", status).query(Long::class.javaObjectType).single()
+    fun returns(status: String?, page: PageParams, requestType: String? = null): Page<Map<String, Any?>> {
+        val total = jdbc.sql("select count(*) from return_request where (cast(:s as text) is null or status = :s) and (cast(:t as text) is null or request_type = :t)")
+            .param("s", status).param("t", requestType).query(Long::class.javaObjectType).single()
         val rows = jdbc.sql(
             """
             select r.*, o.order_number, o.total_paise, o.contact_email from return_request r join customer_order o on o.id = r.order_id
-            where (cast(:s as text) is null or r.status = :s) order by r.created_at desc limit :l offset :off
+            where (cast(:s as text) is null or r.status = :s) and (cast(:t as text) is null or r.request_type = :t)
+            order by r.created_at desc limit :l offset :off
             """.trimIndent(),
-        ).param("s", status).param("l", page.safeLimit).param("off", page.offset).query { rs, _ ->
+        ).param("s", status).param("t", requestType).param("l", page.safeLimit).param("off", page.offset).query { rs, _ ->
             mapOf("return" to returnView(rs), "orderId" to rs.getObject("order_id", UUID::class.java), "orderNumber" to rs.getString("order_number"),
                 "orderTotalPaise" to rs.getLong("total_paise"), "customerEmail" to rs.getString("contact_email"))
         }.list()

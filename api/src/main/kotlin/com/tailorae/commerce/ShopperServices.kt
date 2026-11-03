@@ -313,6 +313,10 @@ data class ReviewRequest(
 data class ReviewView(
     val id: UUID, val productId: UUID, val rating: Int, val title: String?, val comment: String?, val images: List<String>,
     val isVerified: Boolean, val helpfulCount: Int, val authorName: String, val isPublished: Boolean, val createdAt: Instant,
+    /** Staff list only. */
+    val productName: String? = null,
+    /** Staff list only, never on the storefront. */
+    val customerEmail: String? = null,
 )
 
 data class ReviewSummary(val average: Double, val count: Int, val distribution: Map<Int, Int>)
@@ -377,8 +381,11 @@ class ReviewService(
     fun adminList(page: PageParams, published: Boolean?): Page<ReviewView> {
         val filter = published?.let { "where r.is_published = $it" } ?: ""
         val total = jdbc.sql("select count(*) from review r $filter").query(Long::class.javaObjectType).single()
-        val items = jdbc.sql("$SELECT $filter order by r.created_at desc limit :l offset :o")
-            .param("l", page.safeLimit).param("o", page.offset).query { rs, _ -> view(rs) }.list()
+        val items = jdbc.sql(
+            "select r.*, c.first_name, c.last_name, c.email as customer_email, p.name as product_name from review r " +
+                "join customer c on c.id = r.customer_id join product p on p.id = r.product_id $filter order by r.created_at desc limit :l offset :o",
+        ).param("l", page.safeLimit).param("o", page.offset)
+            .query { rs, _ -> view(rs).copy(productName = rs.getString("product_name"), customerEmail = rs.getString("customer_email")) }.list()
         return Page(items, total, page.safePage, page.safeLimit)
     }
 

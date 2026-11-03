@@ -55,7 +55,7 @@ class SecurityConfig(
                 allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
                 // X-Seller-Id picks which of a person's shops a seller request acts for.
                 allowedHeaders = listOf("Content-Type", "Accept", "X-Seller-Id")
-                exposedHeaders = listOf("X-Total-Count")
+                exposedHeaders = listOf("X-Total-Count", "X-Export-Rows", "X-Export-Skipped", "Content-Disposition")
                 allowCredentials = true
                 maxAge = 3600
             },

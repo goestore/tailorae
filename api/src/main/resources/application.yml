@@ -6,6 +6,9 @@ server:
 spring:
   application:
     name: tailorae-api
+  # Local secrets for `npm run dev:api` live in api/.env (see api/.env.example); absent in production.
+  config:
+    import: optional:file:.env[.properties]
   threads:
     virtual:
       enabled: true
@@ -85,6 +88,9 @@ tailorae:
     key-id: ${RAZORPAY_KEY_ID:}
     key-secret: ${RAZORPAY_KEY_SECRET:}
     webhook-secret: ${RAZORPAY_WEBHOOK_SECRET:}
+  sms:
+    # Until an SMS provider is chosen, print phone codes to the log (dev only).
+    log-codes: ${TAILORAE_SMS_LOG_CODES:false}
   crypto:
     # 32 random bytes, base64 (openssl rand -base64 32). Encrypts bank account numbers.
     field-key: ${FIELD_ENCRYPTION_KEY:}

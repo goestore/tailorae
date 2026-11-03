@@ -205,11 +205,21 @@ class AdminOrderController(private val orders: OrderService, private val access:
         @RequestParam(required = false) paymentStatus: PaymentStatus?,
         @RequestParam(required = false) paymentMethod: PaymentMethod?,
         @RequestParam(required = false) q: String?,
+        @RequestParam(required = false) customerId: UUID?,
         @RequestParam(defaultValue = "1") page: Int,
         @RequestParam(defaultValue = "20") limit: Int,
     ): ResponseEntity<ApiResponse<Page<OrderSummaryView>>> {
         access.require(jwt, AdminPermission.SUPPORT, AdminPermission.FINANCE)
-        return orders.adminOrders(status, paymentStatus, paymentMethod, q, PageParams(page, limit)).toResponse()
+        return orders.adminOrders(status, paymentStatus, paymentMethod, q, PageParams(page, limit), customerId).toResponse()
+    }
+
+    @PatchMapping("/orders/{id}/payment")
+    fun payment(@AuthenticationPrincipal jwt: Jwt, @PathVariable id: UUID, @RequestBody body: Map<String, String?>): ApiResponse<Map<String, OrderView>> {
+        val admin = access.require(jwt, AdminPermission.FINANCE)
+        val status = body["paymentStatus"]?.let { runCatching { PaymentStatus.valueOf(it.uppercase()) }.getOrNull() }
+            ?: throw BadRequestException("paymentStatus must be PAID or REFUNDED")
+        orders.setPaymentStatus(admin, id, status, body["note"] ?: "")
+        return ApiResponse.ok(mapOf("order" to orders.view(id)), "Payment recorded")
     }
 
     @GetMapping("/orders/{id}")
@@ -233,11 +243,12 @@ class AdminOrderController(private val orders: OrderService, private val access:
     fun returns(
         @AuthenticationPrincipal jwt: Jwt,
         @RequestParam(required = false) status: String?,
+        @RequestParam(required = false) requestType: String?,
         @RequestParam(defaultValue = "1") page: Int,
         @RequestParam(defaultValue = "20") limit: Int,
     ): ResponseEntity<ApiResponse<Page<Map<String, Any?>>>> {
         access.require(jwt, AdminPermission.SUPPORT)
-        return orders.returns(status?.uppercase(), PageParams(page, limit)).toResponse()
+        return orders.returns(status?.uppercase(), PageParams(page, limit), requestType?.uppercase()).toResponse()
     }
 
     @PatchMapping("/returns/{id}")

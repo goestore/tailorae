@@ -159,7 +159,8 @@ class AdminSellerController(
         @RequestParam(defaultValue = "1") page: Int,
         @RequestParam(defaultValue = "20") limit: Int,
     ): ResponseEntity<ApiResponse<com.tailorae.common.Page<ShopView>>> {
-        access.require(jwt, AdminPermission.KYC_REVIEW, AdminPermission.SUPPORT, AdminPermission.FINANCE)
+        // Moderators need the list for the "Sold by" pickers; the review detail stays KYC_REVIEW.
+        access.require(jwt, AdminPermission.KYC_REVIEW, AdminPermission.SUPPORT, AdminPermission.FINANCE, AdminPermission.MODERATOR)
         return sellers.adminList(status, q, PageParams(page, limit)).toResponse()
     }
 
