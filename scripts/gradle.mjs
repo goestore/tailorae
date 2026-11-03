@@ -5,8 +5,12 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
 const apiDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'api');
-const isWindows = process.platform === 'win32';
-const wrapper = isWindows ? 'gradlew.bat' : './gradlew';
+const args = process.argv.slice(2);
 
-const child = spawn(wrapper, process.argv.slice(2), { cwd: apiDir, stdio: 'inherit', shell: isWindows });
+// A .bat file needs cmd.exe; it is named by its full path because some Windows
+// setups do not look in the current folder for commands.
+const child =
+  process.platform === 'win32'
+    ? spawn('cmd.exe', ['/d', '/c', join(apiDir, 'gradlew.bat'), ...args], { cwd: apiDir, stdio: 'inherit' })
+    : spawn(join(apiDir, 'gradlew'), args, { cwd: apiDir, stdio: 'inherit' });
 child.on('exit', (code) => process.exit(code ?? 1));
