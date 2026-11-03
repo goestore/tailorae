@@ -171,6 +171,11 @@ class SellerService(
     fun checklist(sellerId: UUID): List<String> {
         val s = shop(sellerId)
         val missing = mutableListOf<String>()
+        val (emailOk, phoneOk) = jdbc.sql(
+            "select a.email_verified_at is not null as e, a.phone_verified_at is not null as p from seller_member m join seller_account a on a.id = m.account_id where m.seller_id = :s and m.role = 'OWNER'",
+        ).param("s", sellerId).query { rs, _ -> rs.getBoolean("e") to rs.getBoolean("p") }.optional().orElse(false to false)
+        if (!emailOk) missing += "Confirm your email address"
+        if (!phoneOk) missing += "Confirm your phone number"
         if (s.legalName.isNullOrBlank()) missing += "Add your legal business name"
         if (s.businessType == null) missing += "Choose your business type"
         if (!Kyc.isValidPan(s.pan)) missing += "Add your PAN"

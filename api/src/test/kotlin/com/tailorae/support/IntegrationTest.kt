@@ -93,10 +93,18 @@ abstract class IntegrationTest {
         post("/api/auth/register", mapOf("email" to "$name@example.com", "password" to PASSWORD, "firstName" to name)).expect(201)
     }
 
-    /** A new seller account (no business yet), signed in. */
-    protected fun sellerAccount(name: String = unique("seller")): TestClient = anonymous().apply {
+    /**
+     * A new seller account (no business yet), signed in. Email and phone are
+     * marked confirmed unless [verified] is false — the confirmation flows have
+     * their own test.
+     */
+    protected fun sellerAccount(name: String = unique("seller"), verified: Boolean = true): TestClient = anonymous().apply {
         val phone = "+91 9" + (100_000_000L + (System.nanoTime() % 899_999_999L)).toString().padStart(9, '0')
         post("/api/seller/auth/register", mapOf("email" to "$name@example.com", "password" to PASSWORD, "fullName" to name, "phone" to phone)).expect(201)
+        if (verified) {
+            jdbc.sql("update seller_account set email_verified_at = now(), phone_verified_at = now() where lower(email) = lower(:e)")
+                .param("e", "$name@example.com").update()
+        }
     }
 
     /**
