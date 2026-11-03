@@ -101,7 +101,7 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
             </div>
 
             {error && (
-              <p className="mt-6 text-center text-[13px]" style={{ color: 'var(--sale)' }}>
+              <p className="mt-6 text-center text-meta" style={{ color: 'var(--sale)' }}>
                 {error}
               </p>
             )}

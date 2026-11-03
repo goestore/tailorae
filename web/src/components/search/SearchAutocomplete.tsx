@@ -345,7 +345,7 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
             <div className="flex items-center justify-between border-b border-line px-3 py-2">
               <span
                 aria-hidden="true"
-                className="text-[11px] font-semibold uppercase tracking-[0.08em]"
+                className="text-caption font-semibold uppercase tracking-[0.08em]"
                 style={{ color: 'var(--ink-3)' }}
               >
                 Recent searches
@@ -356,7 +356,7 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
                   clearRecentSearches();
                   inputRef.current?.focus();
                 }}
-                className="text-[11px] underline underline-offset-2 transition-colors hover:text-ink"
+                className="text-caption underline underline-offset-2 transition-colors hover:text-ink"
                 style={{ color: 'var(--ink-3)' }}
               >
                 Clear
@@ -367,7 +367,7 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
           {!showRecent && isFresh && result.fuzzy && (
             <p
               aria-hidden="true"
-              className="m-0 border-b border-line px-3 py-2 text-[12px]"
+              className="m-0 border-b border-line px-3 py-2 text-small"
               style={{ color: 'var(--ink-3)' }}
             >
               No exact match for &ldquo;{trimmed}&rdquo;. Did you mean:
@@ -377,7 +377,7 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
           {!showRecent && isFresh && !result.fuzzy && suggestions.length === 0 && (
             <p
               aria-hidden="true"
-              className="m-0 border-b border-line px-3 py-2 text-[12px]"
+              className="m-0 border-b border-line px-3 py-2 text-small"
               style={{ color: 'var(--ink-3)' }}
             >
               Nothing in the catalogue matches that yet.
@@ -475,7 +475,7 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm text-ink">{product.name}</span>
                     {product.category && (
-                      <span className="block truncate text-[11px]" style={{ color: 'var(--ink-3)' }}>
+                      <span className="block truncate text-caption" style={{ color: 'var(--ink-3)' }}>
                         {product.category.name}
                       </span>
                     )}
@@ -485,7 +485,7 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
                       {formatCurrency(product.price)}
                     </span>
                     {product.originalPrice != null && product.originalPrice > product.price && (
-                      <span className="block text-[11px] line-through" style={{ color: 'var(--ink-3)' }}>
+                      <span className="block text-caption line-through" style={{ color: 'var(--ink-3)' }}>
                         {formatCurrency(product.originalPrice)}
                       </span>
                     )}

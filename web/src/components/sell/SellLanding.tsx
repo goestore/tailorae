@@ -102,7 +102,7 @@ function StartCard({ onStart, closed }: { onStart: (shopName: string) => void; c
         >
           TAILORAE
         </p>
-        <p className="relative m-0 mt-3 text-[13px] font-medium" style={{ color: 'var(--ink-2)' }}>
+        <p className="relative m-0 mt-3 text-meta font-medium" style={{ color: 'var(--ink-2)' }}>
           {closed ? 'By invitation only' : 'Free to apply · live once approved'}
         </p>
       </div>
@@ -133,7 +133,7 @@ function StartCard({ onStart, closed }: { onStart: (shopName: string) => void; c
             className="flex overflow-hidden border border-[var(--border-strong)] focus-within:border-[var(--brand)] focus-within:shadow-[0_0_0_3px_var(--brand-soft)]"
             style={{ borderRadius: 'var(--r-sm)' }}
           >
-            <span className="flex items-center border-r border-line bg-surface-2 px-3 text-[13px] font-semibold text-ink">
+            <span className="flex items-center border-r border-line bg-surface-2 px-3 text-meta font-semibold text-ink">
               Shop
             </span>
             <input
@@ -155,7 +155,7 @@ function StartCard({ onStart, closed }: { onStart: (shopName: string) => void; c
             Start selling
           </button>
           <p
-            className="m-0 mt-3 flex items-center justify-center gap-1.5 text-[12px]"
+            className="m-0 mt-3 flex items-center justify-center gap-1.5 text-small"
             style={{ color: 'var(--ink-3)' }}
           >
             <svg
@@ -239,7 +239,7 @@ function EarningsCalculator() {
             />
           </div>
         </div>
-        <p className="m-0 text-[12px]" style={{ color: 'var(--ink-3)' }}>
+        <p className="m-0 text-small" style={{ color: 'var(--ink-3)' }}>
           An illustration, not a promise. Your commission rate is confirmed when your shop is
           approved.
         </p>
@@ -249,7 +249,7 @@ function EarningsCalculator() {
         className="flex flex-col justify-center bg-navy-glow p-6 text-white"
         style={{ borderRadius: 'var(--r-md)' }}
       >
-        <p className="m-0 text-[12px] font-semibold uppercase tracking-[0.12em] text-white/60">
+        <p className="m-0 text-small font-semibold uppercase tracking-[0.12em] text-white/60">
           Estimated monthly earnings
         </p>
         <p
@@ -258,7 +258,7 @@ function EarningsCalculator() {
         >
           {formatCurrency(Math.round(net))}
         </p>
-        <p className="m-0 mt-3 text-[13px] text-white/70">
+        <p className="m-0 mt-3 text-meta text-white/70">
           {perDay}/day × {formatCurrency(margin)} × 30 days, less {commission}% commission
         </p>
       </div>
@@ -328,7 +328,7 @@ export function SellLanding() {
               <Logo alt="" className="h-[17px] md:h-[24px]" priority />
             </span>
             <span
-              className="mt-1 hidden text-[12px] sm:block md:text-[13px]"
+              className="mt-1 hidden text-small sm:block md:text-meta"
               style={{ color: 'var(--ink-2)' }}
             >
               Open your apparel shop in{' '}
@@ -365,7 +365,7 @@ export function SellLanding() {
         <div className="container-max relative grid items-start gap-10 py-12 lg:grid-cols-[1.25fr_1fr] lg:gap-16 lg:py-16">
           <div>
             <span
-              className="inline-flex items-center gap-2 border border-white/20 bg-white/5 px-4 py-2 text-[13px] font-medium"
+              className="inline-flex items-center gap-2 border border-white/20 bg-white/5 px-4 py-2 text-meta font-medium"
               style={{ borderRadius: 'var(--r-pill)' }}
             >
               <Icon name="sparkle" className="h-4 w-4 text-[var(--brand)]" />
@@ -450,7 +450,7 @@ export function SellLanding() {
                 style={{ borderRadius: 'var(--r-md)' }}
               >
                 <span className="text-[14px] font-semibold">How It Works</span>
-                <span className="text-[12px] text-white/65">3 steps to your first order</span>
+                <span className="text-small text-white/65">3 steps to your first order</span>
               </a>
             </div>
           </div>
@@ -507,7 +507,7 @@ export function SellLanding() {
                 </span>
                 <p className="m-0 mt-4 text-[15px] font-semibold text-ink">{perk.title}</p>
                 <p
-                  className="m-0 mt-1 text-[13px] leading-relaxed"
+                  className="m-0 mt-1 text-meta leading-relaxed"
                   style={{ color: 'var(--ink-2)' }}
                 >
                   {perk.body}

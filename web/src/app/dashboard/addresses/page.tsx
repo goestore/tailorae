@@ -368,14 +368,14 @@ export default function AddressBookPage() {
                 <div key={address.id} className="flex flex-col border border-line p-5">
                   <div className="flex items-start justify-between gap-3">
                     <span
-                      className="text-[10.5px] font-bold uppercase tracking-[0.12em]"
+                      className="text-caption font-bold uppercase tracking-[0.12em]"
                       style={{ color: 'var(--ink-3)' }}
                     >
                       {address.type}
                     </span>
                     {address.isDefault && (
                       <span
-                        className="text-[10.5px] font-bold uppercase tracking-[0.1em]"
+                        className="text-caption font-bold uppercase tracking-[0.1em]"
                         style={{ color: 'var(--brand-700)' }}
                       >
                         Default
@@ -401,7 +401,7 @@ export default function AddressBookPage() {
                     {address.phoneNumber}
                   </address>
 
-                  <div className="mt-4 flex flex-wrap gap-3 text-[13px]">
+                  <div className="mt-4 flex flex-wrap gap-3 text-meta">
                     <button
                       type="button"
                       onClick={() => startEdit(address)}
@@ -434,7 +434,7 @@ export default function AddressBookPage() {
             </div>
           )}
 
-          <p className="mt-8 text-[13px]" style={{ color: 'var(--ink-3)' }}>
+          <p className="mt-8 text-meta" style={{ color: 'var(--ink-3)' }}>
             <Link href="/dashboard" className="underline underline-offset-2 hover:text-ink">
               Back to My Account
             </Link>

@@ -84,7 +84,7 @@ export const ImageField: React.FC<ImageFieldProps> = ({
               type="button"
               onClick={() => onChange('')}
               disabled={disabled || isUploading}
-              className="text-[12px] underline underline-offset-2 disabled:opacity-40"
+              className="text-small underline underline-offset-2 disabled:opacity-40"
               style={{ color: 'var(--ink-3)' }}
             >
               Remove

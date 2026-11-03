@@ -35,14 +35,14 @@ const Stat: React.FC<{ label: string; value: string; note?: string }> = ({
 }) => (
   <div className="border border-line p-4">
     <p
-      className="m-0 text-[10.5px] font-bold uppercase tracking-[0.12em]"
+      className="m-0 text-caption font-bold uppercase tracking-[0.12em]"
       style={{ color: 'var(--ink-3)' }}
     >
       {label}
     </p>
     <p className="m-0 mt-2 text-[26px] font-semibold leading-none text-ink">{value}</p>
     {note && (
-      <p className="m-0 mt-1.5 text-[12px]" style={{ color: 'var(--ink-3)' }}>
+      <p className="m-0 mt-1.5 text-small" style={{ color: 'var(--ink-3)' }}>
         {note}
       </p>
     )}
@@ -290,7 +290,7 @@ const ApplyForm: React.FC<{ onDone: () => void }> = ({ onDone }) => {
           your dispatch; we handle the storefront, checkout and payment.
         </p>
 
-        <ol className="m-0 mt-6 flex list-none gap-2 p-0 text-[12.5px] font-semibold">
+        <ol className="m-0 mt-6 flex list-none gap-2 p-0 text-meta font-semibold">
           {APPLY_STEPS.map((label, index) => (
             <li
               key={label}
@@ -347,7 +347,7 @@ const ApplyForm: React.FC<{ onDone: () => void }> = ({ onDone }) => {
               </Button>
             </div>
 
-            <p className="m-0 text-[13px]" style={{ color: 'var(--ink-3)' }}>
+            <p className="m-0 text-meta" style={{ color: 'var(--ink-3)' }}>
               Next you add bank details, verify your identity and register your brand. You can list
               products once we have approved your application.
             </p>
@@ -574,7 +574,7 @@ export default function SellerDashboardPage() {
                 >
                   Running low
                 </h2>
-                <p className="m-0 mt-1 text-[13px]" style={{ color: 'var(--ink-3)' }}>
+                <p className="m-0 mt-1 text-meta" style={{ color: 'var(--ink-3)' }}>
                   {shop.lowStockThreshold} or fewer left. Restock before these sell out.
                 </p>
                 <ul
@@ -593,11 +593,11 @@ export default function SellerDashboardPage() {
                       >
                         {item.name}
                       </Link>
-                      <span className="font-mono text-[12px]" style={{ color: 'var(--ink-3)' }}>
+                      <span className="font-mono text-small" style={{ color: 'var(--ink-3)' }}>
                         {item.sku}
                       </span>
                       <span
-                        className="text-[13px] font-semibold"
+                        className="text-meta font-semibold"
                         style={{ color: item.quantity === 0 ? 'var(--sale)' : 'var(--ink)' }}
                       >
                         {item.quantity === 0 ? 'Sold out' : `${item.quantity} left`}
@@ -630,14 +630,14 @@ export default function SellerDashboardPage() {
                       className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 p-3.5"
                       style={{ background: 'var(--surface)' }}
                     >
-                      <span className="font-mono text-[13px] text-ink">{order.orderNumber}</span>
-                      <span className="text-[12.5px]" style={{ color: 'var(--ink-3)' }}>
+                      <span className="font-mono text-meta text-ink">{order.orderNumber}</span>
+                      <span className="text-meta" style={{ color: 'var(--ink-3)' }}>
                         {order.status.replace(/_/g, ' ').toLowerCase()}
                       </span>
-                      <span className="text-[13px]" style={{ color: 'var(--ink-2)' }}>
+                      <span className="text-meta" style={{ color: 'var(--ink-2)' }}>
                         {formatCurrency(order.total)} paid
                       </span>
-                      <span className="text-[13px] font-semibold text-ink">
+                      <span className="text-meta font-semibold text-ink">
                         {formatCurrency(order.payoutAmount)} to you
                       </span>
                     </li>

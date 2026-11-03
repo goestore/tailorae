@@ -6,6 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.core.annotation.Order
+import com.tailorae.common.PublicEndpoints
 import org.springframework.http.MediaType
 import org.springframework.security.config.annotation.web.HttpSecurityDsl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity
@@ -36,7 +37,11 @@ data class WebProperties(val origins: List<String> = listOf("http://localhost:30
  * origins listed in `tailorae.web.origins`.
  */
 @Configuration
-class SecurityConfig(private val tokens: TokenService, private val web: WebProperties) {
+class SecurityConfig(
+    private val tokens: TokenService,
+    private val web: WebProperties,
+    private val publicEndpoints: List<PublicEndpoints>,
+) {
 
     @Bean
     fun passwordEncoder(): PasswordEncoder = BCryptPasswordEncoder(12)
@@ -67,6 +72,7 @@ class SecurityConfig(private val tokens: TokenService, private val web: WebPrope
                 authorize("/api/seller/auth/login", permitAll)
                 authorize("/api/seller/auth/refresh", permitAll)
                 authorize("/api/seller/auth/logout", permitAll)
+                permitPublic()
                 authorize(anyRequest, authenticated)
             }
         }
@@ -83,6 +89,7 @@ class SecurityConfig(private val tokens: TokenService, private val web: WebPrope
                 authorize("/api/admin/auth/login", permitAll)
                 authorize("/api/admin/auth/refresh", permitAll)
                 authorize("/api/admin/auth/logout", permitAll)
+                permitPublic()
                 authorize(anyRequest, authenticated)
             }
         }
@@ -102,10 +109,19 @@ class SecurityConfig(private val tokens: TokenService, private val web: WebPrope
                 authorize("/api/auth/login", permitAll)
                 authorize("/api/auth/refresh", permitAll)
                 authorize("/api/auth/logout", permitAll)
+                permitPublic()
                 authorize(anyRequest, authenticated)
             }
         }
         return http.build()
+    }
+
+    /** Routes the modules declared anonymous (storefront reads, webhooks, files). */
+    private fun org.springframework.security.config.annotation.web.AuthorizeHttpRequestsDsl.permitPublic() {
+        publicEndpoints.flatMap { it.endpoints }.forEach { endpoint ->
+            if (endpoint.method == null) authorize(endpoint.pattern, permitAll)
+            else authorize(endpoint.method, endpoint.pattern, permitAll)
+        }
     }
 
     private fun HttpSecurityDsl.common(realm: Realm) {
@@ -125,12 +141,22 @@ class SecurityConfig(private val tokens: TokenService, private val web: WebPrope
         }
     }
 
-    /** The realm's access cookie; an `Authorization: Bearer` header also works for non-browser clients. */
+    /**
+     * The realm's access cookie; an `Authorization: Bearer` header also works for
+     * non-browser clients.
+     *
+     * A token that does not decode (expired, or from another realm) is dropped
+     * here rather than rejected, so the request carries on as anonymous: a public
+     * page still loads for a visitor whose session lapsed, and a protected route
+     * still answers 401 — which is the web app's cue to refresh.
+     */
     private fun cookieResolver(realm: Realm): BearerTokenResolver {
         val header = DefaultBearerTokenResolver()
+        val decoder = tokens.decoderFor(realm)
         return BearerTokenResolver { request: HttpServletRequest ->
-            request.cookies?.firstOrNull { it.name == realm.accessCookie }?.value?.takeIf { it.isNotBlank() }
+            val token = request.cookies?.firstOrNull { it.name == realm.accessCookie }?.value?.takeIf { it.isNotBlank() }
                 ?: header.resolve(request)
+            token?.takeIf { runCatching { decoder.decode(it) }.isSuccess }
         }
     }
 

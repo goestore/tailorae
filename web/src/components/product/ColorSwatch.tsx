@@ -39,7 +39,7 @@ export const ColorSwatch: React.FC<ColorSwatchProps> = ({
         }}
       />
       {showName && (
-        <span className="truncate text-[11.5px]" style={{ color: 'var(--ink-3)' }}>
+        <span className="truncate text-small" style={{ color: 'var(--ink-3)' }}>
           {name}
         </span>
       )}

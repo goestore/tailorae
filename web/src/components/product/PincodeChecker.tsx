@@ -56,7 +56,7 @@ export const PincodeChecker: React.FC<{ className?: string }> = ({ className = '
   return (
     <div className={className}>
       <p
-        className="m-0 text-[10.5px] font-bold uppercase leading-none tracking-[0.12em]"
+        className="m-0 text-caption font-bold uppercase leading-none tracking-[0.12em]"
         style={{ color: 'var(--ink-3)' }}
       >
         Delivery
@@ -83,13 +83,13 @@ export const PincodeChecker: React.FC<{ className?: string }> = ({ className = '
       </form>
 
       {error && (
-        <p className="m-0 mt-2 text-[13px]" style={{ color: 'var(--sale)' }}>
+        <p className="m-0 mt-2 text-meta" style={{ color: 'var(--sale)' }}>
           {error}
         </p>
       )}
 
       {result && !error && (
-        <div className="mt-3 border border-line bg-surface-2 px-3.5 py-3 text-[13px]">
+        <div className="mt-3 border border-line bg-surface-2 px-3.5 py-3 text-meta">
           {result.serviceable ? (
             <>
               <p className="m-0 font-semibold text-ink">
@@ -107,7 +107,7 @@ export const PincodeChecker: React.FC<{ className?: string }> = ({ className = '
                 {result.cod ? 'Cash on delivery available' : 'Prepaid orders only'}
               </p>
               {result.source === 'estimate' && (
-                <p className="m-0 mt-1.5 text-[12px]" style={{ color: 'var(--ink-3)' }}>
+                <p className="m-0 mt-1.5 text-small" style={{ color: 'var(--ink-3)' }}>
                   Estimated from your region. The exact date is confirmed when the parcel is picked
                   up.
                 </p>

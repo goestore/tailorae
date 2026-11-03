@@ -306,11 +306,11 @@ export default function SellerVerificationPage() {
                     >
                       <span className="text-[14px] text-ink">
                         Document {index + 1}{' '}
-                        <span className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
+                        <span className="text-small" style={{ color: 'var(--ink-3)' }}>
                           ({name.endsWith('.pdf') ? 'PDF' : 'Image'})
                         </span>
                       </span>
-                      <span className="flex gap-4 text-[13px]">
+                      <span className="flex gap-4 text-meta">
                         <button
                           type="button"
                           onClick={() => openDocument(name)}
@@ -366,7 +366,7 @@ export default function SellerVerificationPage() {
                 <Button type="submit" size="lg" loading={isSubmitting}>
                   {kyc.status === 'PENDING' ? 'Update and resubmit' : 'Submit for review'}
                 </Button>
-                <p className="m-0 text-[13px]" style={{ color: 'var(--ink-3)' }}>
+                <p className="m-0 text-meta" style={{ color: 'var(--ink-3)' }}>
                   By submitting you confirm these documents are yours and accurate.
                 </p>
               </div>

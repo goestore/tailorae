@@ -104,7 +104,7 @@ export default async function BrandsPage() {
                   <div className="p-3">
                     <p className="m-0 text-[14px] font-semibold text-ink">{brand.name}</p>
                     {brand._count && (
-                      <p className="m-0 mt-0.5 text-[12px]" style={{ color: 'var(--ink-3)' }}>
+                      <p className="m-0 mt-0.5 text-small" style={{ color: 'var(--ink-3)' }}>
                         {brand._count.products}{' '}
                         {brand._count.products === 1 ? 'product' : 'products'}
                       </p>

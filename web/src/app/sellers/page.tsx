@@ -97,14 +97,14 @@ export default async function SellersPage() {
                         </span>
                         {seller.isVerified && (
                           <span
-                            className="text-[10px] font-bold uppercase tracking-[0.1em]"
+                            className="text-micro font-bold uppercase tracking-[0.1em]"
                             style={{ color: 'var(--success, #1B7F4B)' }}
                           >
                             Verified
                           </span>
                         )}
                       </div>
-                      <p className="m-0 mt-1.5 text-[12.5px]" style={{ color: 'var(--ink-3)' }}>
+                      <p className="m-0 mt-1.5 text-meta" style={{ color: 'var(--ink-3)' }}>
                         {seller._count?.products ?? 0}{' '}
                         {(seller._count?.products ?? 0) === 1 ? 'product' : 'products'}
                         {hasRating ? ` · ★ ${seller.rating!.toFixed(1)}` : ''}

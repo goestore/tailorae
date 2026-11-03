@@ -29,6 +29,10 @@ spring:
     consumer:
       auto-offset-reset: earliest
       enable-auto-commit: false
+  servlet:
+    multipart:
+      max-file-size: 15MB
+      max-request-size: 40MB
   mail:
     host: ${SMTP_HOST:localhost}
     port: ${SMTP_PORT:1025}
@@ -54,3 +58,10 @@ tailorae:
     web-url: ${WEB_URL:http://localhost:3000}
   outbox:
     poll-ms: 1000
+  storage:
+    root: ${STORAGE_ROOT:./data/storage}
+    public-base-url: ${API_PUBLIC_URL:http://localhost:8081}
+    signing-key: ${STORAGE_SIGNING_KEY:dev-only-signing-key-change-me}
+  crypto:
+    # 32 random bytes, base64 (openssl rand -base64 32). Encrypts bank account numbers.
+    field-key: ${FIELD_ENCRYPTION_KEY:}

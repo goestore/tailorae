@@ -94,7 +94,7 @@ const MobileSubItem: React.FC<{ sub: SubCategory; depth: number; onNavigate: () 
 }) => {
   const [open, setOpen] = useState(false);
   const indent = { paddingLeft: 28 + (depth - 1) * 16 };
-  const style = { ...linkFont, fontSize: '13px', ...indent };
+  const style = { ...linkFont, fontSize: 'var(--text-meta)', ...indent };
 
   if (!sub.children?.length) {
     return (
@@ -161,7 +161,7 @@ export const MobileNavItem: React.FC<{
           <Link
             href={item.href}
             className="mobile-drawer-sublink"
-            style={{ ...linkFont, fontSize: '13px' }}
+            style={{ ...linkFont, fontSize: 'var(--text-meta)' }}
             onClick={onNavigate}
           >
             All {item.name}

@@ -129,13 +129,13 @@ export default function SellerOrdersPage() {
                       <p className="m-0 font-mono text-[14px] font-semibold text-ink">
                         {order.orderNumber}
                       </p>
-                      <p className="m-0 mt-1 text-[12.5px]" style={{ color: 'var(--ink-3)' }}>
+                      <p className="m-0 mt-1 text-meta" style={{ color: 'var(--ink-3)' }}>
                         {formatDate(order.createdAt)}
                         {destination ? ` · to ${destination.city}, ${destination.state} ${destination.postalCode}` : ''}
                       </p>
                     </div>
                     <span
-                      className="text-[10.5px] font-bold uppercase tracking-[0.1em]"
+                      className="text-caption font-bold uppercase tracking-[0.1em]"
                       style={{ color: 'var(--ink-2)' }}
                     >
                       {prettyStatus(order.status)}
@@ -151,7 +151,7 @@ export default function SellerOrdersPage() {
                         <span style={{ color: 'var(--ink-2)' }}>
                           {item.product?.name ?? 'Item'}
                           {item.quantity > 1 ? ` × ${item.quantity}` : ''}
-                          <span className="ml-2 font-mono text-[11.5px]" style={{ color: 'var(--ink-3)' }}>
+                          <span className="ml-2 font-mono text-small" style={{ color: 'var(--ink-3)' }}>
                             {item.sku}
                           </span>
                         </span>
@@ -163,7 +163,7 @@ export default function SellerOrdersPage() {
                   {/* The money, stated plainly: what the buyer paid, what the
                       platform took, and what this shop is owed. */}
                   <dl
-                    className="m-0 mt-4 grid grid-cols-2 gap-x-6 gap-y-1.5 border-t border-line pt-3 text-[13px] sm:grid-cols-4"
+                    className="m-0 mt-4 grid grid-cols-2 gap-x-6 gap-y-1.5 border-t border-line pt-3 text-meta sm:grid-cols-4"
                   >
                     <div>
                       <dt className="m-0" style={{ color: 'var(--ink-3)' }}>
@@ -222,7 +222,7 @@ export default function SellerOrdersPage() {
                             setTracking((current) => ({ ...current, [order.id]: event.target.value }))
                           }
                           placeholder="Tracking number"
-                          className="h-8 w-44 text-[13px]"
+                          className="h-8 w-44 text-meta"
                           aria-label={`Tracking number for ${order.orderNumber}`}
                         />
                         <Button
@@ -246,7 +246,7 @@ export default function SellerOrdersPage() {
                     )}
 
                     {order.trackingNumber && order.status === 'SHIPPED' && (
-                      <span className="text-[12.5px]" style={{ color: 'var(--ink-3)' }}>
+                      <span className="text-meta" style={{ color: 'var(--ink-3)' }}>
                         {order.carrier ? `${order.carrier} · ` : ''}
                         {order.trackingNumber}
                       </span>

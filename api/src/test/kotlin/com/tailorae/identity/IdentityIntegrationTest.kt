@@ -1,19 +1,11 @@
 package com.tailorae.identity
 
+import com.tailorae.support.IntegrationTest
 import org.junit.jupiter.api.Test
 import org.mockito.Mockito.atLeastOnce
 import org.mockito.Mockito.timeout
 import org.mockito.Mockito.verify
-import org.springframework.beans.factory.annotation.Value
-import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection
 import org.springframework.mail.SimpleMailMessage
-import org.springframework.mail.javamail.JavaMailSender
-import org.springframework.test.context.bean.override.mockito.MockitoBean
-import org.testcontainers.junit.jupiter.Container
-import org.testcontainers.junit.jupiter.Testcontainers
-import org.testcontainers.kafka.KafkaContainer
-import org.testcontainers.postgresql.PostgreSQLContainer
 import org.mockito.ArgumentMatchers.any
 import java.net.URI
 import java.net.http.HttpClient
@@ -27,36 +19,7 @@ import kotlin.test.assertTrue
  * registration → cookies → /me, realm isolation, refresh rotation with reuse
  * detection, lockout, admin bootstrap, and the outbox → Kafka → email path.
  */
-@Testcontainers
-@SpringBootTest(
-    webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-    properties = [
-        "tailorae.auth.jwt-secret=test-secret-test-secret-test-secret-0123456789",
-        "tailorae.auth.secure-cookies=false",
-        "tailorae.auth.bootstrap-admin-email=root@tailorae.test",
-        "tailorae.auth.bootstrap-admin-password=correct horse battery",
-        "tailorae.outbox.poll-ms=200",
-        // The mail sender is a mock here, which the mail health check cannot inspect.
-        "management.health.mail.enabled=false",
-    ],
-)
-class IdentityIntegrationTest {
-
-    companion object {
-        @Container @ServiceConnection
-        @JvmStatic
-        val postgres = PostgreSQLContainer("postgres:15-alpine")
-
-        @Container @ServiceConnection
-        @JvmStatic
-        val kafka = KafkaContainer("apache/kafka:4.3.2")
-    }
-
-    @Value("\${local.server.port}")
-    private var port: Int = 0
-
-    @MockitoBean
-    private lateinit var mail: JavaMailSender
+class IdentityIntegrationTest : IntegrationTest() {
 
     private val http: HttpClient = HttpClient.newHttpClient()
 
@@ -130,7 +93,7 @@ class IdentityIntegrationTest {
 
     @Test
     fun `the bootstrap admin can sign in to the admin realm only`() {
-        val creds = """{"email":"root@tailorae.test","password":"correct horse battery"}"""
+        val creds = """{"email":"$ADMIN_EMAIL","password":"$ADMIN_PASSWORD"}"""
         val res = post("/api/admin/auth/login", creds)
         assertEquals(200, res.statusCode(), res.body())
         assertEquals(200, get("/api/admin/auth/me", "tl_a=${cookie(res, "tl_a")}").statusCode())

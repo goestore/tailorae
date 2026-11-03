@@ -568,7 +568,7 @@ export default function CheckoutPage() {
                       />
                       Make this my default delivery address
                     </label>
-                    <p className="m-0 mt-1 text-[13px]" style={{ color: 'var(--ink-3)' }}>
+                    <p className="m-0 mt-1 text-meta" style={{ color: 'var(--ink-3)' }}>
                       Every address you order to is kept in your address book, so you can pick it
                       next time either way.
                     </p>

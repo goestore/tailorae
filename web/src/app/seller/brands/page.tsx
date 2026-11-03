@@ -217,7 +217,7 @@ export default function SellerBrandsPage() {
                       <p className="m-0 truncate text-[14px] font-semibold text-ink">
                         {brand.name}
                       </p>
-                      <p className="m-0 mt-0.5 text-[12.5px]" style={{ color: 'var(--ink-3)' }}>
+                      <p className="m-0 mt-0.5 text-meta" style={{ color: 'var(--ink-3)' }}>
                         {brand.authorizationType
                           ? AUTH_LABELS[brand.authorizationType]
                           : 'Added from a listing — no proof uploaded'}
@@ -225,12 +225,12 @@ export default function SellerBrandsPage() {
                         {brand._count.products} listing{brand._count.products === 1 ? '' : 's'}
                       </p>
                       {brand.status === 'REJECTED' && brand.rejectionReason && (
-                        <p className="m-0 mt-1 text-[12.5px]" style={{ color: 'var(--sale)' }}>
+                        <p className="m-0 mt-1 text-meta" style={{ color: 'var(--sale)' }}>
                           {brand.rejectionReason}
                         </p>
                       )}
                     </div>
-                    <span className="text-[12.5px] font-semibold" style={{ color: status.color }}>
+                    <span className="text-meta font-semibold" style={{ color: status.color }}>
                       {status.label}
                     </span>
                     {brand.hasDocument && (

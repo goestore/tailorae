@@ -90,7 +90,7 @@ export const NotifyMeButton: React.FC<NotifyMeButtonProps> = ({
     <form onSubmit={submit} className={`border border-line p-4 ${className}`.trim()}>
       <label
         htmlFor="notify-email"
-        className="m-0 block text-[10.5px] font-bold uppercase leading-none tracking-[0.12em]"
+        className="m-0 block text-caption font-bold uppercase leading-none tracking-[0.12em]"
         style={{ color: 'var(--ink-3)' }}
       >
         Email me when {variantLabel ? `size ${variantLabel} is` : 'this is'} back
@@ -110,7 +110,7 @@ export const NotifyMeButton: React.FC<NotifyMeButtonProps> = ({
           {isSubmitting ? 'Saving…' : 'Notify me'}
         </button>
       </div>
-      <p className="m-0 mt-2 text-[12px]" style={{ color: 'var(--ink-3)' }}>
+      <p className="m-0 mt-2 text-small" style={{ color: 'var(--ink-3)' }}>
         One email about this piece. No marketing unless you ask for it.
       </p>
     </form>

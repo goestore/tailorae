@@ -19,7 +19,7 @@ export interface BreadcrumbsProps {
 export const Breadcrumbs: React.FC<BreadcrumbsProps> = ({ items, className = '' }) => (
   <nav aria-label="Breadcrumb" className={className}>
     <ol
-      className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]"
+      className="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption"
       style={{ color: 'var(--ink-3)' }}
     >
       {items.map((crumb, index) => {

@@ -60,7 +60,7 @@ export const CheckoutSteps: React.FC<CheckoutStepsProps> = ({
                 // step, so it is hidden from assistive tech and the button
                 // carries the wording instead of both being announced.
                 aria-label={isNavigable ? `Back to ${step.name}` : step.name}
-                className="relative z-10 flex h-[27px] w-[27px] items-center justify-center rounded-full text-[12px] transition-colors disabled:cursor-default"
+                className="relative z-10 flex h-[27px] w-[27px] items-center justify-center rounded-full text-small transition-colors disabled:cursor-default"
                 style={{
                   background: reached ? 'var(--brand)' : 'var(--surface)',
                   border: `1px solid ${reached ? 'var(--brand)' : 'var(--border-strong)'}`,
@@ -71,7 +71,7 @@ export const CheckoutSteps: React.FC<CheckoutStepsProps> = ({
               </button>
               <span
                 aria-hidden="true"
-                className="mt-2 text-center text-[10px] font-bold uppercase tracking-[0.08em]"
+                className="mt-2 text-center text-micro font-bold uppercase tracking-[0.08em]"
                 style={{ color: reached ? 'var(--ink)' : 'var(--ink-3)' }}
               >
                 {step.label}

@@ -168,7 +168,7 @@ function OrderConfirmation({ orderNumber }: { orderNumber: string }) {
           <header className="mt-6 flex flex-wrap items-end justify-between gap-4 border-b border-line pb-6">
             <div>
               <p
-                className="m-0 text-[10.5px] font-bold uppercase tracking-[0.12em]"
+                className="m-0 text-caption font-bold uppercase tracking-[0.12em]"
                 style={{ color: 'var(--ink-3)' }}
               >
                 Order
@@ -189,7 +189,7 @@ function OrderConfirmation({ orderNumber }: { orderNumber: string }) {
               </p>
             </div>
             <span
-              className="px-3 py-1.5 text-[11px] font-bold uppercase tracking-[0.1em]"
+              className="px-3 py-1.5 text-caption font-bold uppercase tracking-[0.1em]"
               style={{ color: tone.color, background: tone.background }}
             >
               {STATUS_LABEL[order.status]}
@@ -218,7 +218,7 @@ function OrderConfirmation({ orderNumber }: { orderNumber: string }) {
 
           <section className="mt-6 border border-line">
             <h2
-              className="m-0 border-b border-line px-5 py-4 text-[10.5px] font-bold uppercase tracking-[0.12em]"
+              className="m-0 border-b border-line px-5 py-4 text-caption font-bold uppercase tracking-[0.12em]"
               style={{ color: 'var(--ink-3)' }}
             >
               What you ordered
@@ -253,7 +253,7 @@ function OrderConfirmation({ orderNumber }: { orderNumber: string }) {
                       ) : (
                         <span className="text-[14.5px] text-ink">{name}</span>
                       )}
-                      <p className="m-0 mt-1 text-[13px]" style={{ color: 'var(--ink-3)' }}>
+                      <p className="m-0 mt-1 text-meta" style={{ color: 'var(--ink-3)' }}>
                         Quantity {item.quantity}
                         {item.sku ? ` · SKU ${item.sku}` : ''}
                       </p>
@@ -270,7 +270,7 @@ function OrderConfirmation({ orderNumber }: { orderNumber: string }) {
           <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
             <section className="border border-line p-5">
               <h2
-                className="m-0 text-[10.5px] font-bold uppercase tracking-[0.12em]"
+                className="m-0 text-caption font-bold uppercase tracking-[0.12em]"
                 style={{ color: 'var(--ink-3)' }}
               >
                 Delivering to
@@ -302,7 +302,7 @@ function OrderConfirmation({ orderNumber }: { orderNumber: string }) {
                 </p>
               )}
               {order.notes && (
-                <p className="m-0 mt-4 text-[13px]" style={{ color: 'var(--ink-3)' }}>
+                <p className="m-0 mt-4 text-meta" style={{ color: 'var(--ink-3)' }}>
                   Your note: {order.notes}
                 </p>
               )}
@@ -310,14 +310,14 @@ function OrderConfirmation({ orderNumber }: { orderNumber: string }) {
 
             <section className="border border-line p-5">
               <h2
-                className="m-0 text-[10.5px] font-bold uppercase tracking-[0.12em]"
+                className="m-0 text-caption font-bold uppercase tracking-[0.12em]"
                 style={{ color: 'var(--ink-3)' }}
               >
                 Payment
               </h2>
               <p className="m-0 mt-3 text-[14px] text-ink">
                 {payment}
-                <span className="ml-2 text-[13px]" style={{ color: 'var(--ink-3)' }}>
+                <span className="ml-2 text-meta" style={{ color: 'var(--ink-3)' }}>
                   {order.paymentStatus === 'PAID' ? 'Paid' : 'Due on delivery'}
                 </span>
               </p>
@@ -375,7 +375,7 @@ function OrderConfirmation({ orderNumber }: { orderNumber: string }) {
             </Link>
           </div>
 
-          <p className="mt-8 text-[13px]" style={{ color: 'var(--ink-3)' }}>
+          <p className="mt-8 text-meta" style={{ color: 'var(--ink-3)' }}>
             Every order, invoice and return sits under{' '}
             <Link
               href="/dashboard?tab=orders"

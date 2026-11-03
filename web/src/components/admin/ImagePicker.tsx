@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
+import { MediaPlaceholder, type MediaPlaceholderVariant } from '@/components/common';
 import {
   deleteMedia,
   formatBytes,
@@ -29,13 +30,45 @@ import { cn } from '@/utils/helpers';
  */
 const previewable = (value: string): boolean => value !== '' && /^[^"'()\s]+$/.test(value);
 
-const Thumb: React.FC<{ url: string; className?: string }> = ({ url, className }) => (
-  <span
-    aria-hidden="true"
-    className={cn('block bg-[var(--a-surface-2)] bg-contain bg-center bg-no-repeat', className)}
-    style={previewable(url) ? { backgroundImage: `url("${url}")` } : undefined}
-  />
-);
+/**
+ * An image well in the content editor, sized and shaped by `className`.
+ *
+ * The image is a CSS background (so `className` decides cover or contain).
+ * With no usable path, or a path that fails to load, the well shows the
+ * shared MediaPlaceholder instead of an empty grey box. A hidden <img> is the
+ * only way to hear about a failed load: a CSS background never reports one.
+ */
+export const MediaThumb: React.FC<{
+  url?: string;
+  /** What the image is of — picks the placeholder drawing. */
+  variant: MediaPlaceholderVariant;
+  className?: string;
+}> = ({ url, variant, className }) => {
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  // A server-rendered <img> can fail before React hydrates, and then onError
+  // never fires. Check once on mount: a finished load with no pixels failed.
+  const probe = useCallback((img: HTMLImageElement | null) => {
+    if (img?.complete && img.naturalWidth === 0) setFailedUrl(img.getAttribute('src'));
+  }, []);
+
+  if (!url || !previewable(url) || failedUrl === url) {
+    return (
+      <span aria-hidden="true" className={cn('relative overflow-hidden', className)}>
+        <MediaPlaceholder variant={variant} fill bare />
+      </span>
+    );
+  }
+
+  return (
+    <span aria-hidden="true" className={className} style={{ backgroundImage: `url("${url}")` }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img ref={probe} src={url} alt="" hidden onError={() => setFailedUrl(url)} />
+    </span>
+  );
+};
+
+/** The picker's own well: the whole image, letterboxed on the admin surface. */
+const WELL = 'block bg-[var(--a-surface-2)] bg-contain bg-center bg-no-repeat';
 
 interface ImagePickerProps {
   id: string;
@@ -44,6 +77,11 @@ interface ImagePickerProps {
   describedBy?: string;
   onChange: (value: string) => void;
   onBlur: () => void;
+  /**
+   * What the field's image is of. Every image field in the content schema
+   * today is a banner or hero background, so that is the default.
+   */
+  placeholder?: MediaPlaceholderVariant;
 }
 
 export const ImagePicker: React.FC<ImagePickerProps> = ({
@@ -53,6 +91,7 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
   describedBy,
   onChange,
   onBlur,
+  placeholder = 'banner',
 }) => {
   const [open, setOpen] = useState(false);
   const [assets, setAssets] = useState<MediaAsset[]>([]);
@@ -132,9 +171,13 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
     <div className="flex flex-col gap-2">
       <div className="flex items-start gap-3">
         {previewable(value) && (
-          <Thumb
+          <MediaThumb
             url={value}
-            className="h-14 w-14 shrink-0 rounded-[6px] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)]"
+            variant={placeholder}
+            className={cn(
+              WELL,
+              'h-14 w-14 shrink-0 rounded-[6px] shadow-[inset_0_0_0_1px_rgba(0,0,0,0.08)]'
+            )}
           />
         )}
 
@@ -223,7 +266,11 @@ export const ImagePicker: React.FC<ImagePickerProps> = ({
                         onBlur();
                       }}
                     >
-                      <Thumb url={asset.url} className="h-20 w-full rounded-[4px]" />
+                      <MediaThumb
+                        url={asset.url}
+                        variant={placeholder}
+                        className={cn(WELL, 'h-20 w-full rounded-[4px]')}
+                      />
                       <span
                         className="mt-1 block truncate text-xs text-[var(--a-text)]"
                         title={asset.filename}

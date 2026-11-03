@@ -40,7 +40,7 @@ const MeasurementTable: React.FC<{ chart: MeasurementChart; unit: Unit }> = ({ c
             <th
               key={head}
               scope="col"
-              className="py-2 pr-3 text-[10.5px] font-bold uppercase tracking-[0.1em]"
+              className="py-2 pr-3 text-caption font-bold uppercase tracking-[0.1em]"
               style={{ color: 'var(--ink-3)' }}
             >
               {head}
@@ -51,11 +51,11 @@ const MeasurementTable: React.FC<{ chart: MeasurementChart; unit: Unit }> = ({ c
       <tbody>
         {chart.rows.map((row) => (
           <tr key={row.size} style={{ borderBottom: '1px solid var(--border)' }}>
-            <th scope="row" className="py-2 pr-3 text-[13px] font-semibold text-ink">
+            <th scope="row" className="py-2 pr-3 text-meta font-semibold text-ink">
               {row.size}
             </th>
             {chart.columns.map((column) => (
-              <td key={column.key} className="py-2 pr-3 text-[13px] tabular-nums" style={{ color: 'var(--ink-2)' }}>
+              <td key={column.key} className="py-2 pr-3 text-meta tabular-nums" style={{ color: 'var(--ink-2)' }}>
                 {row.values[column.key] === undefined ? '—' : formatMeasure(row.values[column.key], unit)}
               </td>
             ))}
@@ -93,7 +93,7 @@ const MENS: Row[] = [
 
 const Table: React.FC<{ caption: string; rows: Row[] }> = ({ caption, rows }) => (
   <div className="mt-6 first:mt-0">
-    <p className="m-0 text-[13px] font-semibold text-ink">{caption}</p>
+    <p className="m-0 text-meta font-semibold text-ink">{caption}</p>
     <div className="mt-2 overflow-x-auto">
       <table className="w-full min-w-[380px] border-collapse text-left">
         <thead>
@@ -102,7 +102,7 @@ const Table: React.FC<{ caption: string; rows: Row[] }> = ({ caption, rows }) =>
               <th
                 key={head}
                 scope="col"
-                className="py-2 pr-3 text-[10.5px] font-bold uppercase tracking-[0.1em]"
+                className="py-2 pr-3 text-caption font-bold uppercase tracking-[0.1em]"
                 style={{ color: 'var(--ink-3)' }}
               >
                 {head}
@@ -113,16 +113,16 @@ const Table: React.FC<{ caption: string; rows: Row[] }> = ({ caption, rows }) =>
         <tbody>
           {rows.map((row) => (
             <tr key={row.size} style={{ borderBottom: '1px solid var(--border)' }}>
-              <th scope="row" className="py-2 pr-3 text-[13px] font-semibold text-ink">
+              <th scope="row" className="py-2 pr-3 text-meta font-semibold text-ink">
                 {row.size}
               </th>
-              <td className="py-2 pr-3 text-[13px]" style={{ color: 'var(--ink-2)' }}>
+              <td className="py-2 pr-3 text-meta" style={{ color: 'var(--ink-2)' }}>
                 {row.chest}
               </td>
-              <td className="py-2 pr-3 text-[13px]" style={{ color: 'var(--ink-2)' }}>
+              <td className="py-2 pr-3 text-meta" style={{ color: 'var(--ink-2)' }}>
                 {row.waist}
               </td>
-              <td className="py-2 pr-3 text-[13px]" style={{ color: 'var(--ink-2)' }}>
+              <td className="py-2 pr-3 text-meta" style={{ color: 'var(--ink-2)' }}>
                 {row.hips}
               </td>
             </tr>
@@ -156,7 +156,7 @@ export const SizeGuideModal: React.FC<SizeGuideModalProps> = ({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className={`text-[12px] underline underline-offset-2 transition-colors hover:text-ink ${className}`.trim()}
+        className={`text-small underline underline-offset-2 transition-colors hover:text-ink ${className}`.trim()}
         style={{ color: 'var(--ink-3)' }}
       >
         Size guide
@@ -165,7 +165,7 @@ export const SizeGuideModal: React.FC<SizeGuideModalProps> = ({
       <Modal isOpen={isOpen} onClose={() => setIsOpen(false)} title="Size guide" size="lg">
         {chart ? (
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="m-0 text-[13px]" style={{ color: 'var(--ink-3)' }}>
+            <p className="m-0 text-meta" style={{ color: 'var(--ink-3)' }}>
               {garment
                 ? 'Measurements of the garment itself, for this product.'
                 : 'Measurements for this product, size by size.'}{' '}
@@ -174,7 +174,7 @@ export const SizeGuideModal: React.FC<SizeGuideModalProps> = ({
             <div
               role="group"
               aria-label="Units"
-              className="inline-flex overflow-hidden border text-[12px] font-semibold"
+              className="inline-flex overflow-hidden border text-small font-semibold"
               style={{ borderColor: 'var(--border-strong)', borderRadius: 999 }}
             >
               {(['in', 'cm'] as const).map((option) => (
@@ -195,7 +195,7 @@ export const SizeGuideModal: React.FC<SizeGuideModalProps> = ({
             </div>
           </div>
         ) : (
-          <p className="m-0 text-[13px]" style={{ color: 'var(--ink-3)' }}>
+          <p className="m-0 text-meta" style={{ color: 'var(--ink-3)' }}>
             Body measurements in inches, not garment measurements. Between two sizes, size up for a
             relaxed fit.
           </p>
@@ -219,7 +219,7 @@ export const SizeGuideModal: React.FC<SizeGuideModalProps> = ({
           </div>
         )}
 
-        <p className="m-0 mt-6 text-[12.5px]" style={{ color: 'var(--ink-3)' }}>
+        <p className="m-0 mt-6 text-meta" style={{ color: 'var(--ink-3)' }}>
           Kids sizing, how to measure, and custom grading for bulk orders are on the{' '}
           <Link href="/size-guide" className="underline underline-offset-2 hover:text-ink">
             full size guide

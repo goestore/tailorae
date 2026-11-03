@@ -45,7 +45,7 @@ export const AuthShell: React.FC<AuthShellProps> = ({
         {nav}
 
         {eyebrow && (
-          <p className="m-0 mb-2 text-center text-[11px] font-semibold uppercase tracking-[0.16em] text-ink-3">
+          <p className="m-0 mb-2 text-center text-caption font-semibold uppercase tracking-[0.16em] text-ink-3">
             {eyebrow}
           </p>
         )}
@@ -64,7 +64,7 @@ export const AuthShell: React.FC<AuthShellProps> = ({
         {children}
       </Card>
       {footer && (
-        <p className="m-0 mt-5 text-center text-[13px]" style={{ color: 'var(--ink-3)' }}>
+        <p className="m-0 mt-5 text-center text-meta" style={{ color: 'var(--ink-3)' }}>
           {footer}
         </p>
       )}

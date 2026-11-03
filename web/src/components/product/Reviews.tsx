@@ -120,13 +120,12 @@ export const Reviews: React.FC<ReviewsProps> = ({
     <section
       id="reviews"
       aria-labelledby="reviews-heading"
-      className="mx-auto mt-14 pt-10"
-      style={{ maxWidth: '1240px', borderTop: '1px solid var(--border)' }}
+      className="mt-14 border-t border-line pt-10"
     >
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <p
-            className="m-0 text-[10.5px] font-bold uppercase leading-none tracking-[0.12em]"
+            className="m-0 text-caption font-bold uppercase leading-none tracking-[0.12em]"
             style={{ color: 'var(--ink-3)' }}
           >
             Reviews
@@ -167,7 +166,7 @@ export const Reviews: React.FC<ReviewsProps> = ({
         <form onSubmit={submit} className="mt-6 border border-line p-5">
           <fieldset className="m-0 border-0 p-0">
             <legend
-              className="m-0 p-0 text-[10.5px] font-bold uppercase tracking-[0.12em]"
+              className="m-0 p-0 text-caption font-bold uppercase tracking-[0.12em]"
               style={{ color: 'var(--ink-3)' }}
             >
               Your rating
@@ -223,7 +222,7 @@ export const Reviews: React.FC<ReviewsProps> = ({
               Cancel
             </Button>
           </div>
-          <p className="m-0 mt-3 text-[12px]" style={{ color: 'var(--ink-3)' }}>
+          <p className="m-0 mt-3 text-small" style={{ color: 'var(--ink-3)' }}>
             One review per product. Submitting again replaces the one you left before.
           </p>
         </form>
@@ -245,16 +244,16 @@ export const Reviews: React.FC<ReviewsProps> = ({
               <li key={review.id} className="p-5" style={{ background: 'var(--surface)' }}>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
                   <Stars value={review.rating} className="text-[15px]" />
-                  <span className="text-[13px] font-semibold text-ink">{reviewerName(review)}</span>
+                  <span className="text-meta font-semibold text-ink">{reviewerName(review)}</span>
                   {review.isVerified && (
                     <span
-                      className="text-[10.5px] font-bold uppercase tracking-[0.1em]"
+                      className="text-caption font-bold uppercase tracking-[0.1em]"
                       style={{ color: 'var(--success, #1B7F4B)' }}
                     >
                       Verified purchase
                     </span>
                   )}
-                  <span className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
+                  <span className="text-small" style={{ color: 'var(--ink-3)' }}>
                     {formatDate(review.createdAt)}
                   </span>
                 </div>

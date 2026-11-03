@@ -95,7 +95,7 @@ export default async function SellerPage({ params }: PageProps) {
             </h2>
             {seller.isVerified && (
               <span
-                className="text-[10.5px] font-bold uppercase tracking-[0.1em]"
+                className="text-caption font-bold uppercase tracking-[0.1em]"
                 style={{ color: 'var(--success, #1B7F4B)' }}
               >
                 Verified seller
@@ -103,7 +103,7 @@ export default async function SellerPage({ params }: PageProps) {
             )}
           </div>
 
-          <p className="m-0 mt-2 text-[13px]" style={{ color: 'var(--ink-3)' }}>
+          <p className="m-0 mt-2 text-meta" style={{ color: 'var(--ink-3)' }}>
             {total} {total === 1 ? 'product' : 'products'}
             {hasRating ? ` · ★ ${seller.rating!.toFixed(1)} from ${seller.ratingCount} ratings` : ''}
             {seller.createdAt

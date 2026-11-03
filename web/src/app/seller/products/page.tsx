@@ -171,7 +171,7 @@ export default function SellerProductsPage() {
                     <th
                       key={head}
                       scope="col"
-                      className="py-3 pr-4 text-[10.5px] font-bold uppercase tracking-[0.1em]"
+                      className="py-3 pr-4 text-caption font-bold uppercase tracking-[0.1em]"
                       style={{ color: 'var(--ink-3)' }}
                     >
                       {head}
@@ -201,7 +201,7 @@ export default function SellerProductsPage() {
                             >
                               {product.name}
                             </Link>
-                            <p className="m-0 text-[12px]" style={{ color: 'var(--ink-3)' }}>
+                            <p className="m-0 text-small" style={{ color: 'var(--ink-3)' }}>
                               {[product.brand?.name, product.category?.name]
                                 .filter(Boolean)
                                 .join(' · ') || '—'}
@@ -210,7 +210,7 @@ export default function SellerProductsPage() {
                         </div>
                       </td>
                       <td
-                        className="py-3 pr-4 font-mono text-[12px]"
+                        className="py-3 pr-4 font-mono text-small"
                         style={{ color: 'var(--ink-3)' }}
                       >
                         {product.sku}
@@ -238,24 +238,24 @@ export default function SellerProductsPage() {
                           }
                         />
                       </td>
-                      <td className="py-3 pr-4 text-[12.5px]" style={{ color: 'var(--ink-2)' }}>
+                      <td className="py-3 pr-4 text-meta" style={{ color: 'var(--ink-2)' }}>
                         {product.status.toLowerCase()}
                         {product.moderationStatus === 'PENDING' && (
                           <span
-                            className="mt-1 block w-fit px-1.5 py-0.5 text-[11px] font-semibold"
+                            className="mt-1 block w-fit px-1.5 py-0.5 text-caption font-semibold"
                             style={{ background: 'var(--brand-soft)', color: 'var(--ink)' }}
                           >
                             In review
                           </span>
                         )}
                         {product.moderationStatus === 'REJECTED' && (
-                          <span className="mt-1 block max-w-[220px] text-[11.5px]" style={{ color: 'var(--sale)' }}>
+                          <span className="mt-1 block max-w-[220px] text-small" style={{ color: 'var(--sale)' }}>
                             <strong>Needs changes:</strong> {product.moderationNote}
                           </span>
                         )}
                       </td>
                       <td className="py-3">
-                        <div className="flex items-center gap-3 text-[13px]">
+                        <div className="flex items-center gap-3 text-meta">
                           {stockDirty ? (
                             <button
                               type="button"

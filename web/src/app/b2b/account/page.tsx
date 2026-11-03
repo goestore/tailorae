@@ -95,7 +95,7 @@ const STATUS_STYLE: Record<string, React.CSSProperties> = {
 
 const StatusTag: React.FC<{ status: string; label?: string }> = ({ status, label }) => (
   <span
-    className="inline-flex items-center border px-2 py-0.5 text-[12px] font-semibold uppercase tracking-wide"
+    className="inline-flex items-center border px-2 py-0.5 text-small font-semibold uppercase tracking-wide"
     style={STATUS_STYLE[status] ?? { borderColor: 'var(--border)', color: 'var(--ink-3)' }}
   >
     {label ?? status.toLowerCase()}
@@ -137,7 +137,7 @@ const RfqRow: React.FC<{
               'Product no longer listed'
             )}
           </p>
-          <p className="m-0 mt-1 text-[13px]" style={{ color: 'var(--ink-3)' }}>
+          <p className="m-0 mt-1 text-meta" style={{ color: 'var(--ink-3)' }}>
             {rfq.rfqNumber} · requested {formatDate(rfq.createdAt)}
           </p>
         </div>
@@ -168,7 +168,7 @@ const RfqRow: React.FC<{
       </dl>
 
       {rfq.specialRequirements && (
-        <p className="m-0 mt-3 text-[13px]" style={{ color: 'var(--ink-2)', overflowWrap: 'anywhere' }}>
+        <p className="m-0 mt-3 text-meta" style={{ color: 'var(--ink-2)', overflowWrap: 'anywhere' }}>
           {rfq.specialRequirements}
         </p>
       )}
@@ -565,7 +565,7 @@ export default function B2BAccountPage() {
                           <td className="px-4 py-3">
                             <span className="font-medium text-ink">{order.orderNumber}</span>
                             <br />
-                            <span className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
+                            <span className="text-small" style={{ color: 'var(--ink-3)' }}>
                               {formatDate(order.createdAt)}
                             </span>
                           </td>
@@ -574,7 +574,7 @@ export default function B2BAccountPage() {
                           <td className="px-4 py-3 text-right">
                             {formatCurrency(order.totalPrice)}
                             <br />
-                            <span className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
+                            <span className="text-small" style={{ color: 'var(--ink-3)' }}>
                               {formatCurrency(order.unitPrice)}/pc
                             </span>
                           </td>

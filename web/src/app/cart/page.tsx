@@ -207,7 +207,7 @@ export default function CartPage() {
                 someone who was not going to browse the whole catalogue. */}
             <div className="border border-line px-6 py-14 text-center" style={{ background: 'var(--surface-2)' }}>
               <p
-                className="m-0 text-[10.5px] font-semibold uppercase tracking-[0.14em]"
+                className="m-0 text-caption font-semibold uppercase tracking-[0.14em]"
                 style={{ color: 'var(--ink-3)' }}
               >
                 Your basket

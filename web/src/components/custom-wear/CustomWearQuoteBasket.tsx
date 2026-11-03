@@ -67,7 +67,7 @@ export const CustomWearQuoteBasket: React.FC<{ className?: string }> = ({ classN
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <div>
             <p
-              className="m-0 text-[10.5px] font-semibold uppercase tracking-[0.14em]"
+              className="m-0 text-caption font-semibold uppercase tracking-[0.14em]"
               style={{ color: 'var(--ink-3)' }}
             >
               Made to order

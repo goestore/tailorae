@@ -109,19 +109,19 @@ export const SwatchPicker: React.FC<SwatchPickerProps> = ({
                   }}
                 />
                 <span className="flex flex-col">
-                  <span className="text-[13px] font-semibold text-ink">{name}</span>
-                  <span className="text-[11px]" style={{ color: 'var(--ink-3)' }}>
+                  <span className="text-meta font-semibold text-ink">{name}</span>
+                  <span className="text-caption" style={{ color: 'var(--ink-3)' }}>
                     {chosen ?? (familyHex ? `${chosenFamilies[name]} shade` : swatch.hasColour ? 'Guessed from name' : 'No match — pick a shade')}
                   </span>
                 </span>
               </div>
 
-              <label className="flex flex-col gap-1 text-[11px]" style={{ color: 'var(--ink-3)' }}>
+              <label className="flex flex-col gap-1 text-caption" style={{ color: 'var(--ink-3)' }}>
                 <span>
                   Colour family <span className="lf-req">Required</span>
                 </span>
                 <select
-                  className="lf-input min-w-[9.5rem] text-[13px]"
+                  className="lf-input min-w-[9.5rem] text-meta"
                   aria-label={`Colour family for ${name}`}
                   value={chosenFamilies[name] ?? ''}
                   aria-invalid={!chosenFamilies[name] || undefined}
@@ -185,7 +185,7 @@ export const SwatchPicker: React.FC<SwatchPickerProps> = ({
                   onBlur={(e) => {
                     if (e.target.value.trim() === '' && chosen) onChange(name, null);
                   }}
-                  className="lf-input w-[6.5rem] font-mono text-[12px]"
+                  className="lf-input w-[6.5rem] font-mono text-small"
                 />
                 {chosen && (
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => onChange(name, null)}>

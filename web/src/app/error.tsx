@@ -30,7 +30,7 @@ export default function GlobalError({
       <div className="max-w-md border border-line bg-white p-8 text-center md:p-12">
         <Logo variant="mark" alt="" className="mx-auto mb-5 h-16" />
         <p
-          className="m-0 text-[10.5px] font-bold uppercase tracking-[0.14em]"
+          className="m-0 text-caption font-bold uppercase tracking-[0.14em]"
           style={{ color: 'var(--ink-3)' }}
         >
           Something went wrong

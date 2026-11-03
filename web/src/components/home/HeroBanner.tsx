@@ -105,7 +105,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
 
             <div className="absolute inset-x-0 bottom-0 p-5 md:p-8 lg:p-10">
               {item.eyebrow && (
-                <p className="m-0 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-white/80">
+                <p className="m-0 text-caption font-semibold uppercase tracking-[0.16em] text-white/80">
                   {item.eyebrow}
                 </p>
               )}
@@ -123,7 +123,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
               )}
               {item.cta && item.href && (
                 <span
-                  className="mt-4 inline-flex items-center gap-2 border border-white/70 px-5 py-2.5 text-[13px] font-medium text-white transition-colors group-hover:bg-white group-hover:text-ink"
+                  className="mt-4 inline-flex items-center gap-2 border border-white/70 px-5 py-2.5 text-meta font-medium text-white transition-colors group-hover:bg-white group-hover:text-ink"
                 >
                   {item.cta}
                   <span aria-hidden="true">&rarr;</span>

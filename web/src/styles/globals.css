@@ -78,6 +78,15 @@
   --content-max: none;
   /* Comfortable reading measure for prose that should not span a 4K display. */
   --prose-max: 78ch;
+
+  /* Small type scale — the fine print below Tailwind's text-xs (12px).
+     Exposed as text-micro / text-caption / text-small / text-meta utilities
+     (tailwind.config.js), so a hand-picked text-[11px] never needs to exist.
+     Font size only: line-height stays with the element, as before. */
+  --text-micro: 10px;   /* badges, counters */
+  --text-caption: 11px; /* eyebrows, captions, uppercase labels */
+  --text-small: 12px;   /* helper text, meta rows */
+  --text-meta: 13px;    /* secondary body, table cells, links */
 }
 
 /* ============================================
@@ -541,7 +550,7 @@ label {
 
 @layer components {
   .badge {
-    @apply inline-flex items-center px-1.5 py-[3px] text-[13px] font-semibold leading-none tracking-wide;
+    @apply inline-flex items-center px-1.5 py-[3px] text-meta font-semibold leading-none tracking-wide;
     border-radius: var(--r-pill);
   }
 
@@ -733,7 +742,8 @@ label {
     .mph-body {
       padding: 14%;
     }
-    .mph-garment {
+    .mph-garment,
+    .mph .mph-monogram {
       width: 78%;
     }
   }
@@ -967,6 +977,119 @@ label {
 
 .badge-info {
   @apply bg-blue-100 text-blue-800;
+}
+
+/* ============================================
+   PRODUCT DETAIL PAGE (/products/[id])
+   Layered so per-instance utilities can still override. State variants hang
+   off the attributes the markup already carries (aria-pressed, aria-current,
+   :disabled), so the component only toggles classes, never inline styles.
+   ============================================ */
+
+@layer components {
+  .pdp-title {
+    /* Product names run long ("Girl Peach Net Embroidered Full Sleeves…");
+       at 40px they took four lines above the price. */
+    font-size: clamp(22px, 2.2vw, 30px);
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.03em;
+    color: var(--ink);
+  }
+
+  .pdp-price {
+    font-size: clamp(28px, 3vw, 36px);
+    font-weight: 700;
+    letter-spacing: -0.03em;
+    color: var(--ink);
+  }
+
+  .pdp-sale { color: var(--sale); }
+  .pdp-star { color: var(--brand); }
+
+  /* Stock dot beside "In stock" / "Out of stock". */
+  .pdp-dot-ok { background: #1b7f4b; }
+  .pdp-dot-sale { background: var(--sale); }
+
+  .pdp-badge-off {
+    background: var(--brand);
+    color: var(--ink);
+  }
+
+  .pdp-gallery-main {
+    aspect-ratio: 4 / 5;
+    border: 1px solid var(--border);
+  }
+
+  .pdp-thumb { border: 1px solid var(--border); }
+  .pdp-thumb[aria-pressed='true'] {
+    border-color: var(--ink);
+    box-shadow: var(--shadow-2);
+  }
+
+  /* Diagonal strike over a sold-out size or colour. */
+  .pdp-strike {
+    background: linear-gradient(
+      to top right,
+      transparent calc(50% - 0.5px),
+      var(--ink-3) 50%,
+      transparent calc(50% + 0.5px)
+    );
+  }
+
+  /* Size chip, Myntra-style. A picked chip keeps its heavier ink ring even
+     when sold out, so the active rule comes after the disabled one. */
+  .pdp-size-chip {
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--ink);
+  }
+  .pdp-size-chip:disabled {
+    border-color: var(--border);
+    color: var(--ink-3);
+    opacity: 0.55;
+  }
+  .pdp-size-chip[aria-pressed='true'] { border: 1.5px solid var(--ink); }
+
+  /* Colour swatch button and colour-group sibling photo. */
+  .pdp-colour { border: 1px solid var(--border-strong); }
+  .pdp-colour[aria-pressed='true'] { border-color: var(--ink); }
+  /* A sold-out colour stays clickable: the shopper may still want to see it,
+     and hiding it makes the range look smaller than it is. */
+  .pdp-colour-sold-out { opacity: 0.45; }
+
+  .pdp-sibling { border: 1px solid var(--border-strong); }
+  .pdp-sibling[aria-current='true'] { border-color: var(--ink); }
+
+  .pdp-customize {
+    border: 1px solid var(--border);
+    background: var(--grad-warm);
+  }
+
+  .pdp-accent-bar {
+    height: 14px;
+    width: 3px;
+    background: var(--brand);
+  }
+
+  .pdp-upload {
+    border: 1px dashed var(--border-strong);
+    background: var(--surface);
+  }
+
+  /* The bulk tier the current quantity falls in. */
+  .pdp-tier-active {
+    background: var(--brand-soft);
+    padding-inline: 10px;
+  }
+
+  /* Phone-only sticky buy bar; sits above the home indicator. */
+  .pdp-buybar {
+    border-color: var(--border);
+    background: var(--surface);
+    padding-bottom: calc(0.75rem + env(safe-area-inset-bottom));
+    box-shadow: 0 -6px 24px rgba(17, 17, 17, 0.08);
+  }
 }
 
 /* ============================================

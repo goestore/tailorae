@@ -71,7 +71,7 @@ export const QuickAddButton: React.FC<QuickAddButtonProps> = ({ product, href })
       onClick={handleClick}
       disabled={isAdding}
       aria-label={`${label} — ${product.name}`}
-      className="btn btn-secondary absolute inset-x-2 bottom-2 z-10 rounded-none px-2 text-[12px] focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
+      className="btn btn-secondary absolute inset-x-2 bottom-2 z-10 rounded-none px-2 text-small focus-visible:opacity-100 md:opacity-0 md:group-hover:opacity-100"
     >
       {isAdding ? 'Adding…' : label}
     </button>

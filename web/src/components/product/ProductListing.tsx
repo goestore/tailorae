@@ -365,7 +365,7 @@ export const ProductListing: React.FC<ProductListingProps> = ({
     <div className="section-y">
       <div className="container-max">
         {crumbs.length > 0 && (
-          <nav aria-label="Breadcrumb" className="mb-3 text-[13px] text-ink-3">
+          <nav aria-label="Breadcrumb" className="mb-3 text-meta text-ink-3">
             <ol className="flex flex-wrap items-center gap-1.5">
               {crumbs.map((crumb, index) => (
                 <li key={crumb.label} className="flex items-center gap-1.5">
@@ -406,7 +406,7 @@ export const ProductListing: React.FC<ProductListingProps> = ({
                     key={chip.href}
                     href={chip.href}
                     aria-current={chip.active ? 'page' : undefined}
-                    className={`whitespace-nowrap border px-2.5 py-1 text-[12px] font-medium no-underline transition-colors ${
+                    className={`whitespace-nowrap border px-2.5 py-1 text-small font-medium no-underline transition-colors ${
                       chip.active
                         ? 'border-[var(--brand)] bg-[var(--brand)] font-semibold text-ink'
                         : 'border-line text-ink-2 hover:border-ink hover:text-ink'
@@ -420,7 +420,7 @@ export const ProductListing: React.FC<ProductListingProps> = ({
           )}
 
           {/* The total the filters match, not the number fetched so far. */}
-          <p className="ml-auto text-[13px] text-ink-3">
+          <p className="ml-auto text-meta text-ink-3">
             {isLoading ? 'Loading…' : `${total} ${total === 1 ? 'product' : 'products'}`}
           </p>
 
@@ -438,17 +438,17 @@ export const ProductListing: React.FC<ProductListingProps> = ({
               defaultValue={values.q}
               placeholder="Search these products"
               aria-label="Search within results"
-              className="h-9 w-full text-[13px] sm:w-48"
+              className="h-9 w-full text-meta sm:w-48"
             />
           </form>
 
-          <label className="flex items-center gap-2 text-[13px] text-ink-3">
+          <label className="flex items-center gap-2 text-meta text-ink-3">
             <span className="hidden sm:inline">Sort</span>
             <select
               value={values.sortBy || 'newest'}
               onChange={(event) => updateParams({ sortBy: event.target.value })}
               aria-label="Sort products"
-              className="h-9 w-auto text-[13px]"
+              className="h-9 w-auto text-meta"
             >
               {SORT_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
@@ -485,7 +485,7 @@ export const ProductListing: React.FC<ProductListingProps> = ({
                     key={filter.label}
                     type="button"
                     onClick={() => updateParams(filter.clear)}
-                    className="inline-flex items-center gap-1.5 border border-line px-3 py-1.5 text-[12px] font-medium text-ink-2 transition-colors hover:border-ink hover:text-ink"
+                    className="inline-flex items-center gap-1.5 border border-line px-3 py-1.5 text-small font-medium text-ink-2 transition-colors hover:border-ink hover:text-ink"
                     aria-label={`Remove filter ${filter.label}`}
                   >
                     {filter.label}
@@ -495,7 +495,7 @@ export const ProductListing: React.FC<ProductListingProps> = ({
                 <button
                   type="button"
                   onClick={clearAll}
-                  className="text-[13px] font-medium text-ink-3 underline transition-colors hover:text-ink"
+                  className="text-meta font-medium text-ink-3 underline transition-colors hover:text-ink"
                 >
                   Clear all
                 </button>
@@ -516,7 +516,7 @@ export const ProductListing: React.FC<ProductListingProps> = ({
                 {!isLoading && results.length === 0 && (
                   <div className="border-t border-line py-16 text-center">
                     <p className="text-ink">Nothing matches those filters.</p>
-                    <p className="mt-2 text-[13px] text-ink-3">
+                    <p className="mt-2 text-meta text-ink-3">
                       Try widening the price range or clearing a filter.
                     </p>
                     {activeFilters.length > 0 && (
@@ -541,7 +541,7 @@ export const ProductListing: React.FC<ProductListingProps> = ({
                     >
                       {isLoadingMore ? 'Loading…' : 'Load more'}
                     </button>
-                    <p className="m-0 text-[12.5px]" style={{ color: 'var(--ink-3)' }}>
+                    <p className="m-0 text-meta" style={{ color: 'var(--ink-3)' }}>
                       Showing {results.length} of {total}
                     </p>
                   </div>

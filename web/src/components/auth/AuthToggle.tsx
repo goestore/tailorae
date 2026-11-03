@@ -198,7 +198,7 @@ export const AuthToggle: React.FC<AuthToggleProps> = ({
             <div className="-mt-1 text-right">
               <Link
                 href="/auth/forgot-password"
-                className="text-[13px] underline underline-offset-2 hover:text-ink"
+                className="text-meta underline underline-offset-2 hover:text-ink"
                 style={{ color: 'var(--ink-3)' }}
               >
                 Forgotten your password?

@@ -109,7 +109,7 @@ export default function ForgotPasswordPage() {
           <div className="-mt-1 text-right">
             <Link
               href="/auth/login"
-              className="text-[13px] underline underline-offset-2 hover:text-ink"
+              className="text-meta underline underline-offset-2 hover:text-ink"
               style={{ color: 'var(--ink-3)' }}
             >
               I remember it after all

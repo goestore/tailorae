@@ -102,8 +102,7 @@ const Eyebrow: React.FC<{ children: React.ReactNode; className?: string }> = ({
   className = '',
 }) => (
   <p
-    className={`m-0 text-[10.5px] font-bold uppercase leading-none tracking-[0.12em] ${className}`.trim()}
-    style={{ color: 'var(--ink-3)' }}
+    className={`m-0 text-caption font-bold uppercase leading-none tracking-[0.12em] text-ink-3 ${className}`.trim()}
   >
     {children}
   </p>
@@ -140,27 +139,12 @@ const SizeChip: React.FC<{
     disabled={soldOut}
     aria-pressed={active}
     aria-label={soldOut ? `${label}, out of stock` : label}
-    className="relative inline-flex h-12 min-w-[3rem] items-center justify-center overflow-hidden rounded-full px-3 text-[14px] font-semibold transition-colors disabled:cursor-not-allowed"
-    style={{
-      border: active
-        ? '1.5px solid var(--ink)'
-        : `1px solid ${soldOut ? 'var(--border)' : 'var(--border-strong)'}`,
-      background: 'var(--surface)',
-      color: soldOut ? 'var(--ink-3)' : 'var(--ink)',
-      opacity: soldOut ? 0.55 : 1,
-    }}
+    className="pdp-size-chip relative inline-flex h-12 min-w-[3rem] items-center justify-center overflow-hidden rounded-full px-3 text-[14px] font-semibold transition-colors disabled:cursor-not-allowed"
   >
     {label}
     {extra}
     {soldOut && (
-      <span
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            'linear-gradient(to top right, transparent calc(50% - 0.5px), var(--ink-3) 50%, transparent calc(50% + 0.5px))',
-        }}
-      />
+      <span aria-hidden="true" className="pdp-strike pointer-events-none absolute inset-0" />
     )}
   </button>
 );
@@ -185,8 +169,7 @@ const StockNote: React.FC<{
   return (
     <p
       role={sizeError ? 'alert' : undefined}
-      className="mt-3 text-[13px] font-semibold"
-      style={{ color: 'var(--sale)' }}
+      className="pdp-sale mt-3 text-meta font-semibold"
     >
       {text}
     </p>
@@ -484,17 +467,14 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
     <main className="pb-16">
       <div className="container-max">
         {/* Breadcrumb */}
-        <nav aria-label="Breadcrumb" className="mx-auto py-4" style={{ maxWidth: '1240px' }}>
-          <ol
-            className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px]"
-            style={{ color: 'var(--ink-3)' }}
-          >
+        <nav aria-label="Breadcrumb" className="py-4">
+          <ol className="flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-ink-3">
             <li>
               <Link href="/" className="transition-colors hover:text-ink">
                 Home
               </Link>
             </li>
-            <li aria-hidden="true" style={{ color: 'var(--border-strong)' }}>
+            <li aria-hidden="true" className="text-line-strong">
               /
             </li>
             <li>
@@ -509,7 +489,7 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                 : []
             ).map((step) => (
               <React.Fragment key={step.id}>
-                <li aria-hidden="true" style={{ color: 'var(--border-strong)' }}>
+                <li aria-hidden="true" className="text-line-strong">
                   /
                 </li>
                 <li>
@@ -523,25 +503,19 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                 </li>
               </React.Fragment>
             ))}
-            <li aria-hidden="true" style={{ color: 'var(--border-strong)' }}>
+            <li aria-hidden="true" className="text-line-strong">
               /
             </li>
-            <li aria-current="page" style={{ color: 'var(--ink)' }}>
+            <li aria-current="page" className="text-ink">
               {product.name}
             </li>
           </ol>
         </nav>
 
-        <div
-          className="mx-auto grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_460px]"
-          style={{ maxWidth: '1240px' }}
-        >
+        <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-12 xl:grid-cols-[minmax(0,1fr)_460px]">
           {/* ---------- Gallery ---------- */}
           <div className="lg:sticky lg:top-24 lg:self-start">
-            <div
-              className="card-media"
-              style={{ aspectRatio: '4 / 5', border: '1px solid var(--border)' }}
-            >
+            <div className="card-media pdp-gallery-main">
               <ProductThumb
                 src={gallery[activeImage]}
                 alt={product.name}
@@ -550,10 +524,7 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
               />
 
               {hasDiscount && product.discountPercentage > 0 && (
-                <span
-                  className="absolute left-0 top-4 px-2.5 py-1.5 text-[10px] font-bold uppercase leading-none tracking-[0.1em]"
-                  style={{ background: 'var(--brand)', color: 'var(--ink)' }}
-                >
+                <span className="pdp-badge-off absolute left-0 top-4 px-2.5 py-1.5 text-micro font-bold uppercase leading-none tracking-[0.1em]">
                   {Math.round(product.discountPercentage)}% Off
                 </span>
               )}
@@ -567,14 +538,7 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                     onClick={() => setActiveImage(index)}
                     aria-label={`View image ${index + 1}`}
                     aria-pressed={index === activeImage}
-                    className="relative h-20 w-20 flex-shrink-0 overflow-hidden transition-colors"
-                    style={{
-                      border:
-                        index === activeImage
-                          ? '1px solid var(--ink)'
-                          : '1px solid var(--border)',
-                      boxShadow: index === activeImage ? 'var(--shadow-2)' : undefined,
-                    }}
+                    className="pdp-thumb relative h-20 w-20 flex-shrink-0 overflow-hidden transition-colors"
                   >
                     <ProductThumb
                       src={img}
@@ -606,44 +570,33 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
               product.category?.name && <Eyebrow className="mb-3">{product.category.name}</Eyebrow>
             )}
 
-            <h1
-              className="m-0"
-              style={{
-                // Product names run long ("Girl Peach Net Embroidered Full
-                // Sleeves…"); at 40px they took four lines above the price.
-                fontSize: 'clamp(22px, 2.2vw, 30px)',
-                fontWeight: 600,
-                lineHeight: 1.15,
-                letterSpacing: '-0.03em',
-                color: 'var(--ink)',
-              }}
-            >
-              {product.name}
-            </h1>
+            <h1 className="pdp-title m-0">{product.name}</h1>
 
-            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px]">
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-small">
               {product.rating > 0 && (
                 <span className="inline-flex items-center gap-1.5">
-                  <span aria-hidden="true" style={{ color: 'var(--brand)' }}>
+                  <span aria-hidden="true" className="pdp-star">
                     ★
                   </span>
-                  <span className="font-semibold" style={{ color: 'var(--ink)' }}>
+                  <span className="font-semibold text-ink">
                     {Number(product.rating).toFixed(1)}
                   </span>
-                  <span style={{ color: 'var(--ink-3)' }}>
+                  <span className="text-ink-3">
                     ({product.reviewCount} {product.reviewCount === 1 ? 'review' : 'reviews'})
                   </span>
                 </span>
               )}
-              <span style={{ color: 'var(--ink-3)' }}>SKU {(sizeChosen && selectedVariant?.sku) || product.sku}</span>
+              <span className="text-ink-3">SKU {(sizeChosen && selectedVariant?.sku) || product.sku}</span>
               <span
-                className="inline-flex items-center gap-1.5 font-semibold"
-                style={{ color: outOfStock ? 'var(--sale)' : 'var(--ink-2)' }}
+                className={`inline-flex items-center gap-1.5 font-semibold ${
+                  outOfStock ? 'pdp-sale' : 'text-ink-2'
+                }`}
               >
                 <span
                   aria-hidden="true"
-                  className="inline-block h-1.5 w-1.5 rounded-full"
-                  style={{ background: outOfStock ? 'var(--sale)' : '#1B7F4B' }}
+                  className={`inline-block h-1.5 w-1.5 rounded-full ${
+                    outOfStock ? 'pdp-dot-sale' : 'pdp-dot-ok'
+                  }`}
                 />
                 {outOfStock ? 'Out of stock' : 'In stock'}
               </span>
@@ -651,33 +604,21 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
 
             {/* Price */}
             <div className="mt-6 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <span
-                style={{
-                  fontSize: 'clamp(28px, 3vw, 36px)',
-                  fontWeight: 700,
-                  letterSpacing: '-0.03em',
-                  color: 'var(--ink)',
-                }}
-              >
-                {formatCurrency(unitPrice)}
-              </span>
+              <span className="pdp-price">{formatCurrency(unitPrice)}</span>
               {hasDiscount && (
-                <span className="text-base line-through" style={{ color: 'var(--ink-3)' }}>
+                <span className="text-base text-ink-3 line-through">
                   {formatCurrency(product.originalPrice as number)}
                 </span>
               )}
               {customizationCost > 0 && (
-                <span className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
+                <span className="text-small text-ink-3">
                   incl. {formatCurrency(customizationCost)} customization
                 </span>
               )}
             </div>
 
             {(product.shortDescription || product.description) && (
-              <p
-                className="mt-4 max-w-[56ch] text-[15px]"
-                style={{ color: 'var(--ink-2)', lineHeight: 1.65 }}
-              >
+              <p className="mt-4 max-w-[56ch] text-[15px] leading-[1.65] text-ink-2">
                 {product.shortDescription || product.description}
               </p>
             )}
@@ -686,31 +627,30 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                 as photos, the way the marketplaces do, because each colour
                 has its own photographs. */}
             {(product.colourSiblings?.length ?? 0) > 1 && (
-              <section className="mt-7 pt-6" style={{ borderTop: '1px solid var(--border)' }}>
+              <section className="mt-7 border-t border-line pt-6">
                 <div className="flex items-baseline justify-between gap-3">
                   <Eyebrow>More colours</Eyebrow>
-                  <span className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
+                  <span className="text-small text-ink-3">
                     {product.colourSiblings!.length} colours
                   </span>
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2.5">
                   {product.colourSiblings!.map((sibling) => {
                     const label = sibling.colour || sibling.name;
-                    const frame = {
-                      border: `1px solid ${sibling.current ? 'var(--ink)' : 'var(--border-strong)'}`,
-                    };
                     const body = (
                       <>
                         <span className="block h-[68px] w-[52px] overflow-hidden bg-surface-2">
                           <ProductThumb src={sibling.thumbnail} alt={label} className="h-full w-full object-cover" />
                         </span>
-                        <span className="mt-1 block max-w-[52px] truncate text-center text-[11px] text-ink-2">
+                        <span className="mt-1 block max-w-[52px] truncate text-center text-caption text-ink-2">
                           {label}
                         </span>
                       </>
                     );
+                    // The current colourway carries aria-current, which is what
+                    // .pdp-sibling keys its ink border on.
                     return sibling.current ? (
-                      <span key={sibling.id} aria-current="true" title={label} className="block p-0.5" style={frame}>
+                      <span key={sibling.id} aria-current="true" title={label} className="pdp-sibling block p-0.5">
                         {body}
                       </span>
                     ) : (
@@ -718,8 +658,7 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                         key={sibling.id}
                         href={`/products/${sibling.slug}`}
                         title={`${label} — ${sibling.name}`}
-                        className="block p-0.5 transition-transform hover:scale-[1.03]"
-                        style={frame}
+                        className="pdp-sibling block p-0.5 transition-transform hover:scale-[1.03]"
                       >
                         {body}
                       </Link>
@@ -731,7 +670,7 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
 
             {/* Variants */}
             {hasVariants && (
-              <section className="mt-7 pt-6" style={{ borderTop: '1px solid var(--border)' }}>
+              <section className="mt-7 border-t border-line pt-6">
                 {hasColors ? (
                   <>
                     <div className="flex items-baseline justify-between gap-3">
@@ -743,7 +682,7 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                           </span>
                         )}
                       </Eyebrow>
-                      <span className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
+                      <span className="text-small text-ink-3">
                         {colors.length} colour{colors.length === 1 ? '' : 's'}
                       </span>
                     </div>
@@ -760,25 +699,16 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                             aria-pressed={isActive}
                             aria-label={`${color.name}${soldOut ? ' — sold out' : ''}`}
                             title={color.name}
-                            className="relative flex h-10 w-10 items-center justify-center transition-transform hover:scale-105"
-                            style={{
-                              border: `1px solid ${isActive ? 'var(--ink)' : 'var(--border-strong)'}`,
-                              // A sold-out colour stays clickable: the shopper
-                              // may still want to see it, and hiding it makes
-                              // the range look smaller than it is.
-                              opacity: soldOut ? 0.45 : 1,
-                            }}
+                            // A sold-out colour stays clickable: the shopper
+                            // may still want to see it, and hiding it makes
+                            // the range look smaller than it is.
+                            className={`pdp-colour relative flex h-10 w-10 items-center justify-center transition-transform hover:scale-105${
+                              soldOut ? ' pdp-colour-sold-out' : ''
+                            }`}
                           >
                             <ColorSwatch color={color} size={22} />
                             {soldOut && (
-                              <span
-                                aria-hidden="true"
-                                className="absolute inset-0"
-                                style={{
-                                  background:
-                                    'linear-gradient(to top right, transparent calc(50% - 0.5px), var(--ink-3) 50%, transparent calc(50% + 0.5px))',
-                                }}
-                              />
+                              <span aria-hidden="true" className="pdp-strike absolute inset-0" />
                             )}
                           </button>
                         );
@@ -805,7 +735,7 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                     </div>
 
                     {variantOptions.length > 0 && (
-                      <p className="mt-3 text-[13px]" style={{ color: 'var(--ink-2)' }}>
+                      <p className="mt-3 text-meta text-ink-2">
                         {variantOptions.map(([name, value]) => `${name}: ${value}`).join(' · ')}
                       </p>
                     )}
@@ -858,25 +788,10 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
 
             {/* Customizations */}
             {hasCustomizations && (
-              <section
-                className="mt-7"
-                style={{
-                  border: '1px solid var(--border)',
-                  background: 'var(--grad-warm)',
-                }}
-              >
-                <header
-                  className="flex items-center gap-2.5 px-4 py-3"
-                  style={{ borderBottom: '1px solid var(--border)' }}
-                >
-                  <span
-                    aria-hidden="true"
-                    style={{ height: '14px', width: '3px', background: 'var(--brand)' }}
-                  />
-                  <h2
-                    className="m-0 text-[13px] font-bold uppercase tracking-[0.1em]"
-                    style={{ color: 'var(--ink)' }}
-                  >
+              <section className="pdp-customize mt-7">
+                <header className="flex items-center gap-2.5 border-b border-line px-4 py-3">
+                  <span aria-hidden="true" className="pdp-accent-bar" />
+                  <h2 className="m-0 text-meta font-bold uppercase tracking-[0.1em] text-ink">
                     Customize it
                   </h2>
                 </header>
@@ -886,14 +801,13 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                     const options = parseOptions(c.options);
                     const fieldLabel = (
                       <label
-                        className="mb-1.5 flex items-baseline gap-1.5 text-[12px] font-semibold"
+                        className="mb-1.5 flex items-baseline gap-1.5 text-small font-semibold text-ink"
                         htmlFor={`custom-${c.id}`}
-                        style={{ color: 'var(--ink)' }}
                       >
                         {c.name}
-                        {c.isRequired && <span style={{ color: 'var(--sale)' }}>*</span>}
+                        {c.isRequired && <span className="pdp-sale">*</span>}
                         {c.additionalCost > 0 && (
-                          <span className="font-normal" style={{ color: 'var(--ink-3)' }}>
+                          <span className="font-normal text-ink-3">
                             +{formatCurrency(c.additionalCost)}
                           </span>
                         )}
@@ -904,21 +818,14 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                       return (
                         <div key={c.id}>
                           {fieldLabel}
-                          <div
-                            className="flex flex-col items-center gap-1 px-4 py-6 text-center"
-                            style={{
-                              border: '1px dashed var(--border-strong)',
-                              background: 'var(--surface)',
-                            }}
-                          >
+                          <div className="pdp-upload flex flex-col items-center gap-1 px-4 py-6 text-center">
                             <svg
                               aria-hidden="true"
-                              className="h-5 w-5"
+                              className="h-5 w-5 text-ink-3"
                               viewBox="0 0 24 24"
                               fill="none"
                               stroke="currentColor"
                               strokeWidth={1.5}
-                              style={{ color: 'var(--ink-3)' }}
                             >
                               <path
                                 strokeLinecap="round"
@@ -926,7 +833,7 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                                 d="M12 16V4m0 0L8 8m4-4 4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"
                               />
                             </svg>
-                            <span className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
+                            <span className="text-small text-ink-3">
                               Logo / image upload coming soon
                             </span>
                           </div>
@@ -975,7 +882,7 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                             }
                           />
                           {maxChars && (
-                            <p className="mt-1 text-right text-[11px]" style={{ color: 'var(--ink-3)' }}>
+                            <p className="mt-1 text-right text-caption text-ink-3">
                               {value.length}/{maxChars}
                             </p>
                           )}
@@ -991,7 +898,7 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
 
             {/* Bulk pricing */}
             {bulkTiers.length > 0 && (
-              <section className="mt-7 pt-6" style={{ borderTop: '1px solid var(--border)' }}>
+              <section className="mt-7 border-t border-line pt-6">
                 <Eyebrow>Bulk pricing</Eyebrow>
                 <dl className="mt-3 flex flex-col">
                   {bulkTiers.map((tier) => {
@@ -1003,20 +910,14 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                     return (
                       <div
                         key={tier.id}
-                        className="flex items-center justify-between gap-4 py-2.5 text-[13px]"
-                        style={{
-                          borderBottom: '1px solid var(--border)',
-                          background: isActive ? 'var(--brand-soft)' : undefined,
-                          paddingInline: isActive ? '10px' : undefined,
-                        }}
+                        className={`flex items-center justify-between gap-4 border-b border-line py-2.5 text-meta${
+                          isActive ? ' pdp-tier-active' : ''
+                        }`}
                       >
-                        <dt style={{ color: 'var(--ink-2)' }}>{tierRange(tier)}</dt>
-                        <dd className="m-0 flex items-baseline gap-2 font-bold" style={{ color: 'var(--ink)' }}>
+                        <dt className="text-ink-2">{tierRange(tier)}</dt>
+                        <dd className="m-0 flex items-baseline gap-2 font-bold text-ink">
                           {tier.discount > 0 && (
-                            <span
-                              className="text-[11px] font-bold uppercase tracking-[0.06em]"
-                              style={{ color: 'var(--ink-3)' }}
-                            >
+                            <span className="text-caption font-bold uppercase tracking-[0.06em] text-ink-3">
                               {Math.round(tier.discount)}% off
                             </span>
                           )}
@@ -1030,7 +931,7 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
             )}
 
             {/* Quantity + add to cart */}
-            <section className="mt-7 pt-6" style={{ borderTop: '1px solid var(--border)' }}>
+            <section className="mt-7 border-t border-line pt-6">
               <div className="flex items-center justify-between gap-3">
                 <Eyebrow>Quantity</Eyebrow>
                 {/* Most products carry no size variants, and the guide would
@@ -1038,7 +939,7 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                 {!hasVariants && isApparel && <SizeGuideModal productSizeGuide={product.sizeGuide} variants={product.variants} measurementBasis={product.measurementBasis} />}
               </div>
               <div className="mt-3 flex flex-wrap items-center gap-4">
-                <div className="flex" style={{ border: '1px solid var(--border-strong)' }}>
+                <div className="flex border border-line-strong">
                   <button
                     onClick={() => stepQuantity(-1)}
                     disabled={quantity <= minQty}
@@ -1048,11 +949,7 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                     −
                   </button>
                   <span
-                    className="flex h-11 w-14 items-center justify-center text-[15px] font-semibold"
-                    style={{
-                      borderInline: '1px solid var(--border-strong)',
-                      color: 'var(--ink)',
-                    }}
+                    className="flex h-11 w-14 items-center justify-center border-x border-line-strong text-[15px] font-semibold text-ink"
                     aria-live="polite"
                   >
                     {quantity}
@@ -1067,10 +964,10 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                   </button>
                 </div>
 
-                <div className="text-[12px]" style={{ color: 'var(--ink-3)' }}>
+                <div className="text-small text-ink-3">
                   {minQty > 1 && <p className="m-0">Minimum order: {minQty}</p>}
                   {!outOfStock && !hasVariants && maxQty <= 10 && (
-                    <p className="m-0 font-semibold" style={{ color: 'var(--sale)' }}>
+                    <p className="pdp-sale m-0 font-semibold">
                       Only {maxQty} left in stock
                     </p>
                   )}
@@ -1116,27 +1013,23 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
 
               {product.vendor && <SellerLine seller={product.vendor} className="mt-4" />}
 
-              <div className="mt-7 pt-6" style={{ borderTop: '1px solid var(--border)' }}>
+              <div className="mt-7 border-t border-line pt-6">
                 <PincodeChecker />
               </div>
             </section>
 
             {/* Trust row */}
             <ul
-              className={`mt-7 grid grid-cols-1 gap-px ${
+              className={`mt-7 grid grid-cols-1 gap-px border border-line bg-line ${
                 ['', 'sm:grid-cols-1', 'sm:grid-cols-2', 'sm:grid-cols-3'][trustPoints(product, isApparel).length]
               }`}
-              style={{ background: 'var(--border)', border: '1px solid var(--border)' }}
             >
               {trustPoints(product, isApparel).map((point) => (
-                <li key={point.title} className="px-3 py-3.5" style={{ background: 'var(--surface)' }}>
-                  <p
-                    className="m-0 text-[11px] font-bold uppercase tracking-[0.08em]"
-                    style={{ color: 'var(--ink)' }}
-                  >
+                <li key={point.title} className="bg-surface px-3 py-3.5">
+                  <p className="m-0 text-caption font-bold uppercase tracking-[0.08em] text-ink">
                     {point.title}
                   </p>
-                  <p className="m-0 mt-1 text-[11.5px]" style={{ color: 'var(--ink-3)' }}>
+                  <p className="m-0 mt-1 text-small text-ink-3">
                     {point.detail}
                   </p>
                 </li>
@@ -1147,10 +1040,7 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
 
         {/* ---------- Details band ---------- */}
         {(product.description || product.sku) && (
-          <section
-            className="mx-auto mt-14 pt-10"
-            style={{ maxWidth: '1240px', borderTop: '1px solid var(--border)' }}
-          >
+          <section className="mt-14 border-t border-line pt-10">
             <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-12">
               {product.description && (
                 <div>
@@ -1159,10 +1049,7 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                       separate lines — a care list, the attribute lines a sheet
                       import produces — otherwise collapses into one run-on
                       paragraph that nobody reads. */}
-                  <p
-                    className="mt-4 max-w-[68ch] whitespace-pre-line text-[15px]"
-                    style={{ color: 'var(--ink-2)', lineHeight: 1.75 }}
-                  >
+                  <p className="mt-4 max-w-[68ch] whitespace-pre-line text-[15px] leading-[1.75] text-ink-2">
                     {product.description}
                   </p>
                 </div>
@@ -1188,11 +1075,10 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                     .map(([label, value]) => (
                       <div
                         key={label as string}
-                        className="flex items-baseline justify-between gap-4 py-2.5 text-[13px]"
-                        style={{ borderBottom: '1px solid var(--border)' }}
+                        className="flex items-baseline justify-between gap-4 border-b border-line py-2.5 text-meta"
                       >
-                        <dt className="shrink-0" style={{ color: 'var(--ink-3)' }}>{label}</dt>
-                        <dd className="m-0 text-right font-semibold" style={{ color: 'var(--ink)' }}>
+                        <dt className="shrink-0 text-ink-3">{label}</dt>
+                        <dd className="m-0 text-right font-semibold text-ink">
                           {value}
                         </dd>
                       </div>
@@ -1202,23 +1088,20 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                 {/* Legal Metrology (Packaged Commodities) Rules: who made, packed
                     and imported the product must be shown on the listing. */}
                 {legalDisclosure(product).length > 0 && (
-                  <details className="group mt-4 text-[13px]" style={{ borderBottom: '1px solid var(--border)' }}>
-                    <summary
-                      className="flex cursor-pointer list-none items-center justify-between gap-4 py-2.5 font-semibold"
-                      style={{ color: 'var(--ink)' }}
-                    >
+                  <details className="group mt-4 border-b border-line text-meta">
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-4 py-2.5 font-semibold text-ink">
                       Manufacturer / Packer / Importer
-                      <span aria-hidden className="transition-transform group-open:rotate-45" style={{ color: 'var(--ink-3)' }}>
+                      <span aria-hidden className="text-ink-3 transition-transform group-open:rotate-45">
                         +
                       </span>
                     </summary>
                     <dl className="m-0 pb-3">
                       {legalDisclosure(product).map(([label, value]) => (
                         <div key={label} className="mt-2">
-                          <dt className="text-[11px] font-bold uppercase tracking-[0.08em]" style={{ color: 'var(--ink-3)' }}>
+                          <dt className="text-caption font-bold uppercase tracking-[0.08em] text-ink-3">
                             {label}
                           </dt>
-                          <dd className="m-0 mt-0.5 whitespace-pre-line" style={{ color: 'var(--ink-2)', lineHeight: 1.6 }}>
+                          <dd className="m-0 mt-0.5 whitespace-pre-line leading-[1.6] text-ink-2">
                             {value}
                           </dd>
                         </div>
@@ -1238,7 +1121,7 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
           onSaved={refreshProduct}
         />
 
-        <div className="mx-auto mt-14 pt-10" style={{ maxWidth: '1240px', borderTop: '1px solid var(--border)' }}>
+        <div className="mt-14 border-t border-line pt-10">
           <RecentlyViewed excludeId={product.id} />
         </div>
       </div>
@@ -1255,18 +1138,11 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
         original is off screen.
       */}
       {!outOfStock && (
-        <div
-          className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t px-4 py-3 sm:hidden"
-          style={{
-            borderColor: 'var(--border)',
-            background: 'var(--surface)',
-            // Above the home indicator on a phone with no hardware button.
-            paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom))',
-            boxShadow: '0 -6px 24px rgba(17, 17, 17, 0.08)',
-          }}
-        >
+        // .pdp-buybar owns the bottom padding (it clears the home indicator),
+        // so only the top padding is a utility here.
+        <div className="pdp-buybar fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t px-4 pt-3 sm:hidden">
           <div className="min-w-0 flex-1">
-            <p className="m-0 truncate text-[12px]" style={{ color: 'var(--ink-3)' }}>
+            <p className="m-0 truncate text-small text-ink-3">
               {selectedVariant ? variantLabel(selectedVariant) : product.name}
             </p>
             <p className="m-0 text-[16px] font-semibold text-ink">

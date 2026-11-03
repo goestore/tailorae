@@ -34,7 +34,7 @@ export const ViewAllTile: React.FC<ViewAllTileProps> = ({ href, label, className
         />
       </svg>
     </span>
-    <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-ink-2 transition-colors group-hover:text-ink">
+    <span className="text-caption font-medium uppercase tracking-[0.16em] text-ink-2 transition-colors group-hover:text-ink">
       {label}
     </span>
   </Link>

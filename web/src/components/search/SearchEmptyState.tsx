@@ -74,7 +74,7 @@ export const SearchEmptyState: React.FC<SearchEmptyStateProps> = ({
         <h2 id="search-did-you-mean" className="m-0 text-[15px] font-semibold text-ink">
           Did you mean
         </h2>
-        <p className="mt-1 text-[13px]" style={{ color: 'var(--ink-3)' }}>
+        <p className="mt-1 text-meta" style={{ color: 'var(--ink-3)' }}>
           The closest spellings in the catalogue to &ldquo;{query}&rdquo;.
         </p>
         <ul className="mt-4 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3">
@@ -92,7 +92,7 @@ export const SearchEmptyState: React.FC<SearchEmptyStateProps> = ({
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm text-ink">{product.name}</span>
                   {product.category && (
-                    <span className="block truncate text-[11px]" style={{ color: 'var(--ink-3)' }}>
+                    <span className="block truncate text-caption" style={{ color: 'var(--ink-3)' }}>
                       {product.category.name}
                     </span>
                   )}
@@ -116,7 +116,7 @@ export const SearchEmptyState: React.FC<SearchEmptyStateProps> = ({
           <li key={section.href}>
             <Link
               href={section.href}
-              className="inline-flex items-center border border-line bg-surface px-4 py-2 text-[13px] text-ink transition-colors hover:border-[var(--brand)] hover:bg-[var(--brand-soft)]"
+              className="inline-flex items-center border border-line bg-surface px-4 py-2 text-meta text-ink transition-colors hover:border-[var(--brand)] hover:bg-[var(--brand-soft)]"
             >
               {section.label}
             </Link>

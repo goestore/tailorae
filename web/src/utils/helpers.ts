@@ -218,7 +218,20 @@ export const removeStorageItem = (key: string): void => {
 // ============================================
 
 import { clsx, type ClassValue } from 'clsx';
-import { twMerge } from 'tailwind-merge';
+import { extendTailwindMerge } from 'tailwind-merge';
+
+/**
+ * tailwind-merge only knows Tailwind's stock font sizes; left alone it reads
+ * `text-caption` as a text colour and drops it beside `text-ink`. Teach it the
+ * small type scale from tailwind.config.js.
+ */
+const twMerge = extendTailwindMerge({
+  extend: {
+    classGroups: {
+      'font-size': [{ text: ['micro', 'caption', 'small', 'meta'] }],
+    },
+  },
+});
 
 export const cn = (...inputs: ClassValue[]): string => {
   return twMerge(clsx(inputs));

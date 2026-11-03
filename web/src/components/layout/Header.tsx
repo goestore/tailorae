@@ -18,7 +18,7 @@ import { DesktopNavPanel, MobileNavItem, isMega } from './NavMenus';
 /** Edit these values to change nav menu link styling (Home, Products, etc.). */
 export const NAV_MENU_STYLES = {
   color: '#000000',
-  fontSize: '13px',
+  fontSize: 'var(--text-meta)',
   mobileFontSize: '14px',
   fontFamily: 'var(--font-montserrat)',
   fontWeight: 500,
@@ -506,7 +506,7 @@ export const Header: React.FC<HeaderProps> = ({ announcement, categories }) => {
                 </svg>
                 {cartItemCount > 0 && (
                   <span
-                    className="absolute -right-0.5 -top-0.5 flex h-[17px] min-w-[17px] items-center justify-center rounded-full px-0.5 text-[10px] text-ink"
+                    className="absolute -right-0.5 -top-0.5 flex h-[17px] min-w-[17px] items-center justify-center rounded-full px-0.5 text-micro text-ink"
                     style={{ background: 'var(--brand)', lineHeight: 1 }}
                   >
                     {cartItemCount > 9 ? '9+' : cartItemCount}

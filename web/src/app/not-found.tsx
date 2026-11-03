@@ -6,7 +6,7 @@ export default function NotFound() {
     <main className="flex min-h-[60vh] items-center justify-center px-4 py-16">
       <div className="max-w-md border border-line bg-white p-8 text-center md:p-12">
         <Logo variant="mark" alt="" className="mx-auto h-16" />
-        <p className="mt-5 text-[10.5px] font-bold uppercase tracking-[0.14em] text-[var(--brand-700)]">
+        <p className="mt-5 text-caption font-bold uppercase tracking-[0.14em] text-[var(--brand-700)]">
           Error 404
         </p>
         <h1 className="mt-2 text-2xl text-ink">Page not found</h1>

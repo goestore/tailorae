@@ -129,7 +129,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
           <div key={field.name} className="flex flex-col gap-1.5">
             <label
               htmlFor={fieldId}
-              className="text-[11px] font-bold uppercase tracking-[0.12em]"
+              className="text-caption font-bold uppercase tracking-[0.12em]"
               style={{ color: 'var(--ink-3)' }}
             >
               {field.label}
@@ -160,7 +160,7 @@ export const AuthForm: React.FC<AuthFormProps> = ({
                   }
                   aria-pressed={isRevealed}
                   aria-label={isRevealed ? `Hide ${field.label}` : `Show ${field.label}`}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[10.5px] font-bold uppercase tracking-[0.1em] transition-colors hover:text-ink"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-caption font-bold uppercase tracking-[0.1em] transition-colors hover:text-ink"
                   style={{ color: 'var(--ink-3)' }}
                 >
                   {isRevealed ? 'Hide' : 'Show'}
@@ -169,11 +169,11 @@ export const AuthForm: React.FC<AuthFormProps> = ({
             </div>
 
             {message ? (
-              <p id={`${fieldId}-error`} className="m-0 text-[12.5px]" style={{ color: 'var(--sale)' }}>
+              <p id={`${fieldId}-error`} className="m-0 text-meta" style={{ color: 'var(--sale)' }}>
                 {message}
               </p>
             ) : field.helpText ? (
-              <p className="m-0 text-[12.5px]" style={{ color: 'var(--ink-3)' }}>
+              <p className="m-0 text-meta" style={{ color: 'var(--ink-3)' }}>
                 {field.helpText}
               </p>
             ) : null}

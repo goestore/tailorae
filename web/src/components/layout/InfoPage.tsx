@@ -53,7 +53,7 @@ export const InfoPage: React.FC<InfoPageProps> = ({
               </p>
             )}
             {updated && (
-              <p className="mt-4 text-[11px] uppercase tracking-[0.14em]" style={{ color: 'var(--ink-3)' }}>
+              <p className="mt-4 text-caption uppercase tracking-[0.14em]" style={{ color: 'var(--ink-3)' }}>
                 Last updated: {updated}
               </p>
             )}

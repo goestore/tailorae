@@ -71,7 +71,7 @@ const MeasureTable: React.FC<{ caption: string; rows: SizeRow[] }> = ({ caption,
     >
       {caption}
     </h2>
-    <p className="mt-1 text-[13px]" style={{ color: 'var(--ink-3)' }}>
+    <p className="mt-1 text-meta" style={{ color: 'var(--ink-3)' }}>
       All measurements in inches. These are body measurements, not garment measurements.
     </p>
     <div className="mt-4 overflow-x-auto">
@@ -82,7 +82,7 @@ const MeasureTable: React.FC<{ caption: string; rows: SizeRow[] }> = ({ caption,
               <th
                 key={head}
                 scope="col"
-                className="py-3 pr-4 text-[11px] font-bold uppercase tracking-[0.1em]"
+                className="py-3 pr-4 text-caption font-bold uppercase tracking-[0.1em]"
                 style={{ color: 'var(--ink-3)' }}
               >
                 {head}
@@ -150,7 +150,7 @@ export default function SizeGuidePage() {
             >
               Kids
             </h2>
-            <p className="mt-1 text-[13px]" style={{ color: 'var(--ink-3)' }}>
+            <p className="mt-1 text-meta" style={{ color: 'var(--ink-3)' }}>
               Sized by age, but height is the better guide. All measurements in inches.
             </p>
             <div className="mt-4 overflow-x-auto">
@@ -161,7 +161,7 @@ export default function SizeGuidePage() {
                       <th
                         key={head}
                         scope="col"
-                        className="py-3 pr-4 text-[11px] font-bold uppercase tracking-[0.1em]"
+                        className="py-3 pr-4 text-caption font-bold uppercase tracking-[0.1em]"
                         style={{ color: 'var(--ink-3)' }}
                       >
                         {head}

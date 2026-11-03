@@ -63,7 +63,7 @@ export const CategoryCarousel: React.FC<CategoryCarouselProps> = ({
                     />
                   )}
                 </div>
-                <h3 className="line-clamp-2 text-[12px] font-normal leading-[1.3] text-ink">
+                <h3 className="line-clamp-2 text-small font-normal leading-[1.3] text-ink">
                   {category.name}
                 </h3>
               </Link>

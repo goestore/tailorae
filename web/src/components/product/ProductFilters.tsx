@@ -62,7 +62,7 @@ export const SORT_OPTIONS = [
 
 const Group: React.FC<{ title: string; children: React.ReactNode }> = ({ title, children }) => (
   <div className="border-t border-line py-4 first:border-t-0 first:pt-0">
-    <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-3">
+    <h3 className="mb-3 text-caption font-semibold uppercase tracking-[0.14em] text-ink-3">
       {title}
     </h3>
     {children}
@@ -76,7 +76,7 @@ const Check: React.FC<{
   onChange: () => void;
   label: string;
 }> = ({ type, name, checked, onChange, label }) => (
-  <label className="flex cursor-pointer items-center gap-2.5 py-1 text-[13px] text-ink-2 transition-colors hover:text-ink">
+  <label className="flex cursor-pointer items-center gap-2.5 py-1 text-meta text-ink-2 transition-colors hover:text-ink">
     <input
       type={type}
       name={name}
@@ -221,7 +221,7 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
             {sizeGroups.map(({ group, sizes }) => (
               <div key={group}>
                 {sizeGroups.length > 1 && (
-                  <p className="mb-1.5 text-[11px] text-ink-3">{group}</p>
+                  <p className="mb-1.5 text-caption text-ink-3">{group}</p>
                 )}
                 <div className="flex flex-wrap gap-1.5">
                   {sizes.map((size) => {
@@ -232,7 +232,7 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
                         type="button"
                         onClick={() => onChange({ size: active ? '' : size })}
                         aria-pressed={active}
-                        className={`min-w-[2.5rem] border px-2 py-1 text-[12px] transition-colors ${
+                        className={`min-w-[2.5rem] border px-2 py-1 text-small transition-colors ${
                           active
                             ? 'border-[var(--brand)] bg-[var(--brand)] font-semibold text-ink'
                             : 'border-line text-ink-2 hover:border-ink hover:text-ink'
@@ -267,7 +267,7 @@ export const ProductFilters: React.FC<ProductFiltersProps> = ({
                   onClick={() => onChange({ color: next.join(',') })}
                   aria-pressed={active}
                   title={`${family.name} (${family.count})`}
-                  className={`inline-flex items-center gap-1.5 border px-2 py-1 text-[12px] transition-colors ${
+                  className={`inline-flex items-center gap-1.5 border px-2 py-1 text-small transition-colors ${
                     active
                       ? 'border-ink text-ink'
                       : 'border-line text-ink-2 hover:border-ink hover:text-ink'

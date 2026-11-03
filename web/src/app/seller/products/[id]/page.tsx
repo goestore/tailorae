@@ -160,7 +160,7 @@ export default function EditSellerProductPage() {
             type="button"
             onClick={discontinue}
             disabled={isRemoving}
-            className="text-[13px] underline underline-offset-2 disabled:opacity-40"
+            className="text-meta underline underline-offset-2 disabled:opacity-40"
             style={{ color: 'var(--sale)' }}
           >
             Take off the shop

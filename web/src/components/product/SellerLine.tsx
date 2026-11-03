@@ -21,7 +21,7 @@ export const SellerLine: React.FC<SellerLineProps> = ({ seller, className = '' }
   return (
     <div className={`border border-line bg-surface-2 px-4 py-3 ${className}`.trim()}>
       <p
-        className="m-0 text-[10.5px] font-bold uppercase leading-none tracking-[0.12em]"
+        className="m-0 text-caption font-bold uppercase leading-none tracking-[0.12em]"
         style={{ color: 'var(--ink-3)' }}
       >
         Sold by
@@ -39,7 +39,7 @@ export const SellerLine: React.FC<SellerLineProps> = ({ seller, className = '' }
             stated plainly rather than dressed up as a badge of quality. */}
         {seller.isVerified && (
           <span
-            className="text-[10.5px] font-bold uppercase tracking-[0.1em]"
+            className="text-caption font-bold uppercase tracking-[0.1em]"
             style={{ color: 'var(--success, #1B7F4B)' }}
           >
             Verified seller
@@ -47,7 +47,7 @@ export const SellerLine: React.FC<SellerLineProps> = ({ seller, className = '' }
         )}
 
         {hasRating && (
-          <span className="text-[12.5px]" style={{ color: 'var(--ink-3)' }}>
+          <span className="text-meta" style={{ color: 'var(--ink-3)' }}>
             <span aria-hidden="true" style={{ color: 'var(--brand)' }}>
               ★
             </span>{' '}

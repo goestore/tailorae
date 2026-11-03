@@ -29,7 +29,7 @@ export const AddressPicker: React.FC<AddressPickerProps> = ({
 }) => (
   <fieldset className="m-0 border-0 p-0">
     <legend
-      className="mb-3 p-0 text-[10.5px] font-bold uppercase tracking-[0.12em]"
+      className="mb-3 p-0 text-caption font-bold uppercase tracking-[0.12em]"
       style={{ color: 'var(--ink-3)' }}
     >
       Deliver to
@@ -58,14 +58,14 @@ export const AddressPicker: React.FC<AddressPickerProps> = ({
               <span className="flex flex-wrap items-baseline gap-2">
                 <span className="text-[14.5px] font-semibold text-ink">{address.fullName}</span>
                 <span
-                  className="text-[10.5px] font-bold uppercase tracking-[0.12em]"
+                  className="text-caption font-bold uppercase tracking-[0.12em]"
                   style={{ color: 'var(--ink-3)' }}
                 >
                   {address.type}
                 </span>
                 {address.isDefault && (
                   <span
-                    className="text-[10.5px] font-bold uppercase tracking-[0.1em]"
+                    className="text-caption font-bold uppercase tracking-[0.1em]"
                     style={{ color: 'var(--brand-700)' }}
                   >
                     Default

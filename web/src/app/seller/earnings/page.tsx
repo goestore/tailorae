@@ -168,7 +168,7 @@ export default function SellerEarningsPage() {
         <div className="mt-8 grid gap-4 sm:grid-cols-2">
           <div className="border border-line p-5" style={{ background: 'var(--surface-2)' }}>
             <p
-              className="m-0 text-[10.5px] font-bold uppercase tracking-[0.12em]"
+              className="m-0 text-caption font-bold uppercase tracking-[0.12em]"
               style={{ color: 'var(--ink-3)' }}
             >
               Ready to pay
@@ -176,7 +176,7 @@ export default function SellerEarningsPage() {
             <p className="m-0 mt-2 text-[30px] font-semibold leading-none text-ink">
               {formatCurrency(due)}
             </p>
-            <p className="m-0 mt-1.5 text-[12.5px]" style={{ color: 'var(--ink-3)' }}>
+            <p className="m-0 mt-1.5 text-meta" style={{ color: 'var(--ink-3)' }}>
               {ledger.balance < 0
                 ? `${formatCurrency(-ledger.balance)} of returns will come off your next sales`
                 : dueCount > 0
@@ -188,13 +188,13 @@ export default function SellerEarningsPage() {
 
             <div className="mt-4">
               {openRequest ? (
-                <p className="m-0 text-[13px]" style={{ color: 'var(--ink-2)' }}>
+                <p className="m-0 text-meta" style={{ color: 'var(--ink-2)' }}>
                   Payout of {formatCurrency(openRequest.amount)} requested on{' '}
                   {day(openRequest.createdAt)} — we are processing it.
                 </p>
               ) : !kycApproved ? (
                 <div>
-                  <p className="m-0 text-[13px]" style={{ color: 'var(--ink-2)' }}>
+                  <p className="m-0 text-meta" style={{ color: 'var(--ink-2)' }}>
                     Payouts start once your identity check (KYC) is approved.
                   </p>
                   <Link href="/seller/verification" className="btn btn-primary btn-sm mt-3">
@@ -203,7 +203,7 @@ export default function SellerEarningsPage() {
                 </div>
               ) : !shop.hasBankDetails ? (
                 <div>
-                  <p className="m-0 text-[13px]" style={{ color: 'var(--ink-2)' }}>
+                  <p className="m-0 text-meta" style={{ color: 'var(--ink-2)' }}>
                     We have nowhere to send this yet — add the account you want to be paid into.
                   </p>
                   <Link href="/seller/settings" className="btn btn-primary btn-sm mt-3">
@@ -220,7 +220,7 @@ export default function SellerEarningsPage() {
 
           <div className="border border-line p-5">
             <p
-              className="m-0 text-[10.5px] font-bold uppercase tracking-[0.12em]"
+              className="m-0 text-caption font-bold uppercase tracking-[0.12em]"
               style={{ color: 'var(--ink-3)' }}
             >
               Held
@@ -228,7 +228,7 @@ export default function SellerEarningsPage() {
             <p className="m-0 mt-2 text-[30px] font-semibold leading-none text-ink">
               {formatCurrency(held)}
             </p>
-            <p className="m-0 mt-1.5 text-[12.5px]" style={{ color: 'var(--ink-3)' }}>
+            <p className="m-0 mt-1.5 text-meta" style={{ color: 'var(--ink-3)' }}>
               Earned, but still in transit or inside a buyer&rsquo;s return window. It moves across
               on its own.
             </p>
@@ -255,7 +255,7 @@ export default function SellerEarningsPage() {
                       (heading) => (
                         <th
                           key={heading}
-                          className="border-b border-line pb-2 pr-4 text-[10.5px] font-bold uppercase tracking-[0.1em]"
+                          className="border-b border-line pb-2 pr-4 text-caption font-bold uppercase tracking-[0.1em]"
                           style={{ color: 'var(--ink-3)' }}
                         >
                           {heading}
@@ -268,32 +268,32 @@ export default function SellerEarningsPage() {
                   {orders.map((order) => (
                     <React.Fragment key={order.id}>
                       <tr>
-                        <td className="border-b border-line py-3 pr-4 font-mono text-[12.5px] text-ink">
+                        <td className="border-b border-line py-3 pr-4 font-mono text-meta text-ink">
                           {order.orderNumber}
                         </td>
                         <td
-                          className="border-b border-line py-3 pr-4 text-[13px]"
+                          className="border-b border-line py-3 pr-4 text-meta"
                           style={{ color: 'var(--ink-3)' }}
                         >
                           {day(order.deliveredAt)}
                         </td>
                         <td
-                          className="border-b border-line py-3 pr-4 text-[13px]"
+                          className="border-b border-line py-3 pr-4 text-meta"
                           style={{ color: 'var(--ink-2)' }}
                         >
                           {formatCurrency(order.total)}
                         </td>
                         <td
-                          className="border-b border-line py-3 pr-4 text-[13px]"
+                          className="border-b border-line py-3 pr-4 text-meta"
                           style={{ color: 'var(--ink-3)' }}
                         >
                           −{formatCurrency(order.commissionAmount)}
-                          <span className="ml-1 text-[11.5px]">({order.commissionRate}%)</span>
+                          <span className="ml-1 text-small">({order.commissionRate}%)</span>
                         </td>
-                        <td className="border-b border-line py-3 pr-4 text-[13px] font-semibold text-ink">
+                        <td className="border-b border-line py-3 pr-4 text-meta font-semibold text-ink">
                           {formatCurrency(order.payoutAmount)}
                         </td>
-                        <td className="border-b border-line py-3 pr-4 text-[12.5px]">
+                        <td className="border-b border-line py-3 pr-4 text-meta">
                           {order.hold === null ? (
                             <span
                               style={{ color: 'var(--brand-ink, var(--ink))', fontWeight: 600 }}
@@ -313,7 +313,7 @@ export default function SellerEarningsPage() {
                               {order.items.map((item) => (
                                 <li
                                   key={item.id}
-                                  className="flex flex-wrap justify-between gap-x-4 text-[12px]"
+                                  className="flex flex-wrap justify-between gap-x-4 text-small"
                                   style={{ color: 'var(--ink-3)' }}
                                 >
                                   <span>
@@ -346,7 +346,7 @@ export default function SellerEarningsPage() {
             >
               Statement
             </h2>
-            <span className="text-[13px]" style={{ color: 'var(--ink-2)' }}>
+            <span className="text-meta" style={{ color: 'var(--ink-2)' }}>
               Balance{' '}
               <strong className="text-ink">
                 {ledger.balance < 0 ? '−' : ''}
@@ -366,7 +366,7 @@ export default function SellerEarningsPage() {
                     {['Date', 'Entry', 'Order / reference', 'Amount', 'Balance'].map((heading) => (
                       <th
                         key={heading}
-                        className="border-b border-line pb-2 pr-4 text-[10.5px] font-bold uppercase tracking-[0.1em]"
+                        className="border-b border-line pb-2 pr-4 text-caption font-bold uppercase tracking-[0.1em]"
                         style={{ color: 'var(--ink-3)' }}
                       >
                         {heading}
@@ -378,33 +378,33 @@ export default function SellerEarningsPage() {
                   {ledger.entries.map((entry) => (
                     <tr key={entry.id}>
                       <td
-                        className="border-b border-line py-2.5 pr-4 text-[13px]"
+                        className="border-b border-line py-2.5 pr-4 text-meta"
                         style={{ color: 'var(--ink-3)' }}
                       >
                         {day(entry.createdAt)}
                       </td>
-                      <td className="border-b border-line py-2.5 pr-4 text-[13px] text-ink">
+                      <td className="border-b border-line py-2.5 pr-4 text-meta text-ink">
                         {ENTRY_LABEL[entry.type]}
                         {entry.type === 'ADJUSTMENT' && entry.note && (
-                          <span className="block text-[12px]" style={{ color: 'var(--ink-3)' }}>
+                          <span className="block text-small" style={{ color: 'var(--ink-3)' }}>
                             {entry.note}
                           </span>
                         )}
                       </td>
                       <td
-                        className="border-b border-line py-2.5 pr-4 font-mono text-[12px]"
+                        className="border-b border-line py-2.5 pr-4 font-mono text-small"
                         style={{ color: 'var(--ink-2)' }}
                       >
                         {entry.orderNumber ?? entry.reference ?? '—'}
                       </td>
                       <td
-                        className="border-b border-line py-2.5 pr-4 text-[13px] font-semibold"
+                        className="border-b border-line py-2.5 pr-4 text-meta font-semibold"
                         style={{ color: entry.amount < 0 ? 'var(--ink-2)' : 'var(--ink)' }}
                       >
                         {entry.amount < 0 ? '−' : '+'}
                         {formatCurrency(Math.abs(entry.amount))}
                       </td>
-                      <td className="border-b border-line py-2.5 pr-4 text-[13px] text-ink">
+                      <td className="border-b border-line py-2.5 pr-4 text-meta text-ink">
                         {entry.balanceAfter < 0 ? '−' : ''}
                         {formatCurrency(Math.abs(entry.balanceAfter))}
                       </td>
@@ -441,10 +441,10 @@ export default function SellerEarningsPage() {
                   <span className="text-[14px] font-semibold text-ink">
                     {formatCurrency(row.amount)}
                   </span>
-                  <span className="text-[12.5px]" style={{ color: 'var(--ink-3)' }}>
+                  <span className="text-meta" style={{ color: 'var(--ink-3)' }}>
                     {STATUS_LABEL[row.status]} · {day(row.completedAt ?? row.createdAt)}
                   </span>
-                  <span className="text-[12.5px]" style={{ color: 'var(--ink-3)' }}>
+                  <span className="text-meta" style={{ color: 'var(--ink-3)' }}>
                     {row.rejectionReason ?? row.transactionId ?? ''}
                   </span>
                 </li>

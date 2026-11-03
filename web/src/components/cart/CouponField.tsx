@@ -133,15 +133,15 @@ export const CouponField: React.FC<CouponFieldProps> = ({ subtotal, onChange, cl
       <div className={`border border-line bg-surface-2 px-4 py-3 ${className}`.trim()}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <p className="m-0 text-[13px] font-semibold text-ink">{applied.code} applied</p>
-            <p className="m-0 mt-0.5 text-[12.5px]" style={{ color: 'var(--ink-3)' }}>
+            <p className="m-0 text-meta font-semibold text-ink">{applied.code} applied</p>
+            <p className="m-0 mt-0.5 text-meta" style={{ color: 'var(--ink-3)' }}>
               You save {formatCurrency(applied.discount)}
             </p>
           </div>
           <button
             type="button"
             onClick={remove}
-            className="text-[12px] underline underline-offset-2 hover:text-ink"
+            className="text-small underline underline-offset-2 hover:text-ink"
             style={{ color: 'var(--ink-3)' }}
           >
             Remove
@@ -155,7 +155,7 @@ export const CouponField: React.FC<CouponFieldProps> = ({ subtotal, onChange, cl
     <div className={className}>
       <label
         htmlFor="coupon-code"
-        className="m-0 block text-[10.5px] font-bold uppercase tracking-[0.12em]"
+        className="m-0 block text-caption font-bold uppercase tracking-[0.12em]"
         style={{ color: 'var(--ink-3)' }}
       >
         Discount code
@@ -188,7 +188,7 @@ export const CouponField: React.FC<CouponFieldProps> = ({ subtotal, onChange, cl
         </button>
       </div>
       {error && (
-        <p className="m-0 mt-2 text-[13px]" style={{ color: 'var(--sale)' }}>
+        <p className="m-0 mt-2 text-meta" style={{ color: 'var(--sale)' }}>
           {error}
         </p>
       )}

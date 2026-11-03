@@ -108,7 +108,7 @@ export const ReturnRequestModal: React.FC<ReturnRequestModalProps> = ({ order, o
                     />
                     {label}
                   </span>
-                  <span className="text-[12.5px]" style={{ color: 'var(--ink-3)' }}>
+                  <span className="text-meta" style={{ color: 'var(--ink-3)' }}>
                     {hint}
                   </span>
                 </label>

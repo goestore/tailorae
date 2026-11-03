@@ -1,9 +1,11 @@
 'use client';
 
 import React, { useMemo, useState } from 'react';
+import type { MediaPlaceholderVariant } from '@/components/common';
 import type { PickerSource } from '@/content/field';
 import { loadPickerOptions, type PickerOption } from '@/content/picker-source';
 import { Grip, RowActions } from './ContentField';
+import { MediaThumb } from './ImagePicker';
 
 /**
  * Chooses which items a section shows, and in what order.
@@ -18,14 +20,13 @@ import { Grip, RowActions } from './ContentField';
  * untouched field never blanks a section.
  */
 
-const previewable = (value: string): boolean => value !== '' && /^[^"'()\s]+$/.test(value);
+/** The placeholder drawing for an item with no image, per picker source. */
+const PLACEHOLDER: Record<PickerSource, MediaPlaceholderVariant> = {
+  products: 'product',
+};
 
-const Thumb: React.FC<{ url?: string }> = ({ url }) => (
-  <span
-    aria-hidden="true"
-    className="ce-thumb"
-    style={url && previewable(url) ? { backgroundImage: `url("${url}")` } : undefined}
-  />
+const Thumb: React.FC<{ url?: string; source: PickerSource }> = ({ url, source }) => (
+  <MediaThumb url={url} variant={PLACEHOLDER[source]} className="ce-thumb" />
 );
 
 interface PickerControlProps {
@@ -140,7 +141,7 @@ export const PickerControl: React.FC<PickerControlProps> = ({
                 <div className="ce-row-head">
                   <Grip />
                   <span className="ce-row-index">{index + 1}</span>
-                  <Thumb url={option?.image} />
+                  <Thumb url={option?.image} source={source} />
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="ce-row-name">
                       {/* Before the list loads there is nothing to resolve the id
@@ -230,7 +231,7 @@ export const PickerControl: React.FC<PickerControlProps> = ({
                     disabled={full}
                     onClick={() => add(option.id)}
                   >
-                    <Thumb url={option.image} />
+                    <Thumb url={option.image} source={source} />
                     <span className="flex min-w-0 flex-1 flex-col">
                       <span className="ce-row-name">{option.label}</span>
                       {option.meta && <span className="ce-row-meta">{option.meta}</span>}

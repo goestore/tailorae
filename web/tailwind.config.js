@@ -115,7 +115,15 @@ module.exports = {
       },
       // Compact scale. TEXT_SCALE below is the single knob for global text
       // size — lower it to shrink every font step on the site at once.
-      fontSize: SIZES,
+      fontSize: {
+        ...SIZES,
+        // Small type scale, from the --text-* tokens in globals.css. Font size
+        // only (no line-height), so these drop in for text-[10px]…text-[13px].
+        micro: 'var(--text-micro)',
+        caption: 'var(--text-caption)',
+        small: 'var(--text-small)',
+        meta: 'var(--text-meta)',
+      },
       boxShadow: {
         // Token-backed scale — use these for anything new.
         1: 'var(--shadow-1)',

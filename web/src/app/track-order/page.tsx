@@ -150,7 +150,7 @@ function TrackOrderForm() {
               <header className="flex flex-wrap items-start justify-between gap-4 border-b border-line p-5">
                 <div>
                   <p
-                    className="m-0 text-[10.5px] font-bold uppercase tracking-[0.12em]"
+                    className="m-0 text-caption font-bold uppercase tracking-[0.12em]"
                     style={{ color: 'var(--ink-3)' }}
                   >
                     Order
@@ -159,7 +159,7 @@ function TrackOrderForm() {
                 </div>
                 <div className="text-right">
                   <p
-                    className="m-0 text-[10.5px] font-bold uppercase tracking-[0.12em]"
+                    className="m-0 text-caption font-bold uppercase tracking-[0.12em]"
                     style={{ color: 'var(--ink-3)' }}
                   >
                     Placed
@@ -172,12 +172,12 @@ function TrackOrderForm() {
                 {isCancelled ? (
                   <div className="px-4 py-4 text-center" style={{ background: '#fef2f2' }}>
                     <p
-                      className="m-0 text-[11px] font-bold uppercase tracking-[0.12em]"
+                      className="m-0 text-caption font-bold uppercase tracking-[0.12em]"
                       style={{ color: 'var(--sale)' }}
                     >
                       Order cancelled
                     </p>
-                    <p className="m-0 mt-1.5 text-[13px]" style={{ color: 'var(--ink-2)' }}>
+                    <p className="m-0 mt-1.5 text-meta" style={{ color: 'var(--ink-2)' }}>
                       This order was cancelled and will not be delivered. Any payment made is
                       refunded to the original method.
                     </p>
@@ -185,12 +185,12 @@ function TrackOrderForm() {
                 ) : isReturned ? (
                   <div className="px-4 py-4 text-center" style={{ background: '#fff7ed' }}>
                     <p
-                      className="m-0 text-[11px] font-bold uppercase tracking-[0.12em]"
+                      className="m-0 text-caption font-bold uppercase tracking-[0.12em]"
                       style={{ color: '#c2410c' }}
                     >
                       Order returned
                     </p>
-                    <p className="m-0 mt-1.5 text-[13px]" style={{ color: 'var(--ink-2)' }}>
+                    <p className="m-0 mt-1.5 text-meta" style={{ color: 'var(--ink-2)' }}>
                       This order came back to us. Get in touch about the refund if you have not
                       heard from us.
                     </p>
@@ -219,7 +219,7 @@ function TrackOrderForm() {
                             }}
                           />
                           <span
-                            className="mt-2 text-[10px] font-bold uppercase tracking-[0.08em]"
+                            className="mt-2 text-micro font-bold uppercase tracking-[0.08em]"
                             style={{ color: reached ? 'var(--ink)' : 'var(--ink-3)' }}
                           >
                             {step.label}
@@ -255,7 +255,7 @@ function TrackOrderForm() {
               {order.verified && order.items && order.items.length > 0 && (
                 <div className="border-t border-line p-5">
                   <p
-                    className="m-0 text-[10.5px] font-bold uppercase tracking-[0.12em]"
+                    className="m-0 text-caption font-bold uppercase tracking-[0.12em]"
                     style={{ color: 'var(--ink-3)' }}
                   >
                     Items
@@ -285,7 +285,7 @@ function TrackOrderForm() {
                   {typeof order.total === 'number' && (
                     <div className="mt-4 flex items-baseline justify-between border-t border-line pt-3">
                       <span
-                        className="text-[11px] font-bold uppercase tracking-[0.1em]"
+                        className="text-caption font-bold uppercase tracking-[0.1em]"
                         style={{ color: 'var(--ink-3)' }}
                       >
                         Total
@@ -300,7 +300,7 @@ function TrackOrderForm() {
 
               {!order.verified && (
                 <p
-                  className="m-0 border-t border-line px-5 py-4 text-[13px]"
+                  className="m-0 border-t border-line px-5 py-4 text-meta"
                   style={{ color: 'var(--ink-3)' }}
                 >
                   Add the email used at checkout above to see the items, the address and the total.
@@ -309,7 +309,7 @@ function TrackOrderForm() {
             </section>
           )}
 
-          <p className="mt-8 text-[13px]" style={{ color: 'var(--ink-3)' }}>
+          <p className="mt-8 text-meta" style={{ color: 'var(--ink-3)' }}>
             Signed in? Every order, invoice and return sits under{' '}
             <Link href="/dashboard" className="underline underline-offset-2 hover:text-ink">
               My Account
