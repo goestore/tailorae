@@ -7,53 +7,60 @@ sellers run their own shops, and the platform handles checkout, payments, commis
 
 | Folder | What it is |
 |---|---|
-| `web/` | Storefront, seller console and admin console — Next.js 16, React 19, Tailwind |
-| `legacy-api/` | Current API — Express + Prisma + PostgreSQL. Being replaced by `api/` |
-| `api/` | Spring Boot + Kotlin + Kafka API (in progress — see `docs/ARCHITECTURE.md`) |
-| `infra/` | Docker Compose for local services (Postgres, Redis, Kafka, Mailpit, Adminer) |
-| `docs/` | `ACCOUNTS.md` (realms, onboarding, data separation), `ARCHITECTURE.md`, `ROADMAP.md` |
+| `web/` | Storefront, seller console (`/seller`) and staff console (`/admin`) — Next.js 16, React 19, Tailwind |
+| `api/` | API — Spring Boot 4, Kotlin, JDK 21, PostgreSQL (Flyway), Kafka. Conventions in `api/CONVENTIONS.md` |
+| `infra/` | Docker Compose: Postgres, Redis, Kafka (+ UI), Mailpit, Adminer; `app` profile adds the API and web |
+| `scripts/` | Cross-platform Gradle runner and the end-to-end smoke test |
+| `docs/` | [`ACCOUNTS.md`](docs/ACCOUNTS.md) (three account realms, onboarding, data separation), [`ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`API_MIGRATION.md`](docs/API_MIGRATION.md), [`ROADMAP.md`](docs/ROADMAP.md) |
 
 ## First run
 
+Needs Docker, Node 22 and any JDK 17+ (Gradle downloads JDK 21 for the API by itself).
+
 ```bash
-# 1. Services (Postgres on localhost:5433, Redis on 6379)
+# 1. Services: Postgres on localhost:5433, Kafka 9092, Mailpit 1025 (inbox at http://localhost:8025)
 npm run db:up
 
-# 2. API
-cd legacy-api
-cp .env.example .env          # then set JWT_SECRET, SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD
-npm install
-npm run setup:db              # creates the schema and the one admin account
-npm run dev                   # http://localhost:5000
+# 2. Settings
+cp api/.env.example api/.env            # set JWT_SECRET, FIELD_ENCRYPTION_KEY, BOOTSTRAP_ADMIN_PASSWORD
+cp web/.env.example web/.env.local
 
-# 3. Web
-cd ../web
-cp .env.example .env.local
-npm ci
-npm run dev                   # http://localhost:3000
+# 3. Install and run both (API on :8081, web on :3000)
+npm run install:all
+npm run dev
 ```
 
-The store starts **empty** — no categories, products, brands or sellers. Sign in at `/auth/login`
-with the seed admin and build the catalogue from `/admin`.
+The store starts **empty** — no categories, products, brands or sellers. Three separate sign-ins:
 
-### Kotlin API (`api/`, in progress)
+- **Staff:** `/admin/login` with `BOOTSTRAP_ADMIN_EMAIL` / `BOOTSTRAP_ADMIN_PASSWORD`; build the catalogue and invite staff from `/admin`.
+- **Sellers:** `/seller/register` — confirm email and phone (until an SMS provider is set up, the code is printed in the API log), create the business, upload KYC, add the bank account, submit for review.
+- **Customers:** `/auth/register`.
 
-Uses its own database (`tailorae_api`) until cutover — Flyway owns that schema.
-
-```bash
-docker exec tailorae-db psql -U postgres -c "create database tailorae_api"   # once
-cd api
-JWT_SECRET=<48+ random chars> SECURE_COOKIES=false \
-BOOTSTRAP_ADMIN_EMAIL=admin@tailorae.com BOOTSTRAP_ADMIN_PASSWORD=<10+ chars> \
-./gradlew bootRun             # http://localhost:8081, emails appear in Mailpit at :8025
-./gradlew test                # unit + module-boundary + Testcontainers tests (needs Docker)
-```
+Online payment needs Razorpay test keys in `api/.env`; without them checkout offers cash on delivery.
 
 ## Checks
 
 ```bash
-cd web && npm run lint && npx tsc --noEmit && npx vitest run
-cd legacy-api && npx tsc --noEmit && npx jest
+npm test                                 # API tests (needs Docker) + web unit tests
+npm run lint && npm run type-check       # web
+ADMIN_PASSWORD=… API_LOG=… node scripts/e2e-smoke.mjs   # whole marketplace flow against a running stack
+```
+
+CI (`.github/workflows/ci.yml`) runs the API tests, the web lint/types/tests/build and both Docker builds.
+
+## Running it all in containers
+
+```bash
+npm run stack:up                         # Postgres, Kafka, Mailpit, API (:8081) and web (:3000)
+```
+
+For production the API reads its settings from the environment (see `api/src/main/resources/application.yml`);
+set `STORAGE_TYPE=s3` and the `S3_*` variables to keep files in an S3-compatible bucket.
+
+## API types for the web app
+
+```bash
+npm run api:types                        # regenerates web/src/lib/api/schema.d.ts from the running API's OpenAPI
 ```
 
 ## Brand assets

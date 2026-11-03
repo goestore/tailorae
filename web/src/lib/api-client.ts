@@ -27,7 +27,7 @@ export const REALMS: Record<Realm, RealmConfig> = {
   admin: { authPath: '/admin/auth', signInPage: '/admin/login' },
 };
 
-export const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8082/api').replace(
+export const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081/api').replace(
   /\/+$/,
   ''
 );

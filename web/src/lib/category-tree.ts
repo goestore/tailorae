@@ -7,7 +7,7 @@
  * fall back to the static navigation instead of rendering an empty header.
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8082/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081/api';
 
 export interface StoreCategory {
   id: string;

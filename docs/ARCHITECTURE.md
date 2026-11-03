@@ -1,10 +1,8 @@
 # Architecture — Kotlin API
 
-The TAILORAE backend is being rewritten from Express + Prisma (`legacy-api/`) to
-Spring Boot + Kotlin + Kafka (`api/`). It is a **big-bang** rewrite: the web app
-keeps talking to `legacy-api` until `api/` reaches full parity, then switches
-over in one release and `legacy-api` is deleted. The database starts empty, so
-there is no data migration.
+The TAILORAE backend is Spring Boot + Kotlin + Kafka (`api/`). It replaced the
+original Express + Prisma API in a big-bang rewrite (November 2026); the old code
+is in git history only. The database started empty, so there was no data migration.
 
 ## Stack
 

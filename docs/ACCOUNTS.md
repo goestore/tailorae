@@ -2,8 +2,8 @@
 
 How customers, sellers and platform staff get accounts on TAILORAE, and how one
 seller's data is kept away from every other seller and from customers who should
-not see it. This is the design the Kotlin API (`api/`) implements; the Node API
-(`legacy-api/`) still uses the single-`User`-table model described at the end.
+not see it. This is the design the Kotlin API (`api/`) implements; the original Node API
+used the single-`User`-table model described at the end.
 
 ## 1. Three separate identity realms
 
@@ -160,7 +160,7 @@ the RLS policies are exercised too.
 
 ## 4. Money between customers, sellers and the platform
 
-Unchanged business rules, ported from `legacy-api/src/utils`:
+Unchanged business rules, ported from the original Node API's `src/utils`:
 
 - **Commission** per line: the seller's own rate, else the nearest category up
   the tree that sets one, else the platform default (10%). Platform stock pays 0.
@@ -172,7 +172,7 @@ Unchanged business rules, ported from `legacy-api/src/utils`:
   (`SALE`, `PAYOUT`, `RETURN_REVERSAL`, `ADJUSTMENT`); the balance is the sum.
 - All amounts are integer **paise** (`bigint`), never floating point.
 
-## 5. Difference from the current Node API
+## 5. Difference from the original Node API (removed)
 
 `legacy-api` has one `User` table with a single `role` column (`ADMIN`,
 `VENDOR`, `B2B_BUYER`, `RETAIL_CUSTOMER`). Becoming a seller *converts* a

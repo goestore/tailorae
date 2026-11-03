@@ -47,14 +47,11 @@ function SessionInit() {
     let cancelled = false;
     dispatch(sessionCheckStarted(realm));
 
-    // The bag only exists for shoppers; fired alongside /me rather than after
-    // it, so restoring a session costs one round trip, not two.
-    const cartPromise = realm === 'customer' ? getCart().catch(() => null) : Promise.resolve(null);
-
     fetchSession(realm).then(async (user) => {
       if (cancelled) return;
       dispatch(sessionResolved({ realm, user }));
-      const cart = await cartPromise;
+      // The bag only exists for signed-in shoppers; asking for it anonymously is a 401.
+      const cart = user && realm === 'customer' ? await getCart().catch(() => null) : null;
       if (cancelled) return;
       if (user && cart) dispatch(loadCart(cart));
       else if (!user) dispatch(clearCart());

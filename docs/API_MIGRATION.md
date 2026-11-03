@@ -1,4 +1,6 @@
-# Moving the web app from `legacy-api` to `api`
+# Moving the web app from the original Node API to `api`
+
+> Done (November 2026). Kept as the record of what changed for the web app.
 
 What changes for `web/` when it talks to the Kotlin API instead of the Express
 one. The full machine-readable contract is `GET /v3/api-docs` on the running API;
@@ -7,7 +9,7 @@ the decisions and differences that the types alone do not explain.
 
 ## 1. Base URL, cookies and sessions
 
-- `NEXT_PUBLIC_API_URL=http://localhost:8081/api` (Kotlin API) instead of `:5000/api`.
+- `NEXT_PUBLIC_API_URL=http://localhost:8081/api` (Kotlin API) instead of the old `:5000/api`.
 - **No tokens in `localStorage`.** Sign-in sets httpOnly cookies per realm; axios needs
   `withCredentials: true`. Remove every `localStorage` token read/write and the
   `Authorization: Bearer` header.

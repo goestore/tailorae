@@ -15,7 +15,7 @@ import { getApiErrorMessage } from '@/lib/api-utils';
 
 export interface MediaAsset {
   id: string;
-  /** Absolute, e.g. "http://localhost:8082/media/ab12….webp". */
+  /** Absolute, e.g. "http://localhost:8081/media/ab12….webp". */
   url: string;
   filename: string;
   alt: string | null;

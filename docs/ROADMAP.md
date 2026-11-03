@@ -69,7 +69,7 @@ Remaining
 - [x] scheduled jobs: unpaid-order stock release, settlement sweep, session cleanup (advisory-lock single runner)
 - [x] cross-seller isolation tests (404 on another shop's ids, RLS proven against Postgres)
 - [x] OpenAPI at `/v3/api-docs`; contract changes in [`API_MIGRATION.md`](API_MIGRATION.md)
-- [ ] Web switched to the Kotlin API: storefront + auth (in progress), seller console, admin console
+- [x] Web switched to the Kotlin API: storefront + auth, seller console (new onboarding, team, earnings), staff console (permissions, staff, audit)
 - [x] Dockerfiles (api, web), compose `app` profile, GitHub Actions CI
 - [x] JDK 21 + virtual threads
-- [ ] Cutover: full E2E (seller sign-up → approval → listing → moderation → checkout → Razorpay test webhook → delivery → payout), point web at `api/`, delete `legacy-api/` and Prisma
+- [x] Cutover: full E2E (`scripts/e2e-smoke.mjs`: seller sign-up → approval → listing → moderation → checkout → delivery → payout; Razorpay webhooks covered by API tests), web on `api/`, `legacy-api/` and Prisma deleted

@@ -65,6 +65,12 @@ async function sessionUser(account: AccountSummary): Promise<User> {
  */
 export async function fetchSession(realm: Realm): Promise<User | null> {
   try {
+    // Ask first whether there is anything to restore, so an anonymous visitor
+    // costs one quiet request instead of a 401 from /me and another from refresh.
+    const probe = await apiClient.get(path(realm, 'session'), { silent: true });
+    const state = probe.data?.data as { signedIn?: boolean; refreshable?: boolean } | undefined;
+    if (!state?.signedIn && !state?.refreshable) return null;
+    // Signed in, or a refresh will sign us back in: /me (the client refreshes on its 401).
     const response = await apiClient.get(path(realm, 'me'), { silent: true });
     const account = response.data?.data as AccountSummary | undefined;
     return account?.id ? await sessionUser(account) : null;
