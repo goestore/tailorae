@@ -1,0 +1,3190 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   DESIGN TOKENS
+   60% surface / 30% ink / 10% brand yellow
+   ============================================ */
+
+:root {
+  /* --font-inter-next is set on <html> by next/font (app/layout.tsx): the
+     font is self-hosted and preloaded instead of a render-blocking @import. */
+  --font-inter: var(--font-inter-next, 'Inter'), -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  --font-playfair: var(--font-inter);
+  --font-montserrat: var(--font-inter);
+
+  /* Ink & surface — the 90% */
+  --ink: #111111;
+  --ink-2: #3f3f46;
+  --ink-3: #71717a;
+  --surface: #ffffff;
+  --surface-2: #fafaf9;
+  --border: #e7e5e4;
+  --border-strong: #d6d3d1;
+
+  /* Brand — the 10% */
+  --brand: #fecc00;
+  --brand-600: #866600;
+  --brand-700: #6b5100;
+  --brand-soft: rgba(254, 204, 0, 0.1);
+
+  /* Gradients — multi-stop so they never band */
+  --grad-brand: linear-gradient(135deg, #ffe04d 0%, #fecc00 52%, #e8b400 100%);
+  --grad-brand-hover: linear-gradient(135deg, #fecc00 0%, #edbd00 52%, #d1a300 100%);
+  --grad-ink: linear-gradient(160deg, #1c1c1f 0%, #111113 100%);
+  --grad-warm: linear-gradient(180deg, #fffdf6 0%, #ffffff 100%);
+  --glow-brand: radial-gradient(60% 100% at 50% 0%, rgba(254, 204, 0, 0.14), transparent 70%);
+  /* Landing-page navy (/sell), from the seller-acquisition reference. */
+  --navy: #0f2742;
+  --grad-navy: linear-gradient(160deg, #143152 0%, #0f2742 55%, #0b1e35 100%);
+
+  /* Geometry — cards and controls are both square. */
+  --r-card: 0px;
+  --r-control: 0px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 16px;
+  --r-pill: 999px;
+
+  --shadow-1: 0 1px 2px rgba(17, 17, 17, 0.06);
+  --shadow-2: 0 4px 12px rgba(17, 17, 17, 0.08);
+  --shadow-3: 0 12px 28px rgba(17, 17, 17, 0.1);
+  /* Hover glow for product cards — the edge lights up brand yellow. */
+  --shadow-brand: 0 4px 16px rgba(254, 204, 0, 0.45);
+
+  /* Product card standard — one ratio, and one width shared by the grids and
+     the carousels. The width IS the grid column: 2-up on phones, 3-up from sm
+     and 4-up from lg, so a full-width row holds exactly four cards. */
+  --card-ratio: 3 / 4;
+  --card-cols: 2;
+  --card-gap: 0.75rem;
+  --card-row-gap: 1.25rem;
+  --card-w: calc((100% - (var(--card-cols) - 1) * var(--card-gap)) / var(--card-cols));
+  /* Phones run the carousel card a hair past half the port so the next card
+     peeks past the edge — the arrows are hidden below md. */
+  --card-w-sm: 46vw;
+  /* Category tiles are a smaller, rounder object than a product card. */
+  --cat-w: 28vw;
+  --sale: #b42318;
+
+  /* Rhythm */
+  --section-y: clamp(28px, 3.4vw, 56px);
+  /* The page frame. Content runs edge to edge with a gutter that grows with
+     the viewport; `--content-max` stays a token so a single page can still opt
+     into a narrower measure where long-form text needs one. */
+  --gutter: clamp(16px, 2.4vw, 48px);
+  --content-max: none;
+  /* Comfortable reading measure for prose that should not span a 4K display. */
+  --prose-max: 78ch;
+}
+
+/* ============================================
+   ADMIN COMMAND CENTER — precision console
+   ============================================ */
+
+/* The card ladder. Everything that lays out cards — .pgrid and .pcard-fixed —
+   reads these, so a row never has to restate its own column count. */
+@media (min-width: 640px) {
+  :root {
+    --card-cols: 3;
+    --card-gap: 1rem;
+    --card-row-gap: 1.75rem;
+    --cat-w: 140px;
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --card-cols: 4;
+  }
+}
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
+
+html,
+body {
+  width: 100%;
+}
+
+html { overflow-x: clip; }
+
+/* The UA rule for [hidden] is a bare attribute selector, so any display
+   utility on the same element (`flex`, `grid`, `block`) outranks it and the
+   element stays visible. Collapsible panels rely on the `hidden` attribute, so
+   make it win. */
+[hidden] {
+  display: none !important;
+}
+
+body {
+  @apply bg-white text-black;
+  -webkit-font-smoothing: antialiased;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  min-width: 320px;
+  overflow-x: clip;
+}
+
+img,
+svg,
+video,
+canvas { max-width: 100%; }
+
+/* Product names, addresses and admin-entered copy can be unexpectedly long.
+   Never let a single token break the phone layout. */
+p,
+h1,
+h2,
+h3,
+a,
+button,
+label,
+span { overflow-wrap: break-word; }
+
+/* One restrained typographic voice across every route: hierarchy comes from
+   scale, space and contrast rather than from bold everywhere.
+ *
+ * This used to be enforced with `font-weight: 400 !important` on `*`. An
+ * `!important` declaration on the universal selector beats every ordinary rule
+ * regardless of specificity, so it silently flattened all 174 `font-semibold`
+ * and `font-bold` utilities in the storefront — the cart total, the product
+ * price, order numbers, every heading. The restraint was right; enforcing it
+ * from a selector nothing can override was not, because it left no way to
+ * emphasise the two or three things on a page that carry the meaning.
+ *
+ * It is a default now. Everything inherits the body's weight unless a component
+ * deliberately asks for more, which is what the utilities were always for.
+ *
+ * `font-family: inherit` is likewise scoped rather than universal: applied to
+ * everything it also killed `font-mono`, so SKUs and order numbers — the two
+ * things on a page a person actually copies — rendered in the body sans-serif.
+ */
+*,
+*::before,
+*::after {
+  font-style: normal;
+}
+
+/* Form controls do not inherit the page font on their own. */
+input,
+select,
+textarea,
+button {
+  font-family: inherit;
+}
+
+body {
+  font-weight: 400;
+}
+
+/* Emphasis, used sparingly and on purpose. `<b>`/`<strong>` in admin-entered
+   copy stay at the body weight — a merchandiser bolding half a description
+   should not out-shout the price beside it. */
+b,
+strong {
+  font-weight: 500;
+}
+
+/* Links carry no underline in navigation and card chrome, where position and
+   colour already say they are links. Inline links inside prose do — without it
+   they are indistinguishable from the sentence around them, which is a real
+   accessibility failure and not a stylistic choice. */
+a {
+  text-decoration: none;
+}
+
+.prose-body a:not([class*='btn']),
+p > a:not([class*='btn']):not([class*='pcard']) {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--border-strong);
+}
+
+.prose-body a:hover,
+p > a:not([class*='btn']):hover {
+  text-decoration-color: currentColor;
+}
+
+/* A loading placeholder, in the page's own palette. Sits between the two
+   surface tokens so it reads as "content arriving" on either ground. */
+.skeleton-block {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--ink-3) 18%, var(--surface-2));
+}
+
+/* ============================================
+   TYPOGRAPHY
+   ============================================ */
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  @apply font-sans tracking-tight;
+  /* Inherit, don't hard-set: headings sit on dark surfaces too (footer, CTA
+     band), and a fixed ink colour makes them invisible there. */
+  color: inherit;
+}
+
+h1 {
+  font-size: clamp(1.26rem, 0.9rem + 1.68vw, 1.92rem);
+  line-height: 1.15;
+}
+
+h2 {
+  font-size: clamp(1.08rem, 0.86rem + 1.02vw, 1.44rem);
+  line-height: 1.2;
+}
+
+h3 {
+  font-size: clamp(0.96rem, 0.86rem + 0.48vw, 1.14rem);
+  line-height: 1.28;
+}
+
+h4 {
+  font-size: clamp(0.9rem, 0.84rem + 0.3vw, 1.02rem);
+  line-height: 1.3;
+}
+
+h5 {
+  @apply text-base md:text-lg;
+}
+
+h6 {
+  @apply text-sm md:text-base;
+}
+
+p {
+  @apply text-base font-sans;
+  line-height: 1.5;
+}
+
+/* ============================================
+   LAYOUT PRIMITIVES
+   ============================================ */
+
+/* One container for the whole site — header, sections and footer alike. */
+.container-max {
+  width: 100%;
+  max-width: var(--content-max);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+/* Full-bleed row: spans the viewport with only edge padding, no max-width cap.
+   Used by the header and announcement bar so the chrome reaches both edges
+   while page content stays capped by .container-max. */
+.container-fluid {
+  width: 100%;
+  padding-inline: clamp(14px, 2.2vw, 40px);
+}
+
+.section-y {
+  padding-block: var(--section-y);
+}
+
+.section-padding {
+  padding-inline: var(--gutter);
+  padding-block: var(--section-y);
+}
+
+/* Section heading — plain type, no accent rule. Every band is already fenced
+   off by its own border, so a line under the title just adds noise. */
+/* Section titles: uppercase, with a short brand bar in front — the one
+   accent every section opens with, so the bands read as one system. */
+.heading-rule {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: clamp(0.95rem, 0.86rem + 0.42vw, 1.2rem);
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink);
+}
+
+.heading-rule::before {
+  content: '';
+  flex-shrink: 0;
+  width: 3px;
+  height: 0.95em;
+  background: var(--brand);
+}
+
+.heading-rule-center {
+  justify-content: center;
+  text-align: center;
+}
+
+/* Title row of a home band: heading left, optional note right, hairline under. */
+.section-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+@media (min-width: 768px) {
+  .section-head { margin-bottom: 1.25rem; }
+}
+
+
+
+/* ============================================
+   BUTTONS
+   Layered so per-instance utilities can override.
+   ============================================ */
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center px-4 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed;
+    border-radius: var(--r-control);
+    min-height: 38px; /* touch target */
+    transition:
+      background-color 0.18s ease,
+      border-color 0.18s ease,
+      color 0.18s ease,
+      box-shadow 0.18s ease;
+  }
+
+  .btn-primary {
+    color: var(--ink);
+    background: var(--brand);
+    box-shadow: var(--shadow-1);
+  }
+
+  .btn-primary:hover {
+    background: #ffe04d;
+    box-shadow: var(--shadow-2);
+  }
+
+  .btn-secondary {
+    color: var(--surface);
+    background: var(--ink);
+  }
+
+  .btn-secondary:hover {
+    background: #27272a;
+  }
+
+  .btn-outline {
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+  }
+
+  .btn-outline:hover {
+    background: var(--surface-2);
+    border-color: var(--ink-3);
+  }
+
+  .btn-ghost {
+    color: var(--ink);
+    background: transparent;
+  }
+
+  .btn-ghost:hover {
+    background: var(--surface-2);
+  }
+
+  .btn-danger {
+    @apply bg-red-600 text-white hover:bg-red-700;
+  }
+
+  .btn-success {
+    @apply bg-green-600 text-white hover:bg-green-700;
+  }
+
+  .btn-sm {
+    @apply px-2.5 text-sm;
+    min-height: 30px;
+  }
+
+  .btn-lg {
+    @apply px-5 text-base;
+    min-height: 44px;
+  }
+
+  .btn-block {
+    @apply w-full;
+  }
+}
+
+/* ============================================
+   FORMS
+   ============================================ */
+
+input,
+textarea,
+select {
+  @apply w-full bg-white px-3 py-2 text-black placeholder-neutral-500 focus:outline-none;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-control);
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-soft);
+}
+
+input[type='checkbox'],
+input[type='radio'] {
+  @apply h-4 w-4;
+  width: 1rem;
+  padding: 0;
+  /* The forms plugin fills a ticked box with currentColor; the input rule
+     above makes that black. Brand yellow instead, with an ink tick/dot so it
+     still reads on yellow. */
+  color: var(--brand);
+  border-color: var(--border-strong);
+  cursor: pointer;
+}
+
+input[type='radio'] {
+  border-radius: var(--r-pill);
+}
+
+input[type='checkbox']:checked,
+input[type='radio']:checked {
+  border-color: var(--brand);
+}
+
+input[type='checkbox']:checked {
+  background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='%23111111' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+}
+
+input[type='radio']:checked {
+  background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='%23111111' xmlns='http://www.w3.org/2000/svg'%3e%3ccircle cx='8' cy='8' r='3'/%3e%3c/svg%3e");
+}
+
+input[type='checkbox']:focus,
+input[type='radio']:focus {
+  box-shadow: 0 0 0 3px var(--brand-soft);
+}
+
+label {
+  @apply block text-sm font-medium;
+  color: var(--ink);
+}
+
+.form-group {
+  @apply mb-3 flex flex-col gap-1.5;
+}
+
+.form-error {
+  @apply text-sm text-red-600;
+}
+
+.form-help {
+  @apply text-sm;
+  color: var(--ink-3);
+}
+
+/* ============================================
+   CARDS — one geometry for every card on the site
+   ============================================ */
+
+/* Inside @layer components so per-instance utilities (p-0, rounded-*, bg-*)
+   can override these. Outside the layer they beat utilities on source order,
+   which silently left card images inset by the default padding. */
+@layer components {
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-card);
+    box-shadow: var(--shadow-1);
+    padding: 1rem;
+  }
+
+  .card-hover {
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+
+  .card-hover:hover {
+    border-color: var(--ink);
+    box-shadow: var(--shadow-2);
+  }
+
+  /* Media well: a faint ground so white/pale products don't dissolve into the
+     card on an all-white page. Editorial cards have no border of their own, so
+     the well also carries a hairline to define the image edge against it. */
+  .card-media {
+    position: relative;
+    overflow: hidden;
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px rgba(17, 17, 17, 0.05);
+  }
+}
+
+/* ============================================
+   BADGE
+   ============================================ */
+
+@layer components {
+  .badge {
+    @apply inline-flex items-center px-1.5 py-[3px] text-[13px] font-semibold leading-none tracking-wide;
+    border-radius: var(--r-pill);
+  }
+
+  .badge-primary {
+    background: var(--brand);
+    color: var(--ink);
+  }
+
+  .badge-secondary {
+    background: rgba(17, 17, 17, 0.82);
+    color: var(--surface);
+    backdrop-filter: blur(4px);
+  }
+}
+
+/* ============================================
+   PRODUCT CARD — the single standard
+   ============================================ */
+
+@layer components {
+  .pcard {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-card);
+    transition:
+      border-color 0.2s ease,
+      box-shadow 0.2s ease;
+  }
+
+  .pcard:hover {
+    border-color: var(--ink);
+    box-shadow: var(--shadow-2);
+  }
+
+  /* Fixed ratio for every product image on the site. */
+  .pcard-media {
+    position: relative;
+    width: 100%;
+    aspect-ratio: var(--card-ratio);
+    overflow: hidden;
+    background: var(--surface-2);
+    flex-shrink: 0;
+  }
+
+  .pcard-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .pcard-body {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    padding: 10px 12px 12px;
+  }
+
+  /* The media is a link that fills the well, so it is also the positioned
+     parent next/image needs for `fill`. */
+  .pcard-media-link {
+    position: absolute;
+    inset: 0;
+    display: block;
+  }
+
+  /* ---- Media placeholder ----
+     Every image slot without an image: warm paper, a faint twill weave, a
+     stitched hairline frame and a drawing of what belongs there. Text hides in
+     small slots via a container query on the placeholder's own width. */
+  .mph {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    isolation: isolate;
+    container-type: inline-size;
+    color: var(--ink-3);
+    background:
+      radial-gradient(110% 70% at 50% 0%, rgba(254, 204, 0, 0.12), transparent 62%),
+      linear-gradient(180deg, #fcf8ef 0%, #f3ecdd 100%);
+  }
+  .mph--fill {
+    position: absolute;
+    inset: 0;
+  }
+  /* Twill: two hairline diagonals, the texture of woven cloth. */
+  .mph::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background:
+      repeating-linear-gradient(45deg, rgba(120, 80, 0, 0.05) 0 1px, transparent 1px 7px),
+      repeating-linear-gradient(-45deg, rgba(120, 80, 0, 0.035) 0 1px, transparent 1px 7px);
+  }
+  /* A tailor's running stitch around the edge. */
+  .mph::after {
+    content: '';
+    position: absolute;
+    inset: clamp(6px, 4.5cqi, 14px);
+    border: 1px dashed rgba(149, 100, 0, 0.32);
+    pointer-events: none;
+  }
+  .mph-body {
+    display: flex;
+    max-width: 100%;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(6px, 4cqi, 14px);
+    padding: 12%;
+    text-align: center;
+  }
+  .mph-garment {
+    width: clamp(28px, 42cqi, 132px);
+    height: auto;
+    filter: drop-shadow(0 8px 12px rgba(120, 80, 0, 0.14));
+    transition: transform 0.5s cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .pcard:hover .mph-garment {
+    transform: translateY(-3px) rotate(-1.5deg);
+  }
+  .mph-initials {
+    display: grid;
+    width: clamp(28px, 34cqi, 96px);
+    aspect-ratio: 1;
+    place-items: center;
+    border: 2px solid var(--brand);
+    border-radius: var(--r-pill);
+    background: #fff;
+    box-shadow: 0 6px 16px rgba(120, 80, 0, 0.12);
+    color: var(--ink);
+    font-size: clamp(11px, 11cqi, 30px);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+  .mph .mph-monogram {
+    width: clamp(64px, 26cqi, 240px);
+    height: auto;
+    opacity: 0.9;
+  }
+  .mph-text {
+    display: flex;
+    max-width: 100%;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .mph-name {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    color: var(--ink-2);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    line-height: 1.35;
+    text-transform: uppercase;
+  }
+  .mph-note {
+    color: var(--brand-700);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+  }
+  /* Round slots (category tiles, avatars) get a round stitch. */
+  .mph--category::after,
+  .mph--avatar::after {
+    inset: 7%;
+    border-radius: var(--r-pill);
+  }
+  .mph--avatar .mph-body {
+    padding: 0;
+  }
+  @container (max-width: 200px) {
+    .mph-text {
+      display: none;
+    }
+  }
+  @container (max-width: 72px) {
+    .mph::after {
+      display: none;
+    }
+    .mph-body {
+      padding: 14%;
+    }
+    .mph-garment {
+      width: 78%;
+    }
+  }
+
+  /* Wrapper that carries the view-transition name; the image fills it. */
+  .pcard-img-frame {
+    position: absolute;
+    inset: 0;
+    display: block;
+  }
+
+  .pcard-img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition:
+      transform 0.5s cubic-bezier(0.22, 0.61, 0.36, 1),
+      opacity 0.35s ease;
+  }
+
+  .pcard:hover .pcard-img {
+    transform: scale(1.045);
+  }
+
+  /* Second shot cross-fades over the first on hover. */
+  .pcard-img--alt {
+    opacity: 0;
+  }
+
+  .pcard:hover .pcard-img--alt {
+    opacity: 1;
+  }
+
+  /* An unavailable product is dimmed rather than stamped — the card image
+     carries no printed labels at all. */
+  .pcard-veil {
+    position: absolute;
+    inset: 0;
+    background: rgba(255, 255, 255, 0.62);
+  }
+
+  /* Caption: brand (quiet) / name + swatch (one line) / price row. */
+  .pcard-brand {
+    margin: 0 0 3px;
+    overflow: hidden;
+    color: var(--ink-3);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    line-height: 1.3;
+    text-overflow: ellipsis;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .pcard-name {
+    min-width: 0;
+    margin: 0;
+    font-size: inherit;
+  }
+
+  .pcard-title {
+    display: block;
+    overflow: hidden;
+    color: var(--ink);
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.35;
+    text-decoration: none;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .pcard-title:hover { color: var(--brand-700); }
+
+  /* Name, then the colour's swatch square at the end of the line. */
+  .pcard-titlerow {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .pcard-swatch {
+    flex-shrink: 0;
+    width: 12px;
+    height: 12px;
+    border-radius: 2px;
+  }
+
+  /* Pinned to the bottom so prices line up across a row. */
+  .pcard-price {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    column-gap: 6px;
+    margin: auto 0 0;
+    padding-top: 6px;
+    color: var(--ink);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+
+  .pcard-compare {
+    color: var(--ink-3);
+    font-size: 11.5px;
+    font-weight: 400;
+    text-decoration: line-through;
+  }
+
+  .pcard-off {
+    color: var(--sale);
+    font-size: 11.5px;
+    font-weight: 600;
+  }
+
+  .pcard-oos {
+    color: var(--ink-3);
+    font-weight: 600;
+  }
+
+  /* Carousel items are exactly one grid column wide, so a card is the same
+     size in the carousels and in the grids below them. */
+  .pcard-fixed {
+    width: var(--card-w-sm);
+    flex-shrink: 0;
+  }
+
+  @media (min-width: 640px) {
+    .pcard-fixed {
+      width: var(--card-w);
+    }
+  }
+
+  /* CATEGORY TILE — deliberately not a card. A round photo with the name
+     beneath it, no box and no border, so a category never reads as a product. */
+  .ctile {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    width: var(--cat-w);
+    text-align: center;
+  }
+
+  .ctile-media {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border-radius: var(--r-pill);
+    overflow: hidden;
+    background: var(--surface-2);
+    box-shadow: inset 0 0 0 1px rgba(17, 17, 17, 0.06);
+    transition: box-shadow 0.2s ease;
+  }
+
+  .ctile-media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  /* Same yellow hover glow as every other surface, shaped to the circle. */
+  .ctile:hover .ctile-media { box-shadow: 0 0 0 1px var(--ink), var(--shadow-2); }
+
+  /* Product grids read the same ladder, so neither the column count nor the
+     gap is ever restated at a call site. */
+  .pgrid {
+    display: grid;
+    grid-template-columns: repeat(var(--card-cols), minmax(0, 1fr));
+    gap: var(--card-row-gap) var(--card-gap);
+  }
+}
+
+/* Order and request status. Four tones on the ink/brand tokens rather than a
+   rainbow of stock Tailwind colours — the 10% rule still holds on a list of
+   orders. */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.status-pill::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: currentColor;
+  opacity: 0.7;
+}
+.status-pill--brand {
+  border-color: rgba(254, 204, 0, 0.45);
+  background: var(--brand-soft);
+  color: var(--brand-700);
+}
+.status-pill--success {
+  border-color: rgba(27, 127, 75, 0.25);
+  background: rgba(27, 127, 75, 0.07);
+  color: #1b7f4b;
+}
+.status-pill--danger {
+  border-color: rgba(180, 35, 24, 0.25);
+  background: rgba(180, 35, 24, 0.06);
+  color: var(--sale);
+}
+
+.badge-success {
+  @apply bg-green-100 text-green-800;
+}
+
+.badge-danger {
+  @apply bg-red-100 text-red-800;
+}
+
+.badge-warning {
+  @apply bg-yellow-100 text-yellow-800;
+}
+
+.badge-info {
+  @apply bg-blue-100 text-blue-800;
+}
+
+/* ============================================
+   ALERTS
+   ============================================ */
+
+.alert {
+  @apply border px-4 py-3;
+  border-radius: var(--r-sm);
+}
+
+.alert-success {
+  @apply border-green-400 bg-green-50 text-green-800;
+}
+
+.alert-error {
+  @apply border-red-400 bg-red-50 text-red-800;
+}
+
+.alert-warning {
+  @apply border-yellow-400 bg-yellow-50 text-yellow-800;
+}
+
+.alert-info {
+  @apply border-blue-400 bg-blue-50 text-blue-800;
+}
+
+/* ============================================
+   UTILITIES
+   ============================================ */
+
+.text-truncate {
+  @apply overflow-hidden text-ellipsis whitespace-nowrap;
+}
+
+.text-clamp {
+  @apply line-clamp-3;
+}
+
+.glass-effect {
+  @apply bg-white/70 backdrop-blur-md;
+}
+
+.gradient-text {
+  @apply bg-clip-text text-transparent;
+  background-image: var(--grad-brand);
+}
+
+.bg-brand-gradient {
+  background: var(--grad-brand);
+}
+
+.bg-ink-gradient {
+  background: var(--grad-ink);
+}
+
+/* Dark band with a warm glow — the premium CTA treatment. */
+.bg-ink-glow {
+  background:
+    var(--glow-brand),
+    var(--grad-ink);
+}
+
+/* Navy band with a warm glow — the /sell landing hero. */
+.bg-navy-glow {
+  background:
+    radial-gradient(40% 60% at 8% 45%, rgba(254, 204, 0, 0.16), transparent 70%),
+    radial-gradient(35% 55% at 95% 55%, rgba(120, 160, 220, 0.12), transparent 70%),
+    var(--grad-navy);
+}
+
+/* Near-white warm wash for alternating sections. */
+.bg-brand-soft {
+  background: var(--grad-warm);
+}
+
+.divider {
+  border-top: 1px solid var(--border);
+}
+
+/* ============================================
+   ANNOUNCEMENT TICKER
+   ============================================ */
+
+/* The track carries two copies of the message, so translating by exactly half
+   its width loops seamlessly. Transform-only, so it runs on the compositor. */
+@keyframes announce-scroll {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+.announce-track {
+  animation-name: announce-scroll;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  will-change: transform;
+}
+
+/* No motion preference: hold the message still and let it wrap normally. */
+@media (prefers-reduced-motion: reduce) {
+  .announce-track {
+    animation: none !important;
+    transform: none !important;
+  }
+}
+
+/* Keep command-center shell overrides after legacy admin rules. */
+
+/* ============================================
+   ACCESSIBILITY
+   ============================================ */
+
+:where(a, button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 9999;
+  top: 10px;
+  left: 10px;
+  padding: 10px 14px;
+  color: var(--ink);
+  background: var(--brand);
+  transform: translateY(-160%);
+  transition: transform 0.16s ease;
+}
+
+.skip-link:focus { transform: translateY(0); outline: 2px solid var(--ink); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================
+   SCROLL
+   ============================================ */
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ============================================
+   ADMIN — Apple Human Interface Guidelines Design System
+   Refined macOS / iPadOS / iOS Inspired Aesthetic
+   ============================================ */
+
+/* ── Apple Sidebar Rail ── */
+
+/* Apple Sidebar Navigation */
+
+/* Apple Native Selected Sidebar Item */
+
+/* ── Apple Frosted Topbar ── */
+
+/* ── Apple Segmented Control (Tabs) ── */
+
+/* ── Apple Cards & Inset Groups ── */
+
+/* Apple Form Fields & Inputs */
+
+/* ── Apple Floating Bottom Action Dock ── */
+
+/* ── Apple Buttons in Admin Shell ── */
+
+/* ── Apple Dashboard Hero & Widgets ── */
+
+/* Operations Sidebar */
+
+/* Controls Main */
+
+/* Shared editorial opening used by service, purchase and account pages. */
+.page-intro { max-width: 760px; margin-bottom: clamp(32px, 5vw, 64px); }
+.page-intro p { margin-bottom: 12px; color: var(--brand-700); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase; }
+.page-intro h1 { max-width: 660px; font-size: clamp(30px, 5vw, 54px); line-height: 1.04; }
+.page-intro span { display: block; max-width: 600px; margin-top: 16px; color: var(--ink-2); font-size: clamp(15px, 1.5vw, 18px); line-height: 1.55; }
+.page-intro--compact { margin-bottom: 28px; }
+
+.auth-shell { background: linear-gradient(135deg, #f7f7f5 0%, #fff 48%, #fff8df 100%); }
+.auth-card { box-shadow: 0 18px 44px rgba(17, 17, 17, 0.08); }
+
+/* Landing page: photography gets room to lead, contained by a single sharp
+   dark frame and hairline division rather than extra decoration. */
+.home-hero { max-width: none; background: var(--ink); }
+.home-hero > div { gap: 1px !important; }
+.home-hero img { opacity: 0.94; }
+.home-hero a:focus-visible { position: relative; z-index: 1; }
+
+/* Feature icons use the same clean line treatment as the reference: each has
+   a quiet individual colour, without a coloured tile behind it. */
+/* One treatment for every feature icon: ink glyph on a soft brand tile. The
+   rainbow of per-card colours read as six different brands. The --N classes
+   stay so the markup does not change. */
+.service-icon {
+  width: 40px;
+  height: 40px;
+  color: var(--tone-fg, var(--ink));
+  background: var(--tone-bg, var(--brand-soft));
+  transition: transform 0.2s ease;
+}
+.card:hover .service-icon,
+a:hover .service-icon {
+  transform: scale(1.06);
+}
+
+/* One soft pair per meaning, all at the same lightness so the set reads as
+   one family: quality is gold, delivery blue, pricing green, and so on. */
+.service-tone--gold   { --tone-bg: #fff4d6; --tone-fg: #a86b00; }
+.service-tone--blue   { --tone-bg: #e6f0fb; --tone-fg: #2459a8; }
+.service-tone--green  { --tone-bg: #e5f4ec; --tone-fg: #1f7a4a; }
+.service-tone--violet { --tone-bg: #f0eafb; --tone-fg: #6b46c1; }
+.service-tone--coral  { --tone-bg: #fdece7; --tone-fg: #c2462b; }
+.service-tone--indigo { --tone-bg: #e8ecf7; --tone-fg: #3b4c8c; }
+.service-tone--rose   { --tone-bg: #fce8ef; --tone-fg: #b83266; }
+.service-tone--teal   { --tone-bg: #e3f4f3; --tone-fg: #16807a; }
+
+/* ── Mobile drawer ── */
+@keyframes drawer-slide-in {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(0); }
+}
+@keyframes drawer-overlay-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes submenu-open {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.mobile-drawer-overlay {
+  display: flex;
+  align-items: stretch;
+  animation: drawer-overlay-in 0.15s ease-out both;
+}
+
+.mobile-drawer {
+  display: flex;
+  width: min(88vw, 380px);
+  height: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background: #ffffff;
+  box-shadow: 4px 0 60px rgba(17, 17, 17, 0.18), 1px 0 0 rgba(17,17,17,0.06);
+  animation: drawer-slide-in 0.2s ease-out both;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.mobile-drawer-header {
+  display: flex;
+  min-height: 68px;
+  align-items: center;
+  gap: 12px;
+  padding: 0 18px;
+  background: linear-gradient(135deg, #fafaf9 0%, #ffffff 100%);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.mobile-drawer-close {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  flex: none;
+  place-items: center;
+  color: var(--ink-2);
+  border-radius: 50%;
+  background: transparent;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.mobile-drawer-close:hover {
+  background: #f0f0ef;
+  color: var(--ink);
+}
+.mobile-drawer-close svg { width: 18px; height: 18px; }
+
+.mobile-drawer-brand {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  color: var(--ink);
+  font-size: 14px;
+  letter-spacing: 0.01em;
+  transition: opacity 0.15s ease;
+}
+.mobile-drawer-brand:hover { opacity: 0.75; }
+.mobile-drawer-brand img { width: auto; height: 17px; }
+
+.mobile-drawer-links {
+  padding: 8px 0 16px;
+  flex: 1;
+}
+
+.mobile-drawer-group {
+  border-bottom: 1px solid var(--border);
+}
+.mobile-drawer-group:first-child { border-top: 1px solid var(--border); }
+
+.mobile-drawer-link {
+  display: flex;
+  align-items: center;
+  min-height: 54px;
+  padding: 0 20px;
+  color: var(--ink);
+  font-size: 14px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  transition: background-color 0.15s ease, color 0.15s ease;
+  position: relative;
+  border-left: 3px solid transparent;
+}
+.mobile-drawer-link:hover {
+  color: var(--ink);
+  background: linear-gradient(90deg, #fffbee 0%, #fafaf9 100%);
+  border-left-color: var(--brand);
+}
+.mobile-drawer-link svg { width: 16px; height: 16px; }
+
+.mobile-drawer-submenu {
+  padding: 4px 0 12px;
+  background: #fafaf9;
+  border-top: 1px solid var(--border);
+  animation: submenu-open 0.15s ease-out both;
+}
+
+.mobile-drawer-sublink {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px 10px 28px;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  letter-spacing: 0.01em;
+  transition: color 0.1s ease, background-color 0.1s ease;
+  position: relative;
+}
+.mobile-drawer-sublink:hover {
+  color: var(--ink);
+  background: #ffffff;
+}
+
+.mobile-drawer-account {
+  margin-top: auto;
+  padding: 16px 18px 28px;
+  border-top: 1px solid var(--border);
+  background: linear-gradient(180deg, #fafaf9 0%, #f5f5f3 100%);
+}
+.mobile-drawer-account .auth-toggle-buttons { display: flex; width: 100%; gap: 8px; }
+.mobile-drawer-account .auth-toggle-buttons > * { flex: 1; justify-content: center; }
+
+/* Desktop nav dropdown panel — premium card style */
+.nav-dropdown-panel {
+  background: #ffffff;
+  border: 1px solid rgba(17,17,17,0.08);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(17,17,17,0.10), 0 2px 8px rgba(17,17,17,0.06), 0 0 0 0.5px rgba(17,17,17,0.04);
+  overflow: hidden;
+  min-width: 210px;
+  padding: 6px 0;
+}
+.nav-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  letter-spacing: 0.015em;
+  transition: background-color 0.1s ease, color 0.1s ease;
+  position: relative;
+  border-left: 2.5px solid transparent;
+}
+.nav-dropdown-item:hover {
+  background: linear-gradient(90deg, #fffbee 0%, #fafaf9 60%);
+  color: var(--ink);
+  border-left-color: var(--brand);
+}
+
+/* Mega menu: a department whose subcategories have their own children.
+   One column per subcategory; yellow only on the hover accent (10% rule). */
+.nav-mega-panel {
+  padding: 0;
+  max-width: calc(100vw - 32px);
+}
+.nav-mega-grid {
+  display: grid;
+  gap: 18px 28px;
+  padding: 18px 22px 16px;
+}
+.nav-mega-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.nav-mega-heading {
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  color: var(--ink);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.nav-mega-link {
+  padding: 5px 0;
+  color: var(--ink-2);
+  font-size: 12.5px;
+  letter-spacing: 0.015em;
+  white-space: nowrap;
+  transition: color 0.1s ease;
+}
+.nav-mega-heading:hover,
+.nav-mega-link:hover { color: var(--ink); text-decoration: underline; text-decoration-color: var(--brand); text-underline-offset: 3px; }
+.nav-mega-all {
+  display: block;
+  padding: 10px 22px;
+  border-top: 1px solid var(--border);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.nav-mega-all:hover { background: #fafaf9; }
+.nav-mega-heading:focus-visible,
+.nav-mega-link:focus-visible,
+.nav-mega-all:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.mobile-drawer-nested { background: #f5f5f3; }
+
+/* Accent yellow is reserved for fills and focus rings. The darker gold token
+   keeps all gold text readable against white at normal text sizes. */
+.text-primary-500,
+.text-primary-600,
+.text-yellow-400,
+.text-yellow-500 { color: var(--brand-700) !important; }
+
+.text-red-500,
+.text-red-600 { color: var(--sale) !important; }
+
+/* Product buying decisions are intentionally calm: use gold only to signal
+   the active focus state, and crisp black borders for selections. */
+.pcard:focus-within,
+.card:focus-within { border-color: var(--ink); }
+
+@media (max-width: 639px) {
+  .page-intro h1 { font-size: 32px; }
+  .btn { min-height: 44px; }
+  .container-max { padding-inline: 16px; }
+  .pcard-body { padding: 10px; }
+  .pcard-title { font-size: 12px; }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--surface-2);
+}
+
+::-webkit-scrollbar-thumb {
+  border-radius: var(--r-pill);
+  background: var(--border-strong);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-3);
+}
+
+/* ============================================
+   CUSTOM WEAR — shared controls, design canvas and artwork inspector
+   Used by the product page and by design mode.
+   ============================================ */
+
+.cw-canvas {
+  border: 1px solid var(--cw-border);
+  background: var(--cw-white);
+}
+
+.cw-canvas-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--cw-border);
+}
+
+.cw-canvas-views {
+  display: flex;
+  gap: 2px;
+}
+
+.cw-canvas-view {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  font-family: var(--cw-font-body);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cw-ink-subtle);
+  background: transparent;
+  border: 1px solid transparent;
+  transition: color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.cw-canvas-view:hover {
+  color: var(--cw-ink);
+}
+
+.cw-canvas-view[data-active="true"] {
+  color: var(--cw-ink);
+  background: var(--cw-surface-alt);
+  border-color: var(--cw-border);
+}
+
+.cw-canvas-view-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--cw-radius-chip);
+  background: var(--cw-primary);
+  color: var(--cw-on-primary);
+  font-size: 9px;
+  letter-spacing: 0;
+}
+
+.cw-canvas-colour {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--cw-font-body);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cw-ink-subtle);
+}
+
+.cw-canvas-dot {
+  height: 11px;
+  width: 11px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+/* The stage centres the garment; it does not size it. */
+.cw-canvas-stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: var(--cw-surface-alt);
+}
+
+/*
+ * The garment is bound by the viewport, not by a fixed ratio.
+ *
+ * Sizing it purely by aspect ratio made it ~840px tall in a 670px column, so on
+ * a 1080px screen it ran past the fold — and because the canvas is sticky, the
+ * cut-off bottom could never be scrolled to. Deriving the width from the height
+ * budget keeps the whole garment on screen at any window size, and the print
+ * zones sit on this box rather than the stage, so they track the artwork
+ * exactly however it scales.
+ *
+ * 0.781 is 100/128, the garment viewBox ratio.
+ */
+.cw-canvas-figure {
+  position: relative;
+  aspect-ratio: 100 / 128;
+  width: min(100%, calc((100vh - 330px) * 0.781));
+  min-width: 220px;
+}
+
+.cw-canvas-svg {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  width: 100%;
+}
+
+/* Print zones: dashed while empty, brand-outlined once filled. */
+.cw-zone {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px dashed;
+  border-radius: 3px;
+  background: transparent;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  container-type: inline-size;
+}
+
+.cw-zone:hover {
+  background: rgba(254, 204, 0, 0.16);
+}
+
+.cw-zone[data-filled="true"] {
+  border-style: solid;
+}
+
+.cw-zone[data-active="true"] {
+  box-shadow: 0 0 0 2px var(--cw-primary);
+  background: var(--cw-primary-soft);
+}
+
+.cw-zone-plus {
+  font-family: var(--cw-font-body);
+  font-size: 15px;
+  color: var(--cw-ink-subtle);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.cw-zone:hover .cw-zone-plus {
+  opacity: 1;
+}
+
+.cw-zone-tag {
+  font-family: var(--cw-font-body);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--cw-ink-subtle);
+}
+
+.cw-mark {
+  container-type: inline-size;
+  height: 100%;
+  width: 100%;
+}
+
+.cw-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cw-swatch-lg {
+  position: relative;
+  height: 32px;
+  width: 32px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.cw-swatch-lg:hover {
+  transform: scale(1.08);
+}
+
+.cw-swatch-lg[data-active="true"] {
+  box-shadow: 0 0 0 2px var(--cw-white), 0 0 0 4px var(--cw-primary);
+}
+
+.cw-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.cw-chip {
+  min-width: 46px;
+  padding: 9px 12px;
+  font-family: var(--cw-font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--cw-ink);
+  background: var(--cw-white);
+  border: 1px solid var(--cw-border);
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.cw-chip:hover:not(:disabled) {
+  border-color: var(--cw-ink);
+}
+
+.cw-chip[data-active="true"] {
+  background: var(--cw-ink);
+  border-color: var(--cw-ink);
+  color: var(--cw-white);
+}
+
+.cw-chip:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.cw-qty-row {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cw-stepper {
+  display: inline-flex;
+  align-self: flex-start;
+  border: 1px solid var(--cw-border);
+}
+
+.cw-stepper button {
+  width: 42px;
+  height: 42px;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--cw-ink);
+  transition: background 0.15s ease;
+}
+
+.cw-stepper button:hover:not(:disabled) {
+  background: var(--cw-surface-alt);
+}
+
+.cw-stepper button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.cw-scope .cw-stepper input {
+  width: 74px;
+  height: 42px;
+  text-align: center;
+  border: 0;
+  border-inline: 1px solid var(--cw-border);
+  border-radius: 0;
+  font-weight: 700;
+  font-size: var(--cw-fs-body);
+  padding: 0;
+}
+
+.cw-tiers {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.cw-tiers::-webkit-scrollbar {
+  display: none;
+}
+
+.cw-tier {
+  flex: 1 0 78px;
+}
+
+.cw-tier {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 9px 10px;
+  text-align: left;
+  border: 1px solid var(--cw-border);
+  background: var(--cw-white);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.cw-tier:hover {
+  border-color: var(--cw-ink);
+}
+
+.cw-tier[data-active="true"] {
+  border-color: var(--cw-primary);
+  background: var(--cw-primary-soft);
+}
+
+.cw-tier-qty {
+  font-family: var(--cw-font-body);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cw-ink-subtle);
+}
+
+.cw-tier-price {
+  font-family: var(--cw-font-body);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--cw-ink);
+}
+
+.cw-art {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cw-art-empty,
+.cw-art-hint {
+  margin: 0;
+  font-family: var(--cw-font-body);
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--cw-ink-subtle);
+}
+
+.cw-art-error {
+  margin: 0;
+  font-family: var(--cw-font-body);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--cw-danger);
+}
+
+.cw-art-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cw-art-item {
+  border: 1px solid var(--cw-border);
+  background: var(--cw-white);
+}
+
+.cw-art-item[data-active="true"] {
+  border-color: var(--cw-primary);
+}
+
+.cw-art-head {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 9px 11px;
+  text-align: left;
+}
+
+.cw-art-thumb {
+  position: relative;
+  height: 38px;
+  width: 38px;
+  flex-shrink: 0;
+  overflow: hidden;
+  background: var(--cw-surface-alt);
+  container-type: inline-size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cw-art-thumb img {
+  height: 100%;
+  width: 100%;
+  object-fit: contain;
+}
+
+.cw-art-thumb-empty {
+  color: var(--cw-ink-subtle);
+  font-size: 14px;
+}
+
+.cw-art-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.cw-art-where {
+  font-family: var(--cw-font-body);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cw-ink);
+}
+
+.cw-art-what {
+  font-family: var(--cw-font-body);
+  font-size: 11.5px;
+  color: var(--cw-ink-subtle);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Drawn from borders, like the chevrons on the browse filter bar — the "⌄"
+   character rendered off the text baseline and matched nothing else. Keyed off
+   aria-expanded so the visual state cannot drift from the accessible one. */
+.cw-art-head::after {
+  content: '';
+  flex: none;
+  width: 5px;
+  height: 5px;
+  margin-top: -3px;
+  border-right: 1.4px solid var(--cw-ink-subtle);
+  border-bottom: 1.4px solid var(--cw-ink-subtle);
+  transform: rotate(45deg);
+  opacity: 0.6;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out);
+}
+
+.cw-art-head:hover::after {
+  opacity: 1;
+}
+
+.cw-art-head[aria-expanded='true']::after {
+  margin-top: 2px;
+  transform: rotate(-135deg);
+  opacity: 1;
+}
+
+.cw-art-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 11px 13px;
+  border-top: 1px solid var(--cw-border);
+}
+
+.cw-art-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.cw-art-field > span {
+  font-family: var(--cw-font-body);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cw-ink-subtle);
+}
+
+.cw-art-library {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(52px, 1fr));
+  gap: 6px;
+}
+
+.cw-art-tpl {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  container-type: inline-size;
+  border: 1px solid var(--cw-border);
+  transition: border-color 0.15s ease;
+}
+
+.cw-art-tpl:hover {
+  border-color: var(--cw-ink);
+}
+
+.cw-art-tpl[data-active="true"] {
+  border-color: var(--cw-primary);
+  box-shadow: 0 0 0 1px var(--cw-primary);
+}
+
+.cw-art-remove {
+  align-self: flex-start;
+  font-family: var(--cw-font-body);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cw-danger);
+  text-decoration: underline;
+}
+
+.cw-art-files {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cw-art-limit {
+  margin: 0;
+  text-align: center;
+  font-family: var(--cw-font-body);
+  font-size: 10.5px;
+  color: var(--cw-ink-subtle);
+}
+
+.cw-art-files-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cw-art-files-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 9px;
+  background: var(--cw-surface-alt);
+  font-family: var(--cw-font-body);
+  font-size: 11.5px;
+}
+
+.cw-art-file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cw-ink);
+}
+
+.cw-art-file-size {
+  color: var(--cw-ink-subtle);
+  font-size: 10.5px;
+}
+
+.cw-art-file-x {
+  color: var(--cw-ink-subtle);
+  font-size: 15px;
+  line-height: 1;
+}
+
+.cw-art-file-x:hover {
+  color: var(--cw-danger);
+}
+
+.cw-related {
+  margin-top: 44px;
+  padding-top: 24px;
+  border-top: 1px solid var(--cw-border);
+}
+
+.cw-related-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--card-row-gap) var(--card-gap);
+  margin-top: 14px;
+}
+
+@media (min-width: 900px) {
+  .cw-related-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.cw-quote {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.cw-quote-summary {
+  margin: 0;
+  padding: 9px 11px;
+  background: var(--cw-surface-alt);
+  font-family: var(--cw-font-body);
+  font-size: 11.5px;
+  color: var(--cw-ink-muted);
+  line-height: 1.5;
+}
+
+.cw-quote-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 11px;
+}
+
+.cw-quote-done {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cw-quote-done p {
+  margin: 0;
+  font-family: var(--cw-font-body);
+  font-size: var(--cw-fs-small);
+  color: var(--cw-ink-muted);
+  line-height: 1.6;
+}
+
+.cw-quote-ref {
+  font-family: var(--cw-font-body);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--cw-ink) !important;
+}
+
+/* ============================================
+   CUSTOM WEAR BROWSE — the collection page
+   No sidebar: categories read as one line of links and every filter collapses
+   behind its own button, so the grid gets the full page width.
+   ============================================ */
+
+.cw-browse {
+  padding-bottom: 56px;
+}
+
+.cw-browse-inner {
+  width: 100%;
+  padding: 22px var(--gutter) 0;
+}
+
+.cw-browse-head {
+  margin-bottom: 18px;
+}
+
+.cw-browse-head h1 {
+  margin: 0;
+  font-family: var(--cw-font-heading);
+  font-size: clamp(24px, 3vw, 40px);
+  font-weight: 600;
+  line-height: 1.06;
+  letter-spacing: -0.03em;
+  color: var(--cw-ink);
+}
+
+.cw-browse-head p {
+  margin: 9px 0 0;
+  max-width: 78ch;
+  font-family: var(--cw-font-body);
+  font-size: var(--cw-fs-small);
+  line-height: 1.6;
+  color: var(--cw-ink-muted);
+}
+
+/* ---- Categories ---- */
+/* Categories read as a line of tabs. Six bordered pills in a row made the top
+   of the page a wall of identical boxes; an underline marks the current one
+   without drawing another rectangle. */
+.cw-cats {
+  display: flex;
+  gap: 26px;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--cw-border);
+  scrollbar-width: none;
+}
+
+.cw-cats::-webkit-scrollbar {
+  display: none;
+}
+
+.cw-cat {
+  position: relative;
+  flex-shrink: 0;
+  padding: 0 0 13px;
+  font-family: var(--cw-font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--cw-ink-subtle);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: color 0.15s ease;
+}
+
+.cw-cat::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--cw-primary);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.2s ease;
+}
+
+.cw-cat:hover {
+  color: var(--cw-ink);
+}
+
+.cw-cat[data-active="true"] {
+  color: var(--cw-ink);
+  font-weight: 600;
+}
+
+.cw-cat[data-active="true"]::after {
+  transform: scaleX(1);
+}
+
+/* ---- Filter bar ---- */
+.cw-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 22px;
+  padding: 16px 0 14px;
+}
+
+/* Underlined field rather than a boxed one — one rule instead of four. */
+.cw-bar-search {
+  position: relative;
+  flex: 0 1 220px;
+  min-width: 150px;
+}
+
+.cw-scope .cw-bar-search input {
+  width: 100%;
+  height: 34px;
+  padding: 0 0 0 26px;
+  border: 0;
+  border-bottom: 1px solid var(--cw-border);
+  border-radius: 0;
+  background: transparent;
+  font-size: 13px;
+}
+
+.cw-scope .cw-bar-search input:focus {
+  border-bottom-color: var(--cw-ink);
+  box-shadow: none;
+}
+
+.cw-bar-search svg {
+  position: absolute;
+  left: 1px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 14px;
+  width: 14px;
+  color: var(--cw-ink-subtle);
+  pointer-events: none;
+}
+
+.cw-bar-menus {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 20px;
+}
+
+.cw-bar-sort {
+  position: relative;
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+.cw-bar-sort::after {
+  content: '';
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  width: 7px;
+  height: 7px;
+  margin-top: -5px;
+  border-right: 1.5px solid var(--cw-ink-subtle);
+  border-bottom: 1.5px solid var(--cw-ink-subtle);
+  transform: rotate(45deg);
+  pointer-events: none;
+}
+
+.cw-scope .cw-bar-sort select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: auto;
+  height: auto;
+  line-height: 1.4;
+  padding: 5px 20px 5px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-family: var(--cw-font-body);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cw-ink);
+  cursor: pointer;
+}
+
+.cw-scope .cw-bar-sort select:focus {
+  box-shadow: none;
+}
+
+.cw-bar-sort-label {
+  margin-right: 8px;
+  font-family: var(--cw-font-body);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cw-ink-subtle);
+}
+
+/* ---- Filter menu ---- */
+.cw-fm {
+  position: relative;
+}
+
+.cw-fm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 32px;
+  padding: 0;
+  font-family: var(--cw-font-body);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--cw-ink-muted);
+  background: transparent;
+  border: 0;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+/*
+ * The chevron is drawn from two borders rather than typed as a "⌄" character.
+ * The glyph rendered small, sat below the text baseline and read as a typo;
+ * this is optically centred, scales with the label and matches the Sort
+ * control on the same bar.
+ */
+.cw-fm-btn::after {
+  content: '';
+  width: 5px;
+  height: 5px;
+  margin-top: -3px;
+  border-right: 1.4px solid currentColor;
+  border-bottom: 1.4px solid currentColor;
+  transform: rotate(45deg);
+  transform-origin: center;
+  opacity: 0.55;
+  transition:
+    transform var(--dur-fast) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out);
+}
+
+.cw-fm-btn:hover {
+  color: var(--cw-ink);
+}
+
+.cw-fm-btn:hover::after {
+  opacity: 1;
+}
+
+/* Points up while its panel is open. */
+.cw-fm-btn[aria-expanded='true'] {
+  color: var(--cw-ink);
+}
+
+.cw-fm-btn[aria-expanded='true']::after {
+  margin-top: 2px;
+  transform: rotate(-135deg);
+  opacity: 1;
+}
+
+/* An active filter is marked by its count, not by a second border. */
+.cw-fm-btn[data-active="true"] {
+  color: var(--cw-ink);
+  font-weight: 600;
+}
+
+.cw-fm-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: var(--cw-radius-chip);
+  background: var(--cw-primary);
+  color: var(--cw-on-primary);
+  font-size: 9.5px;
+  font-weight: 700;
+}
+
+.cw-fm-panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 5px);
+  left: 0;
+  min-width: 208px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 10px;
+  background: var(--cw-white);
+  border: 1px solid var(--cw-border);
+  box-shadow: 0 12px 28px -14px rgba(0, 0, 0, 0.35);
+}
+
+.cw-fm-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cw-fm-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 4px;
+  font-family: var(--cw-font-body);
+  font-size: 12.5px;
+  font-weight: 400;
+  color: var(--cw-ink-muted);
+  cursor: pointer;
+}
+
+.cw-fm-row:hover {
+  color: var(--cw-ink);
+}
+
+.cw-fm-row input {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  accent-color: var(--cw-primary);
+}
+
+.cw-fm-swatches {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.cw-fm-swatch {
+  height: 26px;
+  width: 26px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.18);
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.cw-fm-swatch:hover {
+  transform: scale(1.1);
+}
+
+.cw-fm-swatch[data-active="true"] {
+  box-shadow: 0 0 0 2px var(--cw-white), 0 0 0 4px var(--cw-primary);
+}
+
+/* ---- Applied row ---- */
+.cw-applied {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0 18px;
+  border-top: 1px solid var(--cw-border);
+}
+
+.cw-applied-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.cw-applied-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px;
+  border-radius: var(--cw-radius-chip);
+  background: var(--cw-primary-soft);
+  border: 1px solid var(--cw-border);
+  font-family: var(--cw-font-body);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--cw-ink);
+}
+
+.cw-applied-chip:hover {
+  border-color: var(--cw-ink);
+}
+
+.cw-applied-clear {
+  font-family: var(--cw-font-body);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--cw-ink-muted);
+  text-decoration: underline;
+}
+
+.cw-applied-count {
+  margin: 0 0 0 auto;
+  font-family: var(--cw-font-body);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cw-ink-subtle);
+  transition: opacity 0.2s ease;
+}
+
+.cw-applied-count[data-pending="true"] {
+  opacity: 0.45;
+}
+
+/* ---- Grid ---- */
+.cw-browse-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--card-row-gap) var(--card-gap);
+  transition: opacity 0.2s ease;
+}
+
+.cw-browse-grid[data-pending="true"] {
+  opacity: 0.5;
+}
+
+@media (min-width: 700px) {
+  .cw-browse-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1000px) {
+  .cw-browse-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1360px) {
+  .cw-browse-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.cw-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 64px 20px;
+  border: 1px solid var(--cw-border);
+  background: var(--cw-surface-alt);
+}
+
+.cw-empty p {
+  margin: 0;
+  font-family: var(--cw-font-body);
+  font-size: var(--cw-fs-body);
+  color: var(--cw-ink-muted);
+}
+
+.cw-more {
+  display: flex;
+  justify-content: center;
+  margin-top: 28px;
+}
+
+.cw-more .cw-cta {
+  min-width: 200px;
+}
+
+/* ============================================
+   CUSTOM WEAR PRODUCT PAGE — photo-led
+   ============================================ */
+
+.cw-pdp {
+  padding-bottom: 60px;
+}
+
+.cw-pdp-inner {
+  width: 100%;
+  padding: 22px var(--gutter) 0;
+}
+
+.cw-pdp-grid {
+  display: grid;
+  gap: 28px;
+}
+
+@media (min-width: 1000px) {
+  .cw-pdp-grid {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    column-gap: clamp(32px, 3.4vw, 56px);
+    align-items: start;
+  }
+
+  /*
+   * A 2:3 gallery is taller than the viewport on a wide screen, so it is the
+   * column that scrolls — a sticky element taller than the window pins with
+   * its lower half permanently out of reach. The buy column is short, so that
+   * is what holds still.
+   */
+  .cw-pdp-buy {
+    position: sticky;
+    top: 88px;
+    width: 100%;
+    /* Capped so the controls keep a usable line length on a wide display. */
+    max-width: 560px;
+  }
+}
+
+/* ---- Gallery ----
+   One tall portrait frame and a thumbnail grid. Garment photography is shot portrait: the wide frames tried here
+   before cropped the model to a band across the chest, and no amount of
+   object-position fixes a frame that is the wrong shape. */
+.cw-gal-main {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  background: var(--cw-surface-alt);
+  border: 1px solid var(--cw-border);
+}
+
+.cw-gal-drawn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  width: 100%;
+  padding: 12%;
+}
+
+.cw-gal-drawn svg {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+}
+
+.cw-gal-tag {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 11px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid var(--cw-border);
+  font-family: var(--cw-font-body);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cw-ink);
+}
+
+.cw-gal-tag > span[aria-hidden] {
+  height: 11px;
+  width: 11px;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+.cw-gal-tag em {
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--cw-ink-subtle);
+}
+
+/* Scrolls on a phone, grid on a desktop. */
+.cw-gal-thumbs {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.cw-gal-thumbs::-webkit-scrollbar {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .cw-gal-thumbs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    overflow: visible;
+  }
+}
+
+.cw-gal-thumb {
+  position: relative;
+  flex: none;
+  width: 22vw;
+  min-width: 68px;
+  max-width: 104px;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  background: var(--cw-surface-alt);
+  border: 1px solid var(--cw-border);
+  transition: border-color 0.15s ease;
+}
+
+@media (min-width: 768px) {
+  .cw-gal-thumb {
+    width: auto;
+    min-width: 0;
+    max-width: none;
+  }
+}
+
+.cw-gal-thumb:hover {
+  border-color: var(--cw-ink-subtle);
+}
+
+.cw-gal-thumb[data-active='true'] {
+  border-color: var(--cw-ink);
+}
+
+/* ---- Buy column ---- */
+.cw-pdp-buy h1 {
+  margin: 0;
+  font-family: var(--cw-font-heading);
+  font-size: clamp(23px, 2.4vw, 32px);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.028em;
+  color: var(--cw-ink);
+}
+
+.cw-pdp-spec {
+  margin: 9px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--cw-font-body);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cw-ink-subtle);
+}
+
+.cw-pdp-rating {
+  color: var(--cw-ink);
+}
+
+.cw-pdp-price {
+  margin: 13px 0 0;
+  font-family: var(--cw-font-body);
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--cw-ink);
+}
+
+.cw-pdp-price span {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--cw-ink-subtle);
+}
+
+.cw-field {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid var(--cw-border);
+}
+
+.cw-field h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 9px;
+  margin: 0 0 9px;
+  font-family: var(--cw-font-body);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cw-ink);
+}
+
+.cw-field h2 > span {
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--cw-ink-subtle);
+}
+
+.cw-field h2 > em {
+  font-style: normal;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
+  font-size: 11.5px;
+  color: var(--cw-danger);
+}
+
+/* ---- Artwork entry ---- */
+.cw-design-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 15px 16px;
+  text-align: left;
+  background: var(--cw-surface-alt);
+  border: 1px dashed var(--cw-border-strong);
+  font-family: var(--cw-font-body);
+  font-size: 13px;
+  color: var(--cw-ink);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.cw-design-btn:hover {
+  border-color: var(--cw-primary);
+  background: var(--cw-primary-soft);
+}
+
+.cw-design-btn-go {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cw-ink);
+  white-space: nowrap;
+}
+
+/* ---- Total + actions ---- */
+.cw-pdp-total {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 15px;
+  border-top: 1px solid var(--cw-border);
+  font-family: var(--cw-font-body);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cw-ink-subtle);
+}
+
+.cw-pdp-total strong {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--cw-ink);
+}
+
+.cw-pdp-save {
+  letter-spacing: 0.04em;
+  text-transform: none;
+  font-weight: 600;
+  color: var(--cw-success);
+}
+
+.cw-pdp-actions {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.cw-pdp-actions .cw-cta {
+  padding-block: 14px;
+}
+
+.cw-pdp-flash {
+  margin: 10px 0 0;
+  padding: 9px 12px;
+  background: var(--cw-surface-alt);
+  font-family: var(--cw-font-body);
+  font-size: 11.5px;
+  color: var(--cw-ink-muted);
+}
+
+/* ============================================
+   DESIGN MODE
+   ============================================ */
+
+.cw-designer {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  background: var(--cw-white);
+}
+
+.cw-designer-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--cw-border);
+  flex-shrink: 0;
+}
+
+.cw-designer-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--cw-font-body);
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--cw-ink-muted);
+}
+
+.cw-designer-back:hover {
+  color: var(--cw-ink);
+}
+
+.cw-designer-title {
+  margin: 0;
+  font-family: var(--cw-font-body);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--cw-ink);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cw-designer-title span {
+  color: var(--cw-ink-subtle);
+}
+
+.cw-designer-done {
+  padding: 9px 22px;
+  flex-shrink: 0;
+}
+
+.cw-designer-body {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: 1fr auto;
+}
+
+@media (min-width: 900px) {
+  .cw-designer-body {
+    grid-template-rows: none;
+    grid-template-columns: minmax(0, 1fr) 360px;
+  }
+}
+
+.cw-designer-stage {
+  min-height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: var(--cw-surface-alt);
+}
+
+.cw-designer-stage .cw-canvas {
+  border: 0;
+  background: transparent;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.cw-designer-stage .cw-canvas-stage {
+  min-height: 0;
+  flex: 1;
+  background: transparent;
+}
+
+/* In design mode the window height is the budget, not the page. Only the
+   header and footer sit outside the stage, so the garment gets nearly all of
+   it — a bigger garment is a print area you can actually aim at. */
+.cw-designer-stage .cw-canvas-figure {
+  width: min(100%, calc((100vh - 200px) * 0.781));
+}
+
+.cw-designer-side {
+  min-height: 0;
+  overflow-y: auto;
+  padding: 16px;
+  border-top: 1px solid var(--cw-border);
+}
+
+@media (min-width: 900px) {
+  .cw-designer-side {
+    border-top: 0;
+    border-left: 1px solid var(--cw-border);
+  }
+}
+
+.cw-designer-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--cw-border);
+  flex-shrink: 0;
+  font-family: var(--cw-font-body);
+}
+
+.cw-designer-count {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cw-ink-subtle);
+}
+
+.cw-designer-price {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--cw-ink);
+}
+
+.cw-designer-price span {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--cw-ink-subtle);
+}
+
+/* ============================================
+   MOTION
+   One easing vocabulary and one set of durations, so nothing on the site
+   animates at a speed nobody chose.
+   ============================================ */
+
+:root {
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  --dur-fast: 140ms;
+  --dur: 220ms;
+  --dur-slow: 380ms;
+
+  /* View transitions: exit quickly, enter after it, move for longer. */
+  --vt-exit: 150ms;
+  --vt-enter: 220ms;
+  --vt-move: 420ms;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+/* ---- Route transitions ---- */
+
+/* Shared element: a product image morphs from its card into the page hero, so
+   the two read as one object moving rather than two swapping. */
+::view-transition-group(.morph) {
+  animation-duration: var(--vt-move);
+  animation-timing-function: var(--ease-out);
+}
+
+::view-transition-image-pair(.morph) {
+  animation-name: vt-blur;
+}
+
+/* A touch of blur hides pixel interpolation while the crop changes shape. */
+@keyframes vt-blur {
+  30% {
+    filter: blur(3px);
+  }
+}
+
+/* Everything that is not the shared element crossfades under it. */
+::view-transition-old(root) {
+  animation: var(--vt-exit) var(--ease-out) both vt-fade-out;
+}
+
+::view-transition-new(root) {
+  animation: var(--vt-enter) var(--ease-out) var(--vt-exit) both vt-fade-in;
+}
+
+@keyframes vt-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes vt-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ---- Entrances ---- */
+
+@keyframes cw-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes cw-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Design mode is a whole new surface; it arrives rather than appears. */
+.cw-designer {
+  animation: cw-rise var(--dur-slow) var(--ease-out) both;
+}
+
+.cw-designer-side,
+.cw-designer-stage {
+  animation: cw-fade var(--dur-slow) var(--ease-out) 60ms both;
+}
+
+/* A filter menu should open from its button, not blink into place. */
+.cw-fm-panel {
+  animation: cw-rise var(--dur-fast) var(--ease-out) both;
+  transform-origin: top left;
+}
+
+/* ---- Pending states ----
+   A hard opacity drop reads as a flicker. Fading and softening together makes
+   a filter change feel like the grid is settling rather than blinking. */
+.cw-browse-grid,
+.cw-shots {
+  transition:
+    opacity var(--dur) var(--ease-out),
+    filter var(--dur) var(--ease-out);
+}
+
+.cw-browse-grid[data-pending='true'] {
+  opacity: 0.55;
+  filter: blur(1.5px);
+}
+
+/* ---- Controls ----
+   These already transitioned, but each at its own hand-picked duration. */
+.cw-chip,
+.cw-tier,
+.cw-swatch-lg,
+.cw-cat,
+.cw-fm-btn,
+.cw-gal-thumb,
+.cw-design-btn,
+.pcard,
+.pcard-img,
+.cw-cta {
+  transition-timing-function: var(--ease-out);
+}
+
+.cw-swatch-lg,
+.cw-gal-thumb {
+  transition-duration: var(--dur-fast);
+}
+
+/* ---- Reduced motion ----
+   Honour the OS setting site-wide, not just inside the Custom Wear scope. */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*),
+  ::view-transition-image-pair(*) {
+    animation: none !important;
+  }
+}
+
+/* ---- Brand storefront hero ----
+   A wide banner with the brand's logo tile overlapping its lower-left edge. */
+.brand-hero {
+  position: relative;
+  padding-bottom: 44px;
+}
+.brand-hero-banner {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 4 / 1;
+  min-height: 160px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+}
+.brand-hero-logo {
+  position: absolute;
+  bottom: 0;
+  left: clamp(16px, 3vw, 40px);
+  width: clamp(88px, 10vw, 120px);
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-2);
+}

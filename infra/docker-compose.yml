@@ -1,0 +1,109 @@
+# Local development services. Start with `npm run db:up` from the repo root.
+name: tailorae
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: tailorae-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: tailorae
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - tailorae-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: tailorae-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - tailorae-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: redis-server --appendonly yes
+
+  adminer:
+    image: adminer
+    container_name: tailorae-adminer
+    ports:
+      - "8080:8080"
+    networks:
+      - tailorae-network
+    depends_on:
+      - postgres
+
+  # Single-node Kafka in KRaft mode (no ZooKeeper). Clients on the host use
+  # localhost:9092; containers on this network use kafka:29092.
+  kafka:
+    image: apache/kafka:4.3.2
+    container_name: tailorae-kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENERS: HOST://0.0.0.0:9092,DOCKER://0.0.0.0:29092,CONTROLLER://0.0.0.0:9093
+      KAFKA_ADVERTISED_LISTENERS: HOST://localhost:9092,DOCKER://kafka:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: HOST:PLAINTEXT,DOCKER:PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: DOCKER
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      # Topics are declared by the API (NewTopic beans), not created on first use.
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "false"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
+    networks:
+      - tailorae-network
+
+  kafka-ui:
+    image: kafbat/kafka-ui:v1.5.0
+    container_name: tailorae-kafka-ui
+    ports:
+      - "8085:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: tailorae
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+    networks:
+      - tailorae-network
+    depends_on:
+      - kafka
+
+  # Catches every email the API sends in development: http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.33.0
+    container_name: tailorae-mailpit
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - tailorae-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  kafka_data:
+    driver: local
+
+networks:
+  tailorae-network:
+    driver: bridge

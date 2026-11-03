@@ -1,0 +1,56 @@
+server:
+  port: ${PORT:8081}
+  # Real client IPs behind the load balancer, for session records and rate limits.
+  forward-headers-strategy: native
+
+spring:
+  application:
+    name: tailorae-api
+  threads:
+    virtual:
+      enabled: true
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5433/tailorae_api}
+    username: ${DATABASE_USER:postgres}
+    password: ${DATABASE_PASSWORD:postgres}
+  jpa:
+    open-in-view: false
+    hibernate:
+      # Flyway owns the schema; Hibernate only checks it matches the entities.
+      ddl-auto: validate
+  flyway:
+    locations: classpath:db/migration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      acks: all
+      properties:
+        enable.idempotence: true
+    consumer:
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+  mail:
+    host: ${SMTP_HOST:localhost}
+    port: ${SMTP_PORT:1025}
+    username: ${SMTP_USER:}
+    password: ${SMTP_PASSWORD:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+tailorae:
+  auth:
+    jwt-secret: ${JWT_SECRET}
+    secure-cookies: ${SECURE_COOKIES:true}
+    bootstrap-admin-email: ${BOOTSTRAP_ADMIN_EMAIL:}
+    bootstrap-admin-password: ${BOOTSTRAP_ADMIN_PASSWORD:}
+  web:
+    origins: ${WEB_ORIGINS:http://localhost:3000}
+  mail:
+    from: ${MAIL_FROM:TAILORAE <no-reply@tailorae.com>}
+    web-url: ${WEB_URL:http://localhost:3000}
+  outbox:
+    poll-ms: 1000
