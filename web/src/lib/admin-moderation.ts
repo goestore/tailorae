@@ -2,7 +2,6 @@
 
 import { apiClient } from '@/lib/api-client';
 import { getApiErrorMessage } from '@/lib/api-utils';
-import type { KycStatus } from '@/lib/admin-sellers';
 
 /**
  * The listing review queue.
@@ -19,8 +18,8 @@ export interface ModerationProduct {
   name: string;
   slug: string;
   sku: string | null;
-  price: number;
-  originalPrice: number | null;
+  pricePaise: number;
+  mrpPaise: number | null;
   quantity: number;
   status: string;
   thumbnail: string | null;
@@ -32,12 +31,12 @@ export interface ModerationProduct {
   updatedAt: string;
   category: { name: string } | null;
   brand: { id?: string; name: string; isActive?: boolean } | null;
-  vendor: {
+  seller: {
     id: string;
     shopName: string;
     shopSlug: string;
     isVerified: boolean;
-    kycStatus: KycStatus;
+    isPlatform?: boolean;
   } | null;
 }
 
@@ -89,20 +88,38 @@ export function announceQueuesChanged(): void {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(ADMIN_QUEUES_CHANGED));
 }
 
+/** Review queues' sizes (`GET /admin/queues`), for the sidebar badges and the dashboard. */
 export interface AdminQueueCounts {
   productsAwaitingModeration: number;
+  sellersAwaitingReview: number;
+  brandsAwaitingReview: number;
+  /** Legacy name the API still sends; same as sellersAwaitingReview. */
   sellersAwaitingKyc: number;
+  returnsOpen: number;
+  withdrawalsOpen: number;
+  paymentAnomalies: number;
 }
 
-/** The two review queues' sizes, for the sidebar and the dashboard. */
+const QUEUE_KEYS: Array<keyof AdminQueueCounts> = [
+  'productsAwaitingModeration',
+  'sellersAwaitingReview',
+  'brandsAwaitingReview',
+  'sellersAwaitingKyc',
+  'returnsOpen',
+  'withdrawalsOpen',
+  'paymentAnomalies',
+];
+
+export function toQueueCounts(data: Record<string, unknown> | null | undefined): AdminQueueCounts {
+  const counts = {} as AdminQueueCounts;
+  for (const key of QUEUE_KEYS) counts[key] = Number(data?.[key]) || 0;
+  return counts;
+}
+
 export async function getQueueCounts(): Promise<AdminQueueCounts> {
   try {
-    const response = await apiClient.get('/admin/reports');
-    const data = response.data?.data ?? {};
-    return {
-      productsAwaitingModeration: Number(data.productsAwaitingModeration) || 0,
-      sellersAwaitingKyc: Number(data.sellersAwaitingKyc) || 0,
-    };
+    const response = await apiClient.get('/admin/queues');
+    return toQueueCounts(response.data?.data);
   } catch (error) {
     throw new Error(getApiErrorMessage(error, 'Could not load review counts.'));
   }

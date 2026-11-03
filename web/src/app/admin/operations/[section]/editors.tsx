@@ -15,6 +15,7 @@ import {
 } from '@/lib/admin-coupons';
 import { apiClient } from '@/lib/api-client';
 import { getApiErrorMessage } from '@/lib/api-utils';
+import { paiseToRupees, rupeesToPaise } from '@/lib/money';
 import { BrandReview } from './BrandReview';
 
 /**
@@ -296,24 +297,31 @@ export const CouponEditor: React.FC<{
   onClose: () => void;
   onSaved: (coupon: AdminCoupon, message: string) => void;
 }> = ({ coupon, onClose, onSaved }) => {
+  // The form speaks percent and rupees; the API stores basis points and paise.
   const [form, setForm] = useState({
     code: coupon?.code ?? '',
     description: coupon?.description ?? '',
     discountType: coupon?.discountType ?? 'PERCENTAGE',
-    discountValue: String(coupon?.discountValue ?? ''),
-    minOrderAmount: String(coupon?.minOrderAmount ?? 0),
-    maxDiscount: coupon?.maxDiscount === null || coupon?.maxDiscount === undefined
-      ? ''
-      : String(coupon.maxDiscount),
+    discountValue:
+      coupon?.discountValue === undefined
+        ? ''
+        : coupon.discountType === 'PERCENTAGE'
+          ? String(coupon.discountValue / 100)
+          : String(paiseToRupees(coupon.discountValue)),
+    minOrderAmount: String(paiseToRupees(coupon?.minOrderPaise ?? 0)),
+    maxDiscount:
+      coupon?.maxDiscountPaise === null || coupon?.maxDiscountPaise === undefined
+        ? ''
+        : String(paiseToRupees(coupon.maxDiscountPaise)),
     usageLimit:
       coupon?.usageLimit === null || coupon?.usageLimit === undefined
         ? ''
         : String(coupon.usageLimit),
-    perUserLimit: String(coupon?.perUserLimit ?? 1),
-    startDate: dayValue(coupon?.startDate),
-    endDate: dayValue(coupon?.endDate),
+    perUserLimit: String(coupon?.perCustomerLimit ?? 1),
+    startDate: dayValue(coupon?.startsAt),
+    endDate: dayValue(coupon?.endsAt),
     isActive: coupon?.isActive ?? true,
-    requireB2B: coupon?.requireB2B ?? false,
+    requireB2B: coupon?.requireBusiness ?? false,
   });
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -326,21 +334,28 @@ export const CouponEditor: React.FC<{
     setIsSaving(true);
     setError(null);
     try {
+      const value = Number(form.discountValue);
       const payload: CouponInput = {
         code: form.code.trim().toUpperCase(),
         description: form.description.trim() || null,
         discountType: form.discountType as CouponInput['discountType'],
-        discountValue: Number(form.discountValue),
-        minOrderAmount: Number(form.minOrderAmount) || 0,
+        // 12.5 (%) → 1250 basis points; ₹200 → 20000 paise.
+        discountValue:
+          form.discountType === 'PERCENTAGE' ? Math.round(value * 100) : rupeesToPaise(value),
+        minOrderPaise: rupeesToPaise(Number(form.minOrderAmount) || 0),
         // Null rather than omitted: these two are the "no ceiling" and "no cap"
-        // cases, and omitting them would leave a stale limit in place.
-        maxDiscount: form.maxDiscount.trim() === '' ? null : Number(form.maxDiscount),
+        // cases, and the API saves the coupon whole.
+        maxDiscountPaise:
+          form.maxDiscount.trim() === '' ? null : rupeesToPaise(Number(form.maxDiscount)),
         usageLimit: form.usageLimit.trim() === '' ? null : Number(form.usageLimit),
-        perUserLimit: Number(form.perUserLimit) || 1,
-        startDate: form.startDate,
-        endDate: form.endDate,
+        perCustomerLimit: Number(form.perUserLimit) || 0,
+        // The whole of the first day through the end of the last, in local time.
+        startsAt: new Date(`${form.startDate}T00:00:00`).toISOString(),
+        endsAt: new Date(`${form.endDate}T23:59:59`).toISOString(),
         isActive: form.isActive,
-        requireB2B: form.requireB2B,
+        requireBusiness: form.requireB2B,
+        applicableCategoryIds: coupon?.applicableCategoryIds ?? [],
+        applicableProductIds: coupon?.applicableProductIds ?? [],
       };
 
       const saved = coupon
@@ -398,7 +413,9 @@ export const CouponEditor: React.FC<{
             </select>
           </label>
           <label>
-            <span style={labelStyle}>Value</span>
+            <span style={labelStyle}>
+              {form.discountType === 'PERCENTAGE' ? 'Percent off' : 'Amount off (₹)'}
+            </span>
             <input
               required
               type="number"
@@ -423,7 +440,7 @@ export const CouponEditor: React.FC<{
 
         <div style={rowStyle}>
           <label>
-            <span style={labelStyle}>Minimum basket</span>
+            <span style={labelStyle}>Minimum basket (₹)</span>
             <input
               type="number"
               min="0"
@@ -434,7 +451,7 @@ export const CouponEditor: React.FC<{
             />
           </label>
           <label>
-            <span style={labelStyle}>Maximum discount</span>
+            <span style={labelStyle}>Maximum discount (₹)</span>
             <input
               type="number"
               min="0"

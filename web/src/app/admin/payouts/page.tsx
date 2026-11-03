@@ -3,20 +3,22 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   LEDGER_TYPE_LABEL,
+  decideWithdrawal,
   downloadStatementCsv,
-  getPayoutOrders,
-  getPayouts,
+  getBalances,
+  getSellerEarnings,
   getStatement,
   getWithdrawals,
   postLedgerAdjustment,
-  rejectWithdrawal,
   settlePayout,
   type LedgerStatement,
-  type PayoutOrderRow,
-  type PayoutRow,
-  type WithdrawalRow,
+  type SellerBalance,
+  type SellerEarnings,
+  type Withdrawal,
+  type WithdrawalStatus,
 } from '@/lib/admin-payouts';
-import { formatCurrency } from '@/utils/helpers';
+import { announceQueuesChanged } from '@/lib/admin-moderation';
+import { formatPaise, paiseToRupees, rupeesToPaise } from '@/lib/money';
 import { Wallet } from '@/components/admin/icons';
 
 /**
@@ -26,16 +28,16 @@ import { Wallet } from '@/components/admin/icons';
 const flush: React.CSSProperties = { width: '100%', margin: 0 };
 
 /**
- * Seller payouts.
+ * Seller payouts (FINANCE).
  *
- * Settling is the one irreversible action in the console — it records a
- * transfer in the shop's ledger and stamps the sub-orders it covered as paid —
- * so the flow is deliberately two steps, and the amount is only ever the
- * server's ledger balance, never one typed here. A return reversed after a
- * payout makes the balance negative, and the next settle nets it off.
+ * Settling is the one irreversible action in the console — it records a bank
+ * transfer in the shop's ledger — so it is two steps and needs the transfer's
+ * UTR reference. The amount defaults to the ledger balance; a smaller part
+ * payment can be typed, never more. A return reversed after a payout makes the
+ * balance negative, and the next settle nets it off.
  */
 
-const day = (value: string | null) =>
+const day = (value: string | null | undefined) =>
   value
     ? new Date(value).toLocaleDateString('en-IN', {
         day: 'numeric',
@@ -52,6 +54,17 @@ const num: React.CSSProperties = {
 };
 
 const count: React.CSSProperties = { color: 'var(--a-text-dim)', fontSize: 12 };
+const errorLine: React.CSSProperties = { color: 'var(--a-bad)', fontSize: 12, margin: '8px 0' };
+
+const overlay: React.CSSProperties = {
+  position: 'fixed',
+  inset: 0,
+  zIndex: 60,
+  display: 'grid',
+  placeItems: 'center',
+  padding: 20,
+  background: 'rgba(0,0,0,0.6)',
+};
 
 const Kpi: React.FC<{ label: string; value: string; sub?: string }> = ({ label, value, sub }) => (
   <div className="admin-card">
@@ -61,81 +74,74 @@ const Kpi: React.FC<{ label: string; value: string; sub?: string }> = ({ label, 
   </div>
 );
 
-/** The sub-orders behind one shop's figures, loaded on demand. */
-const ShopDetail: React.FC<{ vendorId: string }> = ({ vendorId }) => {
-  const [orders, setOrders] = useState<PayoutOrderRow[] | null>(null);
+/** What a shop has earned, and each held order with the reason it is not payable yet. */
+const ShopEarnings: React.FC<{ sellerId: string; refreshKey: number }> = ({
+  sellerId,
+  refreshKey,
+}) => {
+  const [earnings, setEarnings] = useState<SellerEarnings | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    getPayoutOrders(vendorId)
-      .then((rows) => !cancelled && setOrders(rows))
+    getSellerEarnings(sellerId)
+      .then((data) => !cancelled && setEarnings(data))
       .catch((err: Error) => !cancelled && setError(err.message));
     return () => {
       cancelled = true;
     };
-  }, [vendorId]);
+  }, [sellerId, refreshKey]);
 
-  if (error) return <p style={{ color: 'var(--a-bad)', fontSize: 12, margin: '8px 0' }}>{error}</p>;
-  if (!orders)
+  if (error) return <p style={errorLine}>{error}</p>;
+  if (!earnings)
     return (
       <p className="admin-kpi-sub" style={{ margin: '8px 0' }}>
-        Loading orders…
+        Loading earnings…
       </p>
     );
-  if (orders.length === 0) {
-    return (
-      <p className="admin-kpi-sub" style={{ margin: '8px 0' }}>
-        Nothing outstanding for this shop.
-      </p>
-    );
-  }
 
   return (
-    <div className="admin-table-wrap" style={{ margin: '8px 0 4px' }}>
-      <table className="admin-table">
-        <thead>
-          <tr>
-            <th>Order</th>
-            <th>Delivered</th>
-            <th style={num}>Sale</th>
-            <th style={num}>Commission</th>
-            <th style={num}>Payout</th>
-            <th>State</th>
-          </tr>
-        </thead>
-        <tbody>
-          {orders.map((order) => (
-            <tr key={order.id}>
-              <td>{order.orderNumber}</td>
-              <td>{day(order.deliveredAt)}</td>
-              <td style={num}>{formatCurrency(order.total)}</td>
-              <td style={num}>
-                −{formatCurrency(order.commissionAmount)}
-                <span style={count}> · {order.commissionRate}%</span>
-              </td>
-              <td style={{ ...num, fontWeight: 650 }}>{formatCurrency(order.payoutAmount)}</td>
-              <td>
-                {order.hold === null ? (
-                  <span className="admin-status-badge" data-status="PAID">
-                    Payable
-                  </span>
-                ) : (
-                  order.hold
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div style={{ margin: '8px 0 4px' }}>
+      <p className="admin-kpi-sub" style={{ margin: '0 0 8px' }}>
+        Lifetime sales {formatPaise(earnings.lifetimeSalesPaise)} · paid out{' '}
+        {formatPaise(earnings.lifetimePayoutsPaise)}
+        {earnings.openWithdrawal &&
+          ` · open request for ${formatPaise(earnings.openWithdrawal.amountPaise)} (${earnings.openWithdrawal.status.toLowerCase()})`}
+      </p>
+      {earnings.held.length === 0 ? (
+        <p className="admin-kpi-sub" style={{ margin: 0 }}>
+          Nothing held for this shop.
+        </p>
+      ) : (
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Held order</th>
+                <th>Why it is held</th>
+                <th style={num}>Payout</th>
+              </tr>
+            </thead>
+            <tbody>
+              {earnings.held.map((row) => (
+                <tr key={row.sellerOrderId}>
+                  <td style={{ whiteSpace: 'nowrap' }}>{row.orderNumber}</td>
+                  <td>{row.reason}</td>
+                  <td style={{ ...num, fontWeight: 650 }}>{formatPaise(row.payoutPaise)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 };
 
 /** A shop's ledger with a running balance, a date range and a CSV export. */
-const ShopStatement: React.FC<{ vendorId: string; shopSlug: string; refreshKey: number }> = ({
-  vendorId,
-  shopSlug,
+const ShopStatement: React.FC<{ sellerId: string; shopName: string; refreshKey: number }> = ({
+  sellerId,
+  shopName,
   refreshKey,
 }) => {
   const [from, setFrom] = useState('');
@@ -148,7 +154,7 @@ const ShopStatement: React.FC<{ vendorId: string; shopSlug: string; refreshKey: 
 
   useEffect(() => {
     let cancelled = false;
-    getStatement(vendorId, range)
+    getStatement(sellerId, range)
       .then((data) => {
         if (cancelled) return;
         setStatement(data);
@@ -158,12 +164,12 @@ const ShopStatement: React.FC<{ vendorId: string; shopSlug: string; refreshKey: 
     return () => {
       cancelled = true;
     };
-  }, [vendorId, range, refreshKey]);
+  }, [sellerId, range, refreshKey]);
 
   const exportCsv = async () => {
     setIsExporting(true);
     try {
-      await downloadStatementCsv(vendorId, shopSlug, range);
+      await downloadStatementCsv(sellerId, shopName, range);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -190,13 +196,13 @@ const ShopStatement: React.FC<{ vendorId: string; shopSlug: string; refreshKey: 
           {isExporting ? 'Exporting…' : 'Export CSV'}
         </button>
       </div>
-      {error && <p style={{ color: 'var(--a-bad)', fontSize: 12, margin: '8px 0' }}>{error}</p>}
+      {error && <p style={errorLine}>{error}</p>}
       {!statement ? (
         <p className="admin-kpi-sub">Loading statement…</p>
-      ) : statement.entries.length === 0 ? (
+      ) : statement.lines.length === 0 ? (
         <p className="admin-kpi-sub">
           No ledger entries{from || to ? ' in this range' : ' yet'}. Balance{' '}
-          {formatCurrency(statement.closingBalance)}.
+          {formatPaise(statement.closingPaise)}.
         </p>
       ) : (
         <div className="admin-table-wrap">
@@ -215,23 +221,21 @@ const ShopStatement: React.FC<{ vendorId: string; shopSlug: string; refreshKey: 
                 <td colSpan={4} style={{ color: 'var(--a-text-dim)' }}>
                   Opening balance
                 </td>
-                <td style={num}>{formatCurrency(statement.openingBalance)}</td>
+                <td style={num}>{formatPaise(statement.openingPaise)}</td>
               </tr>
-              {statement.entries.map((entry) => (
+              {statement.lines.map(({ entry, balanceAfterPaise }) => (
                 <tr key={entry.id}>
                   <td>{day(entry.createdAt)}</td>
                   <td>
-                    {LEDGER_TYPE_LABEL[entry.type]}
-                    {entry.note && entry.type === 'ADJUSTMENT' && (
-                      <span style={count}> · {entry.note}</span>
-                    )}
+                    {LEDGER_TYPE_LABEL[entry.type] ?? entry.type}
+                    {entry.note && <span style={count}> · {entry.note}</span>}
                   </td>
                   <td>{entry.orderNumber ?? entry.reference ?? '—'}</td>
-                  <td style={{ ...num, color: entry.amount < 0 ? 'var(--a-bad)' : undefined }}>
-                    {entry.amount < 0 ? '−' : '+'}
-                    {formatCurrency(Math.abs(entry.amount))}
+                  <td style={{ ...num, color: entry.amountPaise < 0 ? 'var(--a-bad)' : undefined }}>
+                    {entry.amountPaise < 0 ? '−' : '+'}
+                    {formatPaise(Math.abs(entry.amountPaise))}
                   </td>
-                  <td style={{ ...num, fontWeight: 650 }}>{formatCurrency(entry.balanceAfter)}</td>
+                  <td style={{ ...num, fontWeight: 650 }}>{formatPaise(balanceAfterPaise)}</td>
                 </tr>
               ))}
             </tbody>
@@ -242,37 +246,267 @@ const ShopStatement: React.FC<{ vendorId: string; shopSlug: string; refreshKey: 
   );
 };
 
+const WITHDRAWAL_FILTERS: Array<{ value: WithdrawalStatus | ''; label: string }> = [
+  { value: '', label: 'All requests' },
+  { value: 'PENDING', label: 'Pending' },
+  { value: 'APPROVED', label: 'Approved' },
+  { value: 'COMPLETED', label: 'Paid' },
+  { value: 'REJECTED', label: 'Declined' },
+];
+
+/** Sellers' payout requests: approve, record the transfer, or decline with a reason. */
+const WithdrawalRequests: React.FC<{
+  refreshKey: number;
+  onChanged: (message: string) => void;
+}> = ({ refreshKey, onChanged }) => {
+  const [status, setStatus] = useState<WithdrawalStatus | ''>('PENDING');
+  const [rows, setRows] = useState<Withdrawal[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [acting, setActing] = useState<{ id: string; kind: 'pay' | 'decline' } | null>(null);
+  const [text, setText] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [reload, setReload] = useState(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    getWithdrawals(status, 1, 100)
+      .then((page) => {
+        if (cancelled) return;
+        setRows(page?.items ?? []);
+        setError(null);
+      })
+      .catch((err: Error) => !cancelled && setError(err.message));
+    return () => {
+      cancelled = true;
+    };
+  }, [status, refreshKey, reload]);
+
+  const decide = async (
+    row: Withdrawal,
+    next: 'APPROVED' | 'REJECTED' | 'COMPLETED',
+    value?: string
+  ) => {
+    setBusy(true);
+    setError(null);
+    try {
+      const message = await decideWithdrawal(row.id, {
+        status: next,
+        ...(next === 'COMPLETED' ? { transactionRef: value } : {}),
+        ...(next === 'REJECTED' ? { rejectionReason: value } : {}),
+      });
+      setActing(null);
+      setText('');
+      setReload((key) => key + 1);
+      announceQueuesChanged();
+      onChanged(message);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="admin-card" style={{ marginBottom: 16 }}>
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+          marginBottom: 8,
+        }}
+      >
+        <p className="admin-kpi-label" style={{ margin: 0 }}>
+          Payout requests
+        </p>
+        <select
+          aria-label="Filter payout requests"
+          value={status}
+          onChange={(event) => setStatus(event.target.value as WithdrawalStatus | '')}
+          style={{ width: 'auto' }}
+        >
+          {WITHDRAWAL_FILTERS.map((filter) => (
+            <option key={filter.value} value={filter.value}>
+              {filter.label}
+            </option>
+          ))}
+        </select>
+      </div>
+      {error && <p style={errorLine}>{error}</p>}
+      {!rows ? (
+        <p className="admin-kpi-sub">Loading…</p>
+      ) : rows.length === 0 ? (
+        <p className="admin-kpi-sub" style={{ margin: 0 }}>
+          No {status ? WITHDRAWAL_FILTERS.find((f) => f.value === status)?.label.toLowerCase() : ''}{' '}
+          requests.
+        </p>
+      ) : (
+        <div className="admin-table-wrap">
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>Shop</th>
+                <th style={num}>Amount</th>
+                <th>Status</th>
+                <th>Reference / reason</th>
+                <th>Asked</th>
+                <th>
+                  <span className="sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((row) => {
+                const open = row.status === 'PENDING' || row.status === 'APPROVED';
+                const kind = acting && acting.id === row.id ? acting.kind : null;
+                const isActing = kind !== null;
+                return (
+                  <React.Fragment key={row.id}>
+                    <tr>
+                      <td>{row.shopName ?? '—'}</td>
+                      <td style={{ ...num, fontWeight: 650 }}>{formatPaise(row.amountPaise)}</td>
+                      <td>
+                        <span className="admin-status-badge" data-status={row.status}>
+                          {row.status === 'COMPLETED'
+                            ? 'Paid'
+                            : row.status.charAt(0) + row.status.slice(1).toLowerCase()}
+                        </span>
+                      </td>
+                      <td>{row.transactionRef ?? row.rejectionReason ?? '—'}</td>
+                      <td style={{ whiteSpace: 'nowrap' }}>{day(row.createdAt)}</td>
+                      <td>
+                        {open && !isActing && (
+                          <div className="admin-actions">
+                            {row.status === 'PENDING' && (
+                              <button
+                                type="button"
+                                className="btn btn-sm"
+                                disabled={busy}
+                                onClick={() => void decide(row, 'APPROVED')}
+                              >
+                                Approve
+                              </button>
+                            )}
+                            <button
+                              type="button"
+                              className="btn btn-sm btn-primary"
+                              disabled={busy}
+                              onClick={() => {
+                                setActing({ id: row.id, kind: 'pay' });
+                                setText('');
+                              }}
+                            >
+                              Record transfer
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-sm"
+                              disabled={busy}
+                              onClick={() => {
+                                setActing({ id: row.id, kind: 'decline' });
+                                setText('');
+                              }}
+                            >
+                              Decline
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                    {isActing && (
+                      <tr>
+                        <td colSpan={6} style={{ background: 'var(--a-surface-2)' }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                            <input
+                              autoFocus
+                              value={text}
+                              maxLength={kind === 'pay' ? 120 : 500}
+                              onChange={(event) => setText(event.target.value)}
+                              placeholder={
+                                kind === 'pay'
+                                  ? 'Bank transfer reference (UTR)'
+                                  : 'Why? The seller will see this.'
+                              }
+                              aria-label={
+                                kind === 'pay' ? 'Transfer reference' : 'Reason for declining'
+                              }
+                              style={{ flex: '1 1 240px', minWidth: 0 }}
+                            />
+                            <button
+                              type="button"
+                              className="btn"
+                              disabled={busy}
+                              onClick={() => setActing(null)}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              className={kind === 'pay' ? 'btn btn-primary' : 'btn btn-danger'}
+                              disabled={busy || !text.trim()}
+                              onClick={() =>
+                                void decide(
+                                  row,
+                                  kind === 'pay' ? 'COMPLETED' : 'REJECTED',
+                                  text.trim()
+                                )
+                              }
+                            >
+                              {busy
+                                ? 'Saving…'
+                                : kind === 'pay'
+                                  ? `Mark ${formatPaise(row.amountPaise)} paid`
+                                  : 'Decline request'}
+                            </button>
+                          </div>
+                          {kind === 'pay' && (
+                            <p style={{ ...count, margin: '6px 0 0' }}>
+                              Make the bank transfer first. This settles the amount from the
+                              shop&rsquo;s ledger.
+                            </p>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+};
+
 export default function AdminPayoutsPage() {
-  const [payouts, setPayouts] = useState<PayoutRow[]>([]);
-  const [withdrawals, setWithdrawals] = useState<WithdrawalRow[]>([]);
+  const [balances, setBalances] = useState<SellerBalance[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
-  // Which panel the expanded row shows: its open sub-orders or its ledger.
-  const [panel, setPanel] = useState<'orders' | 'statement'>('orders');
-  // Bumped after every reload so an open statement reloads with it.
+  // Which panel the expanded row shows: what is held, or its ledger.
+  const [panel, setPanel] = useState<'earnings' | 'statement'>('earnings');
+  // Bumped after every reload so open panels reload with it.
   const [refreshKey, setRefreshKey] = useState(0);
-  // The shop an adjustment is being entered for.
-  const [adjusting, setAdjusting] = useState<PayoutRow | null>(null);
+  const [adjusting, setAdjusting] = useState<SellerBalance | null>(null);
   const [adjustAmount, setAdjustAmount] = useState('');
   const [adjustNote, setAdjustNote] = useState('');
   const [isAdjusting, setIsAdjusting] = useState(false);
-  // The shop a settlement is being confirmed for, and the reference being typed.
-  const [confirming, setConfirming] = useState<PayoutRow | null>(null);
+  const [confirming, setConfirming] = useState<SellerBalance | null>(null);
   const [reference, setReference] = useState('');
+  const [settleAmount, setSettleAmount] = useState('');
+  const [settleNote, setSettleNote] = useState('');
   const [isSettling, setIsSettling] = useState(false);
-  // The request being declined, and the reason the seller will be shown.
-  const [decliningId, setDecliningId] = useState<string | null>(null);
-  const [declineReason, setDeclineReason] = useState('');
-  const [isDeclining, setIsDeclining] = useState(false);
+  const [dialogError, setDialogError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const load = useCallback(
     () =>
-      Promise.all([getPayouts(), getWithdrawals()])
-        .then(([rows, history]) => {
-          setPayouts(rows);
-          setWithdrawals(history);
+      getBalances(1, 200)
+        .then((page) => {
+          setBalances(page?.items ?? []);
           setRefreshKey((key) => key + 1);
           setError(null);
         })
@@ -287,55 +521,41 @@ export default function AdminPayoutsPage() {
 
   const totals = useMemo(
     () =>
-      payouts.reduce(
+      balances.reduce(
         (acc, row) => ({
-          due: acc.due + row.payoutDue,
-          held: acc.held + row.payoutHeld,
-          settled: acc.settled + row.payoutSettled,
-          commission: acc.commission + row.commissionEarned,
-          shops: acc.shops + (row.payoutDue > 0 ? 1 : 0),
+          due: acc.due + Math.max(0, row.balancePaise),
+          held: acc.held + row.heldPaise,
+          owed: acc.owed + Math.min(0, row.balancePaise),
+          shops: acc.shops + (row.balancePaise > 0 ? 1 : 0),
         }),
-        { due: 0, held: 0, settled: 0, commission: 0, shops: 0 }
+        { due: 0, held: 0, owed: 0, shops: 0 }
       ),
-    [payouts]
+    [balances]
   );
-
-  const pending = withdrawals.filter((row) => row.status === 'PENDING');
-
-  const decline = async (id: string) => {
-    if (!declineReason.trim()) return;
-    setIsDeclining(true);
-    try {
-      setNotice(await rejectWithdrawal(id, declineReason.trim()));
-      setDecliningId(null);
-      setDeclineReason('');
-      void load();
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setIsDeclining(false);
-    }
-  };
 
   const adjust = async () => {
     if (!adjusting) return;
     const amount = Number(adjustAmount);
     if (!Number.isFinite(amount) || amount === 0 || !adjustNote.trim()) return;
     setIsAdjusting(true);
+    setDialogError(null);
     try {
-      setNotice(await postLedgerAdjustment(adjusting.id, { amount, note: adjustNote.trim() }));
+      setNotice(
+        await postLedgerAdjustment(adjusting.sellerId, {
+          amountPaise: rupeesToPaise(amount),
+          note: adjustNote.trim(),
+        })
+      );
       setAdjusting(null);
-      setAdjustAmount('');
-      setAdjustNote('');
       void load();
     } catch (err) {
-      setError((err as Error).message);
+      setDialogError((err as Error).message);
     } finally {
       setIsAdjusting(false);
     }
   };
 
-  const toggle = (id: string, next: 'orders' | 'statement') => {
+  const toggle = (id: string, next: 'earnings' | 'statement') => {
     if (expanded === id && panel === next) {
       setExpanded(null);
       return;
@@ -345,16 +565,29 @@ export default function AdminPayoutsPage() {
   };
 
   const settle = async () => {
-    if (!confirming) return;
+    if (!confirming || !reference.trim()) return;
+    const amountPaise =
+      settleAmount.trim() === '' ? undefined : rupeesToPaise(Number(settleAmount));
+    if (
+      amountPaise !== undefined &&
+      (!Number.isFinite(amountPaise) || amountPaise <= 0 || amountPaise > confirming.balancePaise)
+    ) {
+      setDialogError(`Pay between ₹1 and ${formatPaise(confirming.balancePaise)}.`);
+      return;
+    }
     setIsSettling(true);
+    setDialogError(null);
     try {
-      const message = await settlePayout(confirming.id, reference.trim() || undefined);
+      const message = await settlePayout(confirming.sellerId, {
+        reference: reference.trim(),
+        ...(amountPaise !== undefined ? { amountPaise } : {}),
+        ...(settleNote.trim() ? { note: settleNote.trim() } : {}),
+      });
       setNotice(message);
       setConfirming(null);
-      setReference('');
-      load();
+      void load();
     } catch (err) {
-      setError((err as Error).message);
+      setDialogError((err as Error).message);
     } finally {
       setIsSettling(false);
     }
@@ -386,99 +619,40 @@ export default function AdminPayoutsPage() {
       <div className="admin-grid-kpi" style={{ marginBottom: 16 }}>
         <Kpi
           label="Due now"
-          value={formatCurrency(totals.due)}
-          sub={`${totals.shops} shop${totals.shops === 1 ? '' : 's'} awaiting payment`}
+          value={formatPaise(totals.due)}
+          sub={`${totals.shops} shop${totals.shops === 1 ? '' : 's'} with a balance`}
         />
-        <Kpi label="Held" value={formatCurrency(totals.held)} sub="In transit or returnable" />
-        <Kpi label="Paid to date" value={formatCurrency(totals.settled)} sub="Across all shops" />
+        <Kpi label="Held" value={formatPaise(totals.held)} sub="Undelivered or returnable" />
         <Kpi
-          label="Commission"
-          value={formatCurrency(totals.commission)}
-          sub="Ours, on what is due"
+          label="Owed back"
+          value={formatPaise(Math.abs(totals.owed))}
+          sub="Returns reversed after a payout"
         />
+        <Kpi label="Shops" value={String(balances.length)} sub="Approved or suspended" />
       </div>
 
-      {pending.length > 0 && (
-        <div className="admin-card" style={{ marginBottom: 16 }}>
-          <p className="admin-kpi-label">Payout requests</p>
-          {pending.map((row) => (
-            <div key={row.id} style={{ padding: '6px 0' }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 12,
-                }}
-              >
-                <p className="admin-kpi-sub" style={{ margin: 0 }}>
-                  {row.vendor?.shopName ?? 'Unknown shop'} asked for {formatCurrency(row.amount)} on{' '}
-                  {day(row.createdAt)}
-                </p>
-                {decliningId !== row.id && (
-                  <button
-                    type="button"
-                    className="btn btn-sm"
-                    onClick={() => {
-                      setDecliningId(row.id);
-                      setDeclineReason('');
-                    }}
-                  >
-                    Decline
-                  </button>
-                )}
-              </div>
-
-              {decliningId === row.id && (
-                <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
-                  <input
-                    autoFocus
-                    aria-label="Reason for declining"
-                    value={declineReason}
-                    onChange={(event) => setDeclineReason(event.target.value)}
-                    placeholder="Why? The seller will see this."
-                    maxLength={500}
-                    style={{ flex: 1, minWidth: 0 }}
-                  />
-                  <button
-                    type="button"
-                    className="btn"
-                    onClick={() => setDecliningId(null)}
-                    disabled={isDeclining}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-danger"
-                    onClick={() => decline(row.id)}
-                    disabled={isDeclining || !declineReason.trim()}
-                  >
-                    {isDeclining ? 'Declining…' : 'Decline request'}
-                  </button>
-                </div>
-              )}
-            </div>
-          ))}
-          <p style={{ margin: '8px 0 0', color: 'var(--a-text-dim)', fontSize: 12 }}>
-            Settling a shop below pays its open request. Declining leaves the money payable.
-          </p>
-        </div>
-      )}
+      <WithdrawalRequests
+        refreshKey={refreshKey}
+        onChanged={(message) => {
+          setNotice(message);
+          void load();
+        }}
+      />
 
       <div className="admin-card admin-index">
         {isLoading ? (
           <div className="admin-empty">
             <p className="admin-empty-text">Loading…</p>
           </div>
-        ) : payouts.length === 0 ? (
+        ) : balances.length === 0 ? (
           <div className="admin-empty">
             <div className="admin-empty-icon">
               <Wallet size={22} />
             </div>
             <p className="admin-empty-title">No seller shops yet</p>
             <p className="admin-empty-text">
-              Payouts appear here once a seller shop has delivered orders.
+              Balances appear here once a marketplace shop is approved. The house shop is never paid
+              out.
             </p>
           </div>
         ) : (
@@ -498,7 +672,7 @@ export default function AdminPayoutsPage() {
                   </strong>
                   <span style={{ color: 'var(--a-text-dim)', fontSize: 12 }}>
                     {totals.held > 0
-                      ? `${formatCurrency(totals.held)} is held until deliveries clear the return window.`
+                      ? `${formatPaise(totals.held)} is held until deliveries clear the return window.`
                       : 'Every shop is paid up. New deliveries become payable after the return window.'}
                   </span>
                 </span>
@@ -509,87 +683,54 @@ export default function AdminPayoutsPage() {
                 <thead>
                   <tr>
                     <th style={{ width: '40%' }}>Shop</th>
-                    <th>Bank</th>
-                    <th style={num}>Due</th>
+                    <th style={num}>Balance</th>
                     <th style={num}>Held</th>
-                    <th style={num}>Paid</th>
+                    <th>Last payout</th>
                     <th>
                       <span className="sr-only">Actions</span>
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {payouts.map((row) => (
-                    <React.Fragment key={row.id}>
+                  {balances.map((row) => (
+                    <React.Fragment key={row.sellerId}>
                       <tr>
                         <td>
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              flexWrap: 'wrap',
-                              alignItems: 'center',
-                              gap: 6,
-                            }}
-                          >
-                            <span className="admin-row-title">{row.shopName}</span>
-                            {!row.isActive && (
-                              <span className="admin-status-badge" data-status="SUSPENDED">
-                                Suspended
-                              </span>
-                            )}
-                            {!row.isVerified && (
-                              <span className="admin-status-badge" data-status="PENDING">
-                                Unverified
-                              </span>
-                            )}
-                            {row.kycStatus !== 'APPROVED' && (
-                              <span className="admin-status-badge" data-status="PENDING">
-                                KYC {row.kycStatus.replace('_', ' ').toLowerCase()}
-                              </span>
-                            )}
-                          </span>
+                          <span className="admin-row-title">{row.shopName}</span>
                         </td>
-                        <td style={{ whiteSpace: 'nowrap' }}>
-                          {row.canBePaid ? (
-                            `${row.bankName ?? 'Bank'} ····${row.bankAccountLast4}`
-                          ) : (
-                            <span style={{ color: 'var(--a-text-dim)' }}>No bank details</span>
-                          )}
-                        </td>
-                        <td style={{ ...num, fontWeight: row.payoutDue > 0 ? 650 : undefined }}>
-                          {formatCurrency(row.payoutDue)}
-                          {row.ordersDue > 0 && <span style={count}> · {row.ordersDue}</span>}
-                          {row.ledgerBalance < 0 && (
+                        <td style={{ ...num, fontWeight: row.balancePaise > 0 ? 650 : undefined }}>
+                          {row.balancePaise < 0 ? (
                             <span
-                              style={{ display: 'block', color: 'var(--a-bad)', fontSize: 12 }}
+                              style={{ color: 'var(--a-bad)' }}
                               title="Returns reversed after a payout; deducted from future sales"
                             >
-                              Owes {formatCurrency(-row.ledgerBalance)}
+                              Owes {formatPaise(-row.balancePaise)}
                             </span>
+                          ) : (
+                            formatPaise(row.balancePaise)
                           )}
                         </td>
-                        <td style={num}>
-                          {formatCurrency(row.payoutHeld)}
-                          {row.ordersHeld > 0 && <span style={count}> · {row.ordersHeld}</span>}
-                        </td>
-                        <td style={num}>{formatCurrency(row.payoutSettled)}</td>
+                        <td style={num}>{formatPaise(row.heldPaise)}</td>
+                        <td style={{ whiteSpace: 'nowrap' }}>{day(row.lastPayoutAt)}</td>
                         <td>
                           <div className="admin-actions">
                             <button
                               type="button"
                               className="btn btn-sm"
-                              aria-expanded={expanded === row.id && panel === 'orders'}
-                              onClick={() => toggle(row.id, 'orders')}
+                              aria-expanded={expanded === row.sellerId && panel === 'earnings'}
+                              onClick={() => toggle(row.sellerId, 'earnings')}
                             >
-                              {expanded === row.id && panel === 'orders' ? 'Hide orders' : 'Orders'}
+                              {expanded === row.sellerId && panel === 'earnings'
+                                ? 'Hide held'
+                                : 'Held'}
                             </button>
                             <button
                               type="button"
                               className="btn btn-sm"
-                              aria-expanded={expanded === row.id && panel === 'statement'}
-                              onClick={() => toggle(row.id, 'statement')}
+                              aria-expanded={expanded === row.sellerId && panel === 'statement'}
+                              onClick={() => toggle(row.sellerId, 'statement')}
                             >
-                              {expanded === row.id && panel === 'statement'
+                              {expanded === row.sellerId && panel === 'statement'
                                 ? 'Hide statement'
                                 : 'Statement'}
                             </button>
@@ -600,21 +741,21 @@ export default function AdminPayoutsPage() {
                                 setAdjusting(row);
                                 setAdjustAmount('');
                                 setAdjustNote('');
+                                setDialogError(null);
                               }}
                             >
                               Adjust
                             </button>
-                            {row.payoutDue > 0 && (
+                            {row.balancePaise > 0 && (
                               <button
                                 type="button"
                                 className="btn btn-sm btn-primary"
-                                disabled={!row.canBePaid}
-                                title={
-                                  row.canBePaid ? undefined : 'This shop has not given bank details'
-                                }
                                 onClick={() => {
                                   setConfirming(row);
                                   setReference('');
+                                  setSettleAmount('');
+                                  setSettleNote('');
+                                  setDialogError(null);
                                 }}
                               >
                                 Settle
@@ -623,15 +764,15 @@ export default function AdminPayoutsPage() {
                           </div>
                         </td>
                       </tr>
-                      {expanded === row.id && (
+                      {expanded === row.sellerId && (
                         <tr>
-                          <td colSpan={6} style={{ background: 'var(--a-surface-2)' }}>
-                            {panel === 'orders' ? (
-                              <ShopDetail vendorId={row.id} />
+                          <td colSpan={5} style={{ background: 'var(--a-surface-2)' }}>
+                            {panel === 'earnings' ? (
+                              <ShopEarnings sellerId={row.sellerId} refreshKey={refreshKey} />
                             ) : (
                               <ShopStatement
-                                vendorId={row.id}
-                                shopSlug={row.shopSlug}
+                                sellerId={row.sellerId}
+                                shopName={row.shopName}
                                 refreshKey={refreshKey}
                               />
                             )}
@@ -647,59 +788,17 @@ export default function AdminPayoutsPage() {
         )}
       </div>
 
-      {withdrawals.length > 0 && (
-        <div className="admin-card" style={{ marginTop: 16 }}>
-          <p className="admin-kpi-label">Payout history</p>
-          <div className="admin-table-wrap">
-            <table className="admin-table">
-              <thead>
-                <tr>
-                  <th style={{ width: '40%' }}>Shop</th>
-                  <th style={num}>Amount</th>
-                  <th>Status</th>
-                  <th>Reference</th>
-                  <th>Date</th>
-                </tr>
-              </thead>
-              <tbody>
-                {withdrawals.map((row) => (
-                  <tr key={row.id}>
-                    <td>{row.vendor?.shopName ?? '—'}</td>
-                    <td style={num}>{formatCurrency(row.amount)}</td>
-                    <td>
-                      <span className="admin-status-badge" data-status={row.status}>
-                        {row.status.charAt(0) + row.status.slice(1).toLowerCase()}
-                      </span>
-                    </td>
-                    <td>{row.transactionId ?? '—'}</td>
-                    <td>{day(row.completedAt ?? row.createdAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-
       {adjusting && (
         <div
           role="dialog"
           aria-modal="true"
           aria-label={`Adjust ledger for ${adjusting.shopName}`}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 60,
-            display: 'grid',
-            placeItems: 'center',
-            padding: 20,
-            background: 'rgba(0,0,0,0.6)',
-          }}
+          style={overlay}
         >
           <div className="admin-card" style={{ maxWidth: 460, width: '100%' }}>
             <p className="admin-kpi-label">Ledger adjustment</p>
             <p className="admin-kpi-sub" style={{ marginBottom: 12 }}>
-              {adjusting.shopName} · balance {formatCurrency(adjusting.ledgerBalance)}. A positive
+              {adjusting.shopName} · balance {formatPaise(adjusting.balancePaise)}. A positive
               amount credits the shop, a negative one deducts. The seller sees the note on their
               statement.
             </p>
@@ -710,7 +809,7 @@ export default function AdminPayoutsPage() {
               value={adjustAmount}
               onChange={(event) => setAdjustAmount(event.target.value)}
               placeholder="Amount in ₹, e.g. -250 or 120"
-              aria-label="Adjustment amount"
+              aria-label="Adjustment amount in rupees"
               style={{ width: '100%', marginBottom: 8 }}
             />
             <input
@@ -721,6 +820,7 @@ export default function AdminPayoutsPage() {
               aria-label="Reason for the adjustment"
               style={{ width: '100%' }}
             />
+            {dialogError && <p style={errorLine}>{dialogError}</p>}
             <div className="admin-actions" style={{ marginTop: 16 }}>
               <button
                 type="button"
@@ -753,39 +853,52 @@ export default function AdminPayoutsPage() {
           role="dialog"
           aria-modal="true"
           aria-label={`Settle payout for ${confirming.shopName}`}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 60,
-            display: 'grid',
-            placeItems: 'center',
-            padding: 20,
-            background: 'rgba(0,0,0,0.6)',
-          }}
+          style={overlay}
         >
           <div className="admin-card" style={{ maxWidth: 460, width: '100%' }}>
-            <p className="admin-kpi-label">Settle payout</p>
+            <p className="admin-kpi-label">Record a payout</p>
             <p className="admin-kpi-value" style={{ fontSize: 24 }}>
-              {formatCurrency(confirming.payoutDue)}
+              {formatPaise(
+                settleAmount.trim() === ''
+                  ? confirming.balancePaise
+                  : rupeesToPaise(Number(settleAmount) || 0)
+              )}
             </p>
             <p className="admin-kpi-sub" style={{ marginBottom: 12 }}>
-              {confirming.shopName} · {confirming.ordersDue} order
-              {confirming.ordersDue === 1 ? '' : 's'} · {confirming.bankName ?? 'Bank'} ····
-              {confirming.bankAccountLast4}
-            </p>
-            <p className="admin-kpi-sub" style={{ marginBottom: 12 }}>
-              The shop&rsquo;s ledger balance, net of any returns reversed since the last payout.
-              This records the payment. Make the bank transfer first — it cannot be undone here.
+              {confirming.shopName} · balance {formatPaise(confirming.balancePaise)}. This records
+              the payment in the shop&rsquo;s ledger. Make the bank transfer first — it cannot be
+              undone here.
             </p>
 
             <input
+              autoFocus
               value={reference}
               onChange={(event) => setReference(event.target.value)}
-              placeholder="Bank reference (optional)"
+              placeholder="Bank transfer reference — UTR (required)"
               maxLength={120}
-              aria-label="Bank reference"
+              aria-label="Bank transfer reference"
+              style={{ width: '100%', marginBottom: 8 }}
+            />
+            <input
+              type="number"
+              step="0.01"
+              min={1}
+              max={paiseToRupees(confirming.balancePaise)}
+              value={settleAmount}
+              onChange={(event) => setSettleAmount(event.target.value)}
+              placeholder={`Amount in ₹ — empty pays all ${formatPaise(confirming.balancePaise)}`}
+              aria-label="Payout amount in rupees"
+              style={{ width: '100%', marginBottom: 8 }}
+            />
+            <input
+              value={settleNote}
+              onChange={(event) => setSettleNote(event.target.value)}
+              placeholder="Note (optional)"
+              maxLength={500}
+              aria-label="Payout note"
               style={{ width: '100%' }}
             />
+            {dialogError && <p style={errorLine}>{dialogError}</p>}
 
             <div className="admin-actions" style={{ marginTop: 16 }}>
               <button
@@ -800,7 +913,7 @@ export default function AdminPayoutsPage() {
                 type="button"
                 className="btn btn-primary"
                 onClick={settle}
-                disabled={isSettling}
+                disabled={isSettling || !reference.trim()}
               >
                 {isSettling ? 'Recording…' : 'Mark as paid'}
               </button>

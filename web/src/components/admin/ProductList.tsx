@@ -23,6 +23,7 @@ import {
   type StockBand,
 } from '@/lib/admin-products';
 import { ProductThumb } from '@/components/product/ProductThumb';
+import { formatPaise, paiseToRupees, rupeesToPaise } from '@/lib/money';
 import { exportMyntra, listExportArticleTypes, myntraExportCounts } from '@/lib/catalog-import';
 import {
   ArrowRight,
@@ -95,9 +96,6 @@ const HEALTH_SERIES: Array<{ key: StockBand; label: string; color: string }> = [
   { key: 'out', label: 'Sold out', color: 'var(--a-bad-fill)' },
 ];
 
-const inr = (value: number | null | undefined): string =>
-  `₹${Math.round(Number(value) || 0).toLocaleString('en-IN')}`;
-
 const discountPct = (price: number, mrp: number | null): number =>
   mrp && mrp > price && price > 0 ? Math.round(((mrp - price) / mrp) * 100) : 0;
 
@@ -145,7 +143,7 @@ function MyntraExport({
     const [scopeVendor, scopeIds] = scopeKey.split('|');
     myntraExportCounts({
       ids: scopeIds ? scopeIds.split(',') : undefined,
-      vendorId: scopeIds ? undefined : scopeVendor || undefined,
+      sellerId: scopeIds ? undefined : scopeVendor || undefined,
     })
       .then((next) => {
         if (!cancelled) setCounts(next);
@@ -166,17 +164,17 @@ function MyntraExport({
     if (!articleType) return;
     setBusy(true);
     try {
-      const { filename, rows, skipped } = await exportMyntra({
+      const { filename } = await exportMyntra({
         articleType,
         ids: ids.length > 0 ? ids : undefined,
-        vendorId: ids.length > 0 ? undefined : vendorId || undefined,
+        sellerId: ids.length > 0 ? undefined : vendorId || undefined,
       });
+      const listings = counts?.[articleType] ?? 0;
+      // The size-row and skipped counts travel in headers a browser cannot read
+      // cross-origin; the listing count is known from the counts call.
       notify(
-        `${filename}: ${rows} size row${rows === 1 ? '' : 's'}` +
-          (skipped.length
-            ? `. Left out ${skipped.join(', ')}: several colours in one listing — Myntra needs one listing per colour (use “Add another colour”).`
-            : ''),
-        skipped.length === 0
+        `${filename}: ${listings} listing${listings === 1 ? '' : 's'}. Listings holding several colours are left out — Myntra needs one listing per colour.`,
+        true
       );
     } catch (err) {
       notify((err as Error).message, false);
@@ -634,11 +632,13 @@ function ExpandedRow({
   notify: (message: string, ok: boolean) => void;
 }) {
   const [all, setAll] = useState('');
-  const [price, setPrice] = useState(String(product.price ?? ''));
-  const [mrp, setMrp] = useState(String(product.originalPrice ?? ''));
+  // Inputs speak rupees; the API stores paise.
+  const startPrice = product.pricePaise ? String(paiseToRupees(product.pricePaise)) : '';
+  const startMrp = product.mrpPaise ? String(paiseToRupees(product.mrpPaise)) : '';
+  const [price, setPrice] = useState(startPrice);
+  const [mrp, setMrp] = useState(startMrp);
   const [busy, setBusy] = useState<string | null>(null);
-  const priceDirty =
-    price !== String(product.price ?? '') || mrp !== String(product.originalPrice ?? '');
+  const priceDirty = price !== startPrice || mrp !== startMrp;
 
   const applyAll = async () => {
     const quantity = Math.max(0, parseInt(all, 10) || 0);
@@ -673,7 +673,10 @@ function ExpandedRow({
     }
     setBusy('price');
     try {
-      await updateProduct(product.id, { price: nextPrice, originalPrice: nextMrp });
+      await updateProduct(product.id, {
+        pricePaise: rupeesToPaise(nextPrice),
+        mrpPaise: nextMrp === null ? null : rupeesToPaise(nextMrp),
+      });
       notify(`${product.name}: price saved`, true);
       onChanged();
     } catch (error) {
@@ -965,15 +968,7 @@ export function ProductList() {
   const download = async () => {
     setBusy('export');
     try {
-      const csv = await exportCatalog(
-        filters.vendorId && filters.vendorId !== 'house' ? filters.vendorId : undefined
-      );
-      const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'catalogue.csv';
-      link.click();
-      URL.revokeObjectURL(url);
+      await exportCatalog(filters.vendorId || undefined);
     } catch (err) {
       notify((err as Error).message, false);
     } finally {
@@ -1245,7 +1240,7 @@ export function ProductList() {
                   ))
                 : products.map((product) => {
                     const tone = STOCK_TONE[product.stockBand];
-                    const off = discountPct(product.price, product.originalPrice);
+                    const off = discountPct(product.pricePaise, product.mrpPaise);
                     const isOpen = expanded === product.id;
                     return (
                       <React.Fragment key={product.id}>
@@ -1311,7 +1306,9 @@ export function ProductList() {
                                   {product.brand?.name ? ` · ${product.brand.name}` : ''}
                                 </span>
                                 <span style={{ ...micro, display: 'block' }}>
-                                  {product.vendor ? product.vendor.shopName : 'House stock'}
+                                  {product.seller && !product.seller.isPlatform
+                                    ? product.seller.shopName
+                                    : 'House stock'}
                                   {product.variants.length > 0 &&
                                     ` · ${product.variants.length} size${product.variants.length === 1 ? '' : 's'}`}
                                 </span>
@@ -1320,11 +1317,11 @@ export function ProductList() {
                           </td>
                           <td style={{ whiteSpace: 'nowrap' }}>
                             <span style={{ color: 'var(--a-text)', fontWeight: 500 }}>
-                              {inr(product.price)}
+                              {formatPaise(product.pricePaise)}
                             </span>
                             {off > 0 && (
                               <span style={{ display: 'block', ...micro }}>
-                                <s>{inr(product.originalPrice)}</s>{' '}
+                                <s>{formatPaise(product.mrpPaise)}</s>{' '}
                                 <span style={{ color: 'var(--a-good)' }}>{off}% off</span>
                               </span>
                             )}

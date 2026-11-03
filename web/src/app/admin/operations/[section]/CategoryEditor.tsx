@@ -2,12 +2,15 @@
 
 import React, { useEffect, useMemo, useState, type FormEvent } from 'react';
 import {
+  bpToPercent,
   createCategory,
+  percentToBp,
   slugify,
   updateCategory,
   type AdminCategory,
   type CategoryInput,
 } from '@/lib/admin-products';
+import { useCan } from '@/components/admin/StaffContext';
 import { listArticleTypes, type ArticleTypeSummary } from '@/lib/catalogue-api';
 import { CategoryHomepageSection } from './CategoryHomepageSection';
 import { CategoryFieldsPanel } from './CategoryFieldsPanel';
@@ -72,6 +75,8 @@ export const CategoryEditor: React.FC<{
   onClose: () => void;
   onSaved: (category: AdminCategory, message: string) => void;
 }> = ({ category, categories, parentId, onClose, onSaved }) => {
+  const can = useCan();
+  const canSetCommission = can('FINANCE');
   const [form, setForm] = useState({
     name: category?.name ?? '',
     slug: category?.slug ?? '',
@@ -80,10 +85,8 @@ export const CategoryEditor: React.FC<{
     image: category?.image ?? '',
     description: category?.description ?? '',
     listingTemplate: category?.listingTemplate ?? '',
-    commissionRate:
-      category?.commissionRate === null || category?.commissionRate === undefined
-        ? ''
-        : String(category.commissionRate),
+    // Shown as a percent; stored in basis points (1000 = 10%).
+    commissionRate: bpToPercent(category?.commissionRateBp),
     isActive: category?.isActive ?? true,
     showOnHome: category?.showOnHome ?? false,
     homeOrder: String(category?.homeOrder ?? 0),
@@ -152,11 +155,16 @@ export const CategoryEditor: React.FC<{
         image: form.image.trim() || null,
         description: form.description.trim() || null,
         listingTemplate: form.listingTemplate || null,
-        commissionRate: rate === '' ? null : Number(rate),
         isActive: form.isActive,
         showOnHome: form.showOnHome,
         homeOrder: Number.parseInt(form.homeOrder, 10) || 0,
       };
+      // Commission is money: the API wants FINANCE for any body that carries
+      // it, so it is sent only when it changed (and only FINANCE can change it).
+      const nextBp = percentToBp(rate);
+      if (canSetCommission && nextBp !== (category?.commissionRateBp ?? null)) {
+        payload.commissionRateBp = nextBp;
+      }
       const saved = category
         ? await updateCategory(category.id, payload)
         : await createCategory(payload);
@@ -293,11 +301,16 @@ export const CategoryEditor: React.FC<{
               inputMode="decimal"
               value={form.commissionRate}
               placeholder="Inherit"
+              disabled={!canSetCommission}
               aria-invalid={rateInvalid || undefined}
               onChange={(event) => set('commissionRate', event.target.value)}
               style={fieldStyle}
             />
-            <span style={hintStyle}>Empty uses the parent&rsquo;s rate, then the default.</span>
+            <span style={hintStyle}>
+              {canSetCommission
+                ? 'Empty uses the parent’s rate, then the default.'
+                : 'Changing commission needs the Finance permission.'}
+            </span>
           </label>
         </div>
 

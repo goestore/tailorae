@@ -4,7 +4,8 @@ import { apiClient } from '@/lib/api-client';
 import { getApiErrorMessage } from '@/lib/api-utils';
 
 /**
- * The category field builder's API (backend/src/routes/admin-category-fields.ts).
+ * The category field builder's API (`/admin/categories/{id}/fields…`, MODERATOR
+ * or CONTENT). Ids are UUIDs.
  *
  * Fields an admin defines on a category (Television: screen size, smart TV)
  * that sellers fill in for every product filed there or below, shoppers can

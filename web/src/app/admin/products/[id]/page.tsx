@@ -4,7 +4,10 @@ import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { BulkPricingEditor } from '@/components/admin/BulkPricingEditor';
 import { ListingForm } from '@/components/catalog/listing-form';
-import { getProduct, type AdminProduct } from '@/lib/admin-products';
+import { getProduct, saveAdminListing, type AdminProduct } from '@/lib/admin-products';
+
+/** Staff saves go through the console's own route (prices already in paise). Module-level, so stable. */
+const STAFF_LISTING_API = { saveProduct: (id: string | null, body: Record<string, unknown>) => saveAdminListing('admin', id, body) };
 
 /**
  * Edit one product.
@@ -51,7 +54,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       </header>
 
       {error && <p className="alert alert-error text-sm">{error}</p>}
-      <ListingForm mode="admin" productId={id} />
+      <ListingForm mode="admin" productId={id} api={STAFF_LISTING_API} />
 
       {product !== null && (
         <>
@@ -68,7 +71,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           </div>
           <BulkPricingEditor
             productId={product.id}
-            price={product.price}
+            pricePaise={product.pricePaise}
             initial={product.bulkPricings ?? []}
           />
         </>

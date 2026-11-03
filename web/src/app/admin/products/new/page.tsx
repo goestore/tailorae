@@ -1,6 +1,10 @@
 'use client';
 
 import { ListingForm } from '@/components/catalog/listing-form';
+import { saveAdminListing } from '@/lib/admin-products';
+
+/** Staff saves go through the console's own route (prices already in paise). Module-level, so stable. */
+const STAFF_LISTING_API = { saveProduct: (id: string | null, body: Record<string, unknown>) => saveAdminListing('admin', id, body) };
 
 /**
  * Add a product.
@@ -22,7 +26,7 @@ export default function NewProductPage() {
         </div>
       </header>
 
-      <ListingForm mode="admin" />
+      <ListingForm mode="admin" api={STAFF_LISTING_API} />
     </div>
   );
 }

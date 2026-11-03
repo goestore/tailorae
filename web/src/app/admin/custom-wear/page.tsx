@@ -4,14 +4,18 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   QUOTE_STATUSES,
   QUOTE_STATUS_LABELS,
+  getCustomWearQuote,
   listCustomWearQuotes,
   updateCustomWearQuote,
   type AdminCustomWearQuote,
   type AdminQuoteStatus,
   type QuoteCounts,
 } from '@/lib/admin-custom-wear';
-import { formatCurrency, formatDateTime } from '@/utils/helpers';
+import { formatPaise, paiseToRupees, rupeesToPaise } from '@/lib/money';
+import { formatDateTime } from '@/utils/helpers';
 import { FileEdit } from '@/components/admin/icons';
+import { useCan } from '@/components/admin/StaffContext';
+import { CustomWearProducts } from './CustomWearProducts';
 
 /**
  * A table inside a zero-padding index card. The global rule that pulls a
@@ -80,16 +84,48 @@ const QuoteDetail: React.FC<{
   onSaved: (quote: AdminCustomWearQuote) => void;
   onClose: () => void;
 }> = ({ quote, onSaved, onClose }) => {
+  // The form speaks rupees; the API stores paise.
+  const savedPrice =
+    quote.quotedPricePaise != null ? String(paiseToRupees(quote.quotedPricePaise)) : '';
   const [status, setStatus] = useState<AdminQuoteStatus>(quote.status);
-  const [price, setPrice] = useState(quote.quotedPrice != null ? String(quote.quotedPrice) : '');
+  const [price, setPrice] = useState(savedPrice);
   const [notes, setNotes] = useState(quote.adminNotes ?? '');
   const [isSaving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null);
+  const [opening, setOpening] = useState<number | null>(null);
 
   const dirty =
-    status !== quote.status ||
-    price.trim() !== (quote.quotedPrice != null ? String(quote.quotedPrice) : '') ||
-    notes.trim() !== (quote.adminNotes ?? '');
+    status !== quote.status || price.trim() !== savedPrice || notes.trim() !== (quote.adminNotes ?? '');
+
+  /**
+   * Design files are five-minute signed links, so the quote is re-read for a
+   * fresh one at the moment of opening. The tab is opened inside the click so
+   * popup blockers allow it.
+   */
+  const openFile = async (index: number) => {
+    const tab = window.open('', '_blank');
+    setOpening(index);
+    try {
+      const fresh = await getCustomWearQuote(quote.id);
+      const url = fresh.artwork[index]?.url ?? fresh.designFiles[index];
+      if (!url) throw new Error('That file is no longer attached.');
+      if (tab) tab.location.href = url;
+      else window.open(url, '_blank', 'noopener');
+    } catch (error) {
+      tab?.close();
+      setMessage({ tone: 'error', text: (error as Error).message });
+    } finally {
+      setOpening(null);
+    }
+  };
+
+  const files: Array<{ label: string }> = quote.artwork.length
+    ? quote.artwork.map((file, index) => ({
+        label: `${file.name || `Artwork ${index + 1}`} (${file.format.toUpperCase()}${
+          file.width && file.height ? `, ${file.width}×${file.height}` : ''
+        }, ${Math.max(1, Math.round(file.bytes / 1024))} KB)`,
+      }))
+    : quote.designFiles.map((url, index) => ({ label: fileLabel(url, index) }));
 
   const save = async () => {
     const trimmed = price.trim();
@@ -103,7 +139,7 @@ const QuoteDetail: React.FC<{
     try {
       const updated = await updateCustomWearQuote(quote.id, {
         status,
-        quotedPrice: parsed,
+        quotedPricePaise: parsed === null ? null : rupeesToPaise(parsed),
         adminNotes: notes.trim() || null,
       });
       onSaved(updated);
@@ -182,8 +218,8 @@ const QuoteDetail: React.FC<{
         <Fact label="Locations">{quote.locations.length ? quote.locations.join(', ') : '—'}</Fact>
       </dl>
 
-      <h3 style={sectionHeading}>Artwork ({quote.designFiles.length})</h3>
-      {quote.designFiles.length === 0 ? (
+      <h3 style={sectionHeading}>Artwork ({files.length})</h3>
+      {files.length === 0 ? (
         <p style={{ margin: 0, color: 'var(--a-text-dim)', fontSize: 13 }}>No files attached.</p>
       ) : (
         <ul
@@ -196,11 +232,16 @@ const QuoteDetail: React.FC<{
             margin: 0,
           }}
         >
-          {quote.designFiles.map((url, index) => (
-            <li key={url}>
-              <a href={url} target="_blank" rel="noreferrer" className="btn btn-sm">
-                {fileLabel(url, index)}
-              </a>
+          {files.map((file, index) => (
+            <li key={`${file.label}-${index}`}>
+              <button
+                type="button"
+                className="btn btn-sm"
+                disabled={opening === index}
+                onClick={() => void openFile(index)}
+              >
+                {opening === index ? 'Opening…' : file.label}
+              </button>
             </li>
           ))}
         </ul>
@@ -316,7 +357,52 @@ const QuoteDetail: React.FC<{
 
 const EMPTY_COUNTS: QuoteCounts = { ALL: 0, NEW: 0, CONTACTED: 0, QUOTED: 0, WON: 0, LOST: 0 };
 
+/** Quotes are SUPPORT's desk; the catalogue is CONTENT's. Each sees the half they can use. */
 export default function AdminCustomWearPage() {
+  const can = useCan();
+  const canQuotes = can('SUPPORT');
+  const canProducts = can('CONTENT');
+  const [view, setView] = useState<'quotes' | 'products'>(canQuotes ? 'quotes' : 'products');
+
+  return (
+    <div>
+      {canQuotes && canProducts && (
+        <div
+          role="group"
+          aria-label="Section"
+          className="admin-segmented-control"
+          style={{ marginBottom: 12, maxWidth: '100%', overflowX: 'auto' }}
+        >
+          {(
+            [
+              ['quotes', 'Quote requests'],
+              ['products', 'Products'],
+            ] as const
+          ).map(([key, label]) => (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={view === key}
+              onClick={() => setView(key)}
+              className={`admin-segmented-item${view === key ? ' admin-segmented-item--active' : ''}`}
+              style={{
+                border: 0,
+                background: view === key ? undefined : 'transparent',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+      {view === 'quotes' && canQuotes ? <QuotesView /> : canProducts ? <CustomWearProducts /> : null}
+    </div>
+  );
+}
+
+function QuotesView() {
   const [tab, setTab] = useState<Tab>('NEW');
   const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
@@ -500,7 +586,7 @@ export default function AdminCustomWearPage() {
                       <td style={{ textAlign: 'right' }}>{quote.quantity}</td>
                       <td>
                         <StatusBadge status={quote.status} />
-                        {quote.quotedPrice != null && (
+                        {quote.quotedPricePaise != null && (
                           <span
                             style={{
                               display: 'block',
@@ -509,7 +595,7 @@ export default function AdminCustomWearPage() {
                               marginTop: 2,
                             }}
                           >
-                            {formatCurrency(quote.quotedPrice)}
+                            {formatPaise(quote.quotedPricePaise)}
                           </span>
                         )}
                       </td>

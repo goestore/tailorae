@@ -2,6 +2,7 @@
 
 import { apiClient } from '@/lib/api-client';
 import { getApiErrorMessage } from '@/lib/api-utils';
+import { formatPaise } from '@/lib/money';
 import type { PickerSource } from './field';
 
 /**
@@ -21,25 +22,29 @@ export interface PickerOption {
   meta?: string;
 }
 
-const currency = (value: number): string =>
-  `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-
 interface ApiProduct {
   id?: unknown;
   name?: unknown;
-  price?: unknown;
+  /** Integer paise. */
+  pricePaise?: unknown;
+  thumbnail?: unknown;
   images?: unknown;
 }
 
 const toOption = (raw: ApiProduct): PickerOption | null => {
   if (typeof raw.id !== 'string' || typeof raw.name !== 'string') return null;
   const images = Array.isArray(raw.images) ? raw.images : [];
-  const image = typeof images[0] === 'string' ? images[0] : undefined;
+  const image =
+    typeof raw.thumbnail === 'string' && raw.thumbnail
+      ? raw.thumbnail
+      : typeof images[0] === 'string'
+        ? images[0]
+        : undefined;
   return {
     id: raw.id,
     label: raw.name,
     image,
-    meta: typeof raw.price === 'number' ? currency(raw.price) : undefined,
+    meta: typeof raw.pricePaise === 'number' ? formatPaise(raw.pricePaise) : undefined,
   };
 };
 

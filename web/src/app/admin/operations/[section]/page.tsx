@@ -4,17 +4,17 @@ import React, { use, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { apiClient } from '@/lib/api-client';
 import { getApiErrorMessage } from '@/lib/api-utils';
-import { statusLabel } from '@/lib/admin-orders';
 import { deleteBrand, type AdminBrand } from '@/lib/admin-brands';
 import { deleteCoupon, type AdminCoupon } from '@/lib/admin-coupons';
+import { announceQueuesChanged } from '@/lib/admin-moderation';
+import { downloadFromApi } from '@/lib/admin-download';
 import { Search as SearchIcon } from '@/components/admin/icons';
+import { useCan } from '@/components/admin/StaffContext';
+import { AnalyticsReport } from './AnalyticsReport';
 import { BrandEditor, ConfirmDialog, CouponEditor, StockCell } from './editors';
 import {
-  ATTENTION_KEYS,
-  ATTENTION_LINKS,
   SECTIONS,
-  kpiLabel,
-  kpiValue,
+  filterLabel,
   text,
   type Column,
   type Row,
@@ -57,35 +57,6 @@ const toolbarSelect: React.CSSProperties = { width: 'auto', flex: '0 0 auto' };
 const indexTableWrap: React.CSSProperties = { width: '100%', margin: 0, borderTop: 0 };
 const dangerText: React.CSSProperties = { color: 'var(--a-bad)' };
 
-const kpiGrid: React.CSSProperties = {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-  gap: 12,
-  marginBottom: 16,
-};
-
-const KpiCard: React.FC<{ name: string; value: unknown; href?: string }> = ({ name, value, href }) => {
-  const card = (
-    <div className="admin-card">
-      <p
-        className="admin-kpi-label"
-        title={kpiLabel(name)}
-        style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-      >
-        {kpiLabel(name)}
-      </p>
-      <p className="admin-kpi-value">{kpiValue(name, value)}</p>
-    </div>
-  );
-  return href ? (
-    <Link href={href} className="admin-kpi-link">
-      {card}
-    </Link>
-  ) : (
-    card
-  );
-};
-
 interface Request {
   page: number;
   limit: number;
@@ -102,40 +73,73 @@ interface Loaded {
   totalPages: number;
 }
 
+/**
+ * One request for a module. Lists come back either paged — `{items, total,
+ * page, limit, pages}` — or in the legacy wrapper `{<collection>: [...],
+ * pagination: {total, pages|totalPages}}`; both read the same here.
+ */
 async function fetchSection(config: Section, request: Request) {
   const response = await apiClient.get(config.endpoint, {
-    params: config.paginated
-      ? {
-          page: request.page,
-          limit: request.limit,
-          ...(request.search ? { search: request.search } : {}),
-          ...(request.status && config.statusParam ? { [config.statusParam]: request.status } : {}),
-        }
-      : undefined,
+    params: {
+      ...(config.params ?? {}),
+      ...(config.paginated
+        ? {
+            page: request.page,
+            limit: request.limit,
+            ...(request.search && config.searchParam
+              ? { [config.searchParam]: request.search }
+              : {}),
+            ...(request.status && config.statusParam
+              ? { [config.statusParam]: request.status }
+              : {}),
+          }
+        : {}),
+    },
   });
   const payload = (response.data?.data ?? {}) as Record<string, unknown>;
-  const rows =
-    config.collection && Array.isArray(payload[config.collection])
-      ? (payload[config.collection] as Row[])
+  const list = Array.isArray(payload.items)
+    ? payload.items
+    : config.collection && Array.isArray(payload[config.collection])
+      ? payload[config.collection]
       : [];
-  const pagination = payload.pagination as { total?: number; totalPages?: number } | undefined;
+  const all = list as Row[];
+  const rows = config.filter ? all.filter(config.filter) : all;
+  const pagination = (payload.pagination ?? payload) as {
+    total?: number;
+    pages?: number;
+    totalPages?: number;
+  };
   return {
     payload,
     rows,
-    total: pagination?.total ?? rows.length,
-    totalPages: pagination?.totalPages ?? 1,
+    total: config.filter ? rows.length : Number(pagination.total ?? rows.length),
+    totalPages: Number(pagination.pages ?? pagination.totalPages ?? 1) || 1,
   };
 }
 
+/** A return row keeps its request under `return`; everything else is flat. */
+const inner = (row: Row): Row => (row.return && typeof row.return === 'object' ? (row.return as Row) : row);
+
+/** A stable key: brand authorisations are identified by brand and shop together. */
+const rowKey = (row: Row): string => {
+  const own = inner(row).id;
+  if (own) return text(own);
+  const brand = (row.brand as Row | undefined)?.id;
+  const seller = (row.seller as Row | undefined)?.id;
+  return `${text(brand)}:${text(seller)}`;
+};
+
 /** The status a row is filtered on, whether it keeps one or only a flag. */
-const rowStatus = (row: Row): string =>
-  row.status === undefined
-    ? row.isActive === undefined
+const rowStatus = (row: Row): string => {
+  const subject = inner(row);
+  return subject.status === undefined
+    ? subject.isActive === undefined
       ? ''
-      : row.isActive
+      : subject.isActive
         ? 'ACTIVE'
         : 'INACTIVE'
-    : text(row.status);
+    : text(subject.status);
+};
 
 /**
  * Remounted per section by its key, so switching modules cannot carry a page
@@ -143,6 +147,7 @@ const rowStatus = (row: Row): string =>
  */
 function OperationsSection({ section }: { section: string }) {
   const config = SECTIONS[section];
+  const can = useCan();
 
   const [request, setRequest] = useState<Request>({ page: 1, limit: 25, search: '', status: '' });
   const [searchInput, setSearchInput] = useState('');
@@ -221,16 +226,43 @@ function OperationsSection({ section }: { section: string }) {
     );
 
   const runAction = async (row: Row, action: RowAction, index: number) => {
-    const busyKey = `${text(row.id)}:${index}`;
+    const question = action.confirm?.(row);
+    if (question && !window.confirm(question)) return;
+    let subject = row;
+    if (action.prompt) {
+      const note = window.prompt(action.prompt)?.trim();
+      if (!note) return;
+      subject = { ...row, __note: note };
+    }
+    const busyKey = `${rowKey(row)}:${index}`;
     setBusyAction(busyKey);
     setError(null);
     setNotice(null);
+    // Opened inside the click so popup blockers allow it; filled once the link arrives.
+    const tab = action.opensLink ? window.open('', '_blank') : null;
     try {
-      await apiClient[action.method ?? 'patch'](action.path(row), action.body(row));
+      if (action.opensLink) {
+        const response = await apiClient.get(action.path(subject));
+        const url = response.data?.data?.url as string | undefined;
+        if (!url) throw new Error('No link came back.');
+        if (tab) tab.location.href = url;
+        else window.open(url, '_blank', 'noopener');
+        return;
+      }
+      const method = action.method ?? 'patch';
+      const response =
+        method === 'delete'
+          ? await apiClient.delete(action.path(subject))
+          : await apiClient[method](action.path(subject), action.body?.(subject) ?? {});
+      if (response.data?.message) setNotice(String(response.data.message));
       // Refetched rather than merged locally: on a paged, server-filtered table
       // the changed row may no longer belong on this page at all.
       await load();
+      if (section === 'brands' || section === 'brand-authorizations' || section === 'returns') {
+        announceQueuesChanged();
+      }
     } catch (err) {
+      tab?.close();
       setError(getApiErrorMessage(err, 'Could not update this record.'));
     } finally {
       setBusyAction(null);
@@ -277,6 +309,23 @@ function OperationsSection({ section }: { section: string }) {
     }
   };
 
+  /** The API's own subscriber CSV (CONTENT), every address rather than the page in view. */
+  const exportSubscribers = async () => {
+    setIsExporting(true);
+    setError(null);
+    try {
+      await downloadFromApi(
+        '/admin/newsletter-subscribers/export',
+        `newsletter-subscribers-${new Date().toISOString().slice(0, 10)}.csv`,
+        { all: request.status === 'false' || undefined }
+      );
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const confirmRemoval = async () => {
     if (!removing) return;
     setIsRemoving(true);
@@ -309,17 +358,19 @@ function OperationsSection({ section }: { section: string }) {
 
   const hasFilters = searchInput !== '' || request.status !== '';
   const hasRows = visibleRows.length > 0;
+  /** Paged modules search on the server, and only where the API takes a search term. */
+  const canSearch = !config.paginated || Boolean(config.searchParam);
+  /** Row buttons this member's permissions allow; the rest are left out. */
+  const allowedActions = (config.actions ?? []).filter((action) => can(...(action.anyOf ?? [])));
+  const canEditBrands = section === 'brands' && can('MODERATOR');
+  const canEditCoupons = section === 'coupons' && can('FINANCE', 'CONTENT');
   const hasRowActions = Boolean(
-    config.actions || config.href || section === 'brands' || section === 'coupons'
+    allowedActions.length || config.href || canEditBrands || canEditCoupons
   );
   const countLabel = config.paginated
     ? `${firstOnPage}–${lastOnPage} of ${total}`
     : `${visibleRows.length} of ${rows.length}`;
   const EmptyIcon = hasFilters ? SearchIcon : (config.empty?.icon ?? SearchIcon);
-
-  const summaryEntries = Object.entries(loaded?.payload ?? {});
-  const measures = summaryEntries.filter(([key]) => !ATTENTION_KEYS.has(key));
-  const attention = summaryEntries.filter(([key]) => ATTENTION_KEYS.has(key));
 
   return (
     <div>
@@ -329,12 +380,37 @@ function OperationsSection({ section }: { section: string }) {
           <p className="admin-page-sub">{config.description}</p>
         </div>
         <div className="admin-page-actions">
-          {section === 'analytics' && (
-            <Link href="/admin" className="btn">
-              See full report on the Dashboard
+          {section === 'inventory' && (
+            <Link href="/admin/operations/movements" className="btn">
+              Stock movements
             </Link>
           )}
-          {config.collection && total > 0 && (
+          {section === 'movements' && (
+            <Link href="/admin/operations/inventory" className="btn">
+              Back to inventory
+            </Link>
+          )}
+          {section === 'brands' && (
+            <Link href="/admin/operations/brand-authorizations" className="btn">
+              Brand authorisations
+            </Link>
+          )}
+          {section === 'brand-authorizations' && (
+            <Link href="/admin/operations/brands" className="btn">
+              All brands
+            </Link>
+          )}
+          {section === 'newsletter' && can('CONTENT') && (
+            <button
+              type="button"
+              className="btn"
+              disabled={isExporting}
+              onClick={() => void exportSubscribers()}
+            >
+              {isExporting ? 'Exporting…' : 'Export subscribers'}
+            </button>
+          )}
+          {config.columns && total > 0 && section !== 'newsletter' && (
             <button
               type="button"
               className="btn"
@@ -344,7 +420,7 @@ function OperationsSection({ section }: { section: string }) {
               {isExporting ? 'Exporting…' : 'Export CSV'}
             </button>
           )}
-          {section === 'brands' && (
+          {canEditBrands && (
             <button
               type="button"
               className="btn btn-primary"
@@ -353,7 +429,7 @@ function OperationsSection({ section }: { section: string }) {
               New brand
             </button>
           )}
-          {section === 'coupons' && (
+          {canEditCoupons && (
             <button
               type="button"
               className="btn btn-primary"
@@ -376,46 +452,19 @@ function OperationsSection({ section }: { section: string }) {
         </div>
       )}
 
-      {!config.collection && (
-        <>
-          {isStale && !error && (
-            <div className="admin-card">
-              <p className="admin-kpi-sub">Loading…</p>
-            </div>
-          )}
-          {!isStale && measures.length > 0 && (
-            <div style={kpiGrid}>
-              {measures.map(([key, value]) => (
-                <KpiCard key={key} name={key} value={value} />
-              ))}
-            </div>
-          )}
-          {!isStale && attention.length > 0 && (
-            <>
-              <h2 className="admin-section-title" style={{ marginTop: 8 }}>
-                Needs attention
-              </h2>
-              <div style={kpiGrid}>
-                {attention.map(([key, value]) => (
-                  <KpiCard key={key} name={key} value={value} href={ATTENTION_LINKS[key]} />
-                ))}
-              </div>
-            </>
-          )}
-        </>
-      )}
-
-      {config.collection && (
+      {config.columns && (
         <div className="admin-card admin-index">
           {(rows.length > 0 || hasFilters || config.paginated) && (
             <div className="admin-toolbar">
-              <input
-                type="search"
-                aria-label={`Search ${config.title.toLowerCase()}`}
-                value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="Search"
-              />
+              {canSearch && (
+                <input
+                  type="search"
+                  aria-label={`Search ${config.title.toLowerCase()}`}
+                  value={searchInput}
+                  onChange={(event) => setSearchInput(event.target.value)}
+                  placeholder="Search"
+                />
+              )}
               {statusOptions.length > 0 && (
                 <select
                   aria-label="Filter by status"
@@ -428,7 +477,7 @@ function OperationsSection({ section }: { section: string }) {
                   <option value="">All statuses</option>
                   {statusOptions.map((status) => (
                     <option key={status} value={status}>
-                      {statusLabel(status)}
+                      {filterLabel(section, status)}
                     </option>
                   ))}
                 </select>
@@ -470,7 +519,7 @@ function OperationsSection({ section }: { section: string }) {
                   ? 'Try a different search or clear the filters.'
                   : (config.empty?.text ?? 'Records will appear here as they come in.')}
               </p>
-              {!hasFilters && section === 'coupons' && (
+              {!hasFilters && canEditCoupons && (
                 <button
                   type="button"
                   className="btn btn-primary"
@@ -479,7 +528,7 @@ function OperationsSection({ section }: { section: string }) {
                   New coupon
                 </button>
               )}
-              {!hasFilters && section === 'brands' && (
+              {!hasFilters && canEditBrands && (
                 <button
                   type="button"
                   className="btn btn-primary"
@@ -508,10 +557,10 @@ function OperationsSection({ section }: { section: string }) {
                 </thead>
                 <tbody>
                   {visibleRows.map((row, rowIndex) => (
-                    <tr key={text(row.id) || rowIndex}>
+                    <tr key={`${rowKey(row)}-${rowIndex}`}>
                       {config.columns?.map((column, columnIndex) => (
                         <td key={column.label} style={cellStyle(column)}>
-                          {section === 'inventory' && column.label === 'Stock' ? (
+                          {section === 'inventory' && column.label === 'Stock' && can('MODERATOR') ? (
                             <StockCell
                               productId={text(row.id)}
                               quantity={Number(row.quantity) || 0}
@@ -533,22 +582,22 @@ function OperationsSection({ section }: { section: string }) {
                       {hasRowActions && (
                         <td style={actionCellStyle}>
                           <div className="admin-actions">
-                            {config.actions?.map((action, index) =>
+                            {allowedActions.map((action, index) =>
                               action.hidden?.(row) ? null : (
                                 <button
                                   key={index}
                                   type="button"
                                   className="btn btn-sm"
-                                  disabled={busyAction === `${text(row.id)}:${index}`}
+                                  disabled={busyAction === `${rowKey(row)}:${index}`}
                                   onClick={() => void runAction(row, action, index)}
                                 >
-                                  {busyAction === `${text(row.id)}:${index}`
+                                  {busyAction === `${rowKey(row)}:${index}`
                                     ? 'Saving…'
                                     : action.label(row)}
                                 </button>
                               )
                             )}
-                            {section === 'brands' && (
+                            {canEditBrands && (
                               <>
                                 <button
                                   type="button"
@@ -569,7 +618,7 @@ function OperationsSection({ section }: { section: string }) {
                                 </button>
                               </>
                             )}
-                            {section === 'coupons' && (
+                            {canEditCoupons && (
                               <>
                                 <button
                                   type="button"
@@ -702,5 +751,6 @@ function OperationsSection({ section }: { section: string }) {
 
 export default function AdminOperationsPage({ params }: { params: Promise<{ section: string }> }) {
   const { section } = use(params);
+  if (section === 'analytics') return <AnalyticsReport />;
   return <OperationsSection key={section} section={section} />;
 }

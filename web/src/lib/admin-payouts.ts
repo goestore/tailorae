@@ -2,91 +2,80 @@
 
 import { apiClient } from '@/lib/api-client';
 import { getApiErrorMessage } from '@/lib/api-utils';
+import { downloadFromApi } from '@/lib/admin-download';
+import type { Page } from '@/lib/api/types';
 
 /**
- * What the marketplace owes its sellers.
+ * What the marketplace owes its sellers (FINANCE).
  *
- * Two figures per shop throughout: "due" has cleared the buyer's return window
- * and can be paid today, "held" is earned but still in fulfilment or still
- * returnable. They are never added together — paying held money is how you end
- * up chasing a seller for a refund on a parcel that came back.
+ * Two figures per shop throughout: the ledger *balance* can be paid today; the
+ * *held* amount is earned but still undelivered or inside the buyer's return
+ * window. They are never added together — paying held money is how you end up
+ * chasing a seller for a refund on a parcel that came back. All amounts are
+ * integer paise; a negative balance means returns reversed after a payout
+ * exceed what has been earned since.
  */
 
-export interface PayoutRow {
-  id: string;
+export interface SellerBalance {
+  sellerId: string;
   shopName: string;
-  shopSlug: string;
-  isVerified: boolean;
-  isActive: boolean;
-  /** Null when the shop pays its categories' rates rather than its own. */
-  commissionRate: number | null;
-  kycStatus: 'NOT_SUBMITTED' | 'PENDING' | 'APPROVED' | 'REJECTED';
-  bankAccountName: string | null;
-  bankIFSC: string | null;
-  bankName: string | null;
-  /** The full account number is never sent to the browser. */
-  bankAccountLast4: string | null;
-  /** False when the shop has not given bank details to pay into. */
-  canBePaid: boolean;
-  /**
-   * The shop's ledger balance, signed. Negative means returns reversed after
-   * a payout exceed what has been earned since — it comes off future sales.
-   */
-  ledgerBalance: number;
-  /** What a settle pays now: the balance, never below zero. */
-  payoutDue: number;
-  ordersDue: number;
-  commissionEarned: number;
-  payoutHeld: number;
-  ordersHeld: number;
-  payoutSettled: number;
+  balancePaise: number;
+  heldPaise: number;
+  lastPayoutAt: string | null;
 }
 
-export interface PayoutOrderRow {
-  id: string;
+export interface HeldOrder {
+  sellerOrderId: string;
   orderNumber: string;
-  status: string;
-  total: number;
-  commissionRate: number;
-  commissionAmount: number;
-  payoutAmount: number;
-  deliveredAt: string | null;
-  settledAt: string | null;
-  createdAt: string;
-  /** Null when payable; otherwise the reason it is being held. */
-  hold: string | null;
+  payoutPaise: number;
+  /** Why it is not payable yet ("Not delivered yet", "Return window open until …"). */
+  reason: string;
 }
 
-export interface WithdrawalRow {
+export type WithdrawalStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED';
+
+export interface Withdrawal {
   id: string;
-  amount: number;
-  status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED';
-  transactionId: string | null;
+  sellerId: string;
+  shopName: string | null;
+  amountPaise: number;
+  status: WithdrawalStatus;
+  transactionRef: string | null;
   rejectionReason: string | null;
-  completedAt: string | null;
   createdAt: string;
-  vendor: { id: string; shopName: string; shopSlug: string } | null;
+  decidedAt: string | null;
+  completedAt: string | null;
+}
+
+export interface SellerEarnings {
+  balancePaise: number;
+  heldPaise: number;
+  held: HeldOrder[];
+  lifetimeSalesPaise: number;
+  lifetimePayoutsPaise: number;
+  openWithdrawal: Withdrawal | null;
 }
 
 export type LedgerEntryType = 'SALE' | 'PAYOUT' | 'RETURN_REVERSAL' | 'ADJUSTMENT';
 
-export interface LedgerEntryRow {
-  id: string;
-  type: LedgerEntryType;
-  /** Rupees, signed: SALE positive; PAYOUT and RETURN_REVERSAL negative. */
-  amount: number;
-  balanceAfter: number;
-  sellerOrderId: string | null;
-  orderNumber: string | null;
-  reference: string | null;
-  note: string | null;
-  createdAt: string;
+export interface StatementLine {
+  entry: {
+    id: string;
+    createdAt: string;
+    type: LedgerEntryType;
+    orderNumber: string | null;
+    reference: string | null;
+    note: string | null;
+    /** Signed: SALE positive; PAYOUT and RETURN_REVERSAL negative. */
+    amountPaise: number;
+  };
+  balanceAfterPaise: number;
 }
 
 export interface LedgerStatement {
-  openingBalance: number;
-  closingBalance: number;
-  entries: LedgerEntryRow[];
+  openingPaise: number;
+  closingPaise: number;
+  lines: StatementLine[];
 }
 
 export const LEDGER_TYPE_LABEL: Record<LedgerEntryType, string> = {
@@ -96,66 +85,67 @@ export const LEDGER_TYPE_LABEL: Record<LedgerEntryType, string> = {
   ADJUSTMENT: 'Adjustment',
 };
 
-export async function getPayouts(): Promise<PayoutRow[]> {
+/** `YYYY-MM-DD` (a day in the reader's calendar) → the instant the API filters on. */
+const dayStart = (day?: string) => (day ? new Date(`${day}T00:00:00`).toISOString() : undefined);
+const dayEnd = (day?: string) => (day ? new Date(`${day}T23:59:59.999`).toISOString() : undefined);
+
+/** Every approved or suspended marketplace shop's balance (the house shop is never paid out). */
+export async function getBalances(page = 1, limit = 100): Promise<Page<SellerBalance>> {
   try {
-    const response = await apiClient.get('/admin/payouts');
-    return response.data?.data?.payouts ?? [];
+    const response = await apiClient.get('/admin/payouts', { params: { page, limit } });
+    return response.data?.data as Page<SellerBalance>;
   } catch (error) {
     throw new Error(getApiErrorMessage(error, 'Could not load payouts.'));
   }
 }
 
-export async function getPayoutOrders(vendorId: string): Promise<PayoutOrderRow[]> {
+export async function getSellerEarnings(sellerId: string): Promise<SellerEarnings> {
   try {
-    const response = await apiClient.get(`/admin/payouts/${encodeURIComponent(vendorId)}`);
-    return response.data?.data?.orders ?? [];
+    const response = await apiClient.get(`/admin/payouts/${encodeURIComponent(sellerId)}`);
+    const data = response.data?.data as SellerEarnings;
+    return { ...data, held: data?.held ?? [] };
   } catch (error) {
-    throw new Error(getApiErrorMessage(error, 'Could not load that seller’s orders.'));
+    throw new Error(getApiErrorMessage(error, 'Could not load that shop’s earnings.'));
   }
 }
 
 export async function getStatement(
-  vendorId: string,
+  sellerId: string,
   range: { from?: string; to?: string } = {}
 ): Promise<LedgerStatement> {
   try {
+    const params = { from: dayStart(range.from), to: dayEnd(range.to) };
     const response = await apiClient.get(
-      `/admin/payouts/${encodeURIComponent(vendorId)}/statement`,
-      { params: range }
+      `/admin/payouts/${encodeURIComponent(sellerId)}/statement`,
+      { params }
     );
     const data = response.data?.data ?? {};
     return {
-      openingBalance: data.openingBalance ?? 0,
-      closingBalance: data.closingBalance ?? 0,
-      entries: data.entries ?? [],
+      openingPaise: data.openingPaise ?? 0,
+      closingPaise: data.closingPaise ?? 0,
+      lines: data.lines ?? [],
     };
   } catch (error) {
     throw new Error(getApiErrorMessage(error, 'Could not load that statement.'));
   }
 }
 
-/** Download a shop's statement as CSV, through the authenticated client. */
+/** A shop's statement as CSV, for the same range. */
 export async function downloadStatementCsv(
-  vendorId: string,
-  shopSlug: string,
+  sellerId: string,
+  shopName: string,
   range: { from?: string; to?: string } = {}
 ): Promise<void> {
-  try {
-    const response = await apiClient.get(
-      `/admin/payouts/${encodeURIComponent(vendorId)}/statement`,
-      { params: { ...range, format: 'csv' }, responseType: 'blob' }
-    );
-    const url = URL.createObjectURL(response.data as Blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `statement-${shopSlug}-${new Date().toISOString().slice(0, 10)}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  } catch (error) {
-    throw new Error(getApiErrorMessage(error, 'Could not export that statement.'));
-  }
+  const slug =
+    shopName
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '') || 'shop';
+  await downloadFromApi(
+    `/admin/payouts/${encodeURIComponent(sellerId)}/statement`,
+    `statement-${slug}-${new Date().toISOString().slice(0, 10)}.csv`,
+    { from: dayStart(range.from), to: dayEnd(range.to), format: 'csv' }
+  );
 }
 
 /**
@@ -163,12 +153,12 @@ export async function downloadStatementCsv(
  * the note is required and the seller sees it on their statement.
  */
 export async function postLedgerAdjustment(
-  vendorId: string,
-  input: { amount: number; note: string; reference?: string }
+  sellerId: string,
+  input: { amountPaise: number; note: string; reference?: string }
 ): Promise<string> {
   try {
     const response = await apiClient.post(
-      `/admin/payouts/${encodeURIComponent(vendorId)}/adjustments`,
+      `/admin/payouts/${encodeURIComponent(sellerId)}/adjustments`,
       input
     );
     return response.data?.message ?? 'Adjustment recorded.';
@@ -178,47 +168,58 @@ export async function postLedgerAdjustment(
 }
 
 /**
- * Record that a shop has been paid.
- *
- * The amount is decided server-side — the shop's ledger balance — and this
- * sends only the bank reference, so the screen cannot settle a figure other
- * than the one the ledger holds.
+ * Record that a shop has been paid by bank transfer. The UTR reference is
+ * required. Leave `amountPaise` out to pay the whole balance; the API refuses
+ * anything above it.
  */
-export async function settlePayout(vendorId: string, transactionId?: string): Promise<string> {
+export async function settlePayout(
+  sellerId: string,
+  input: { reference: string; amountPaise?: number; note?: string }
+): Promise<string> {
   try {
     const response = await apiClient.post(
-      `/admin/payouts/${encodeURIComponent(vendorId)}/settle`,
-      transactionId ? { transactionId } : {}
+      `/admin/payouts/${encodeURIComponent(sellerId)}/settle`,
+      input
     );
-    return response.data?.message ?? 'Payout settled.';
+    return response.data?.message ?? 'Payout recorded.';
   } catch (error) {
-    throw new Error(getApiErrorMessage(error, 'Could not settle that payout.'));
+    throw new Error(getApiErrorMessage(error, 'Could not record that payout.'));
+  }
+}
+
+export async function getWithdrawals(
+  status?: WithdrawalStatus | '',
+  page = 1,
+  limit = 50
+): Promise<Page<Withdrawal>> {
+  try {
+    const response = await apiClient.get('/admin/withdrawals', {
+      params: { page, limit, ...(status ? { status } : {}) },
+    });
+    return response.data?.data as Page<Withdrawal>;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, 'Could not load payout requests.'));
   }
 }
 
 /**
- * Decline a payout request.
- *
- * Nothing is un-earned by this — the sub-orders stay payable and can be settled
- * later. It exists so a request an admin will not pay does not sit open forever,
- * blocking the seller from asking again.
+ * Decide a seller's payout request. APPROVED acknowledges it; COMPLETED records
+ * the bank transfer (UTR in `transactionRef`) and settles that amount from the
+ * shop's ledger; REJECTED needs a reason the seller will read and leaves the
+ * money payable.
  */
-export async function rejectWithdrawal(id: string, rejectionReason: string): Promise<string> {
-  try {
-    const response = await apiClient.patch(`/admin/withdrawals/${encodeURIComponent(id)}`, {
-      rejectionReason,
-    });
-    return response.data?.message ?? 'Request declined.';
-  } catch (error) {
-    throw new Error(getApiErrorMessage(error, 'Could not decline that request.'));
+export async function decideWithdrawal(
+  id: string,
+  input: {
+    status: 'APPROVED' | 'REJECTED' | 'COMPLETED';
+    transactionRef?: string;
+    rejectionReason?: string;
   }
-}
-
-export async function getWithdrawals(): Promise<WithdrawalRow[]> {
+): Promise<string> {
   try {
-    const response = await apiClient.get('/admin/withdrawals');
-    return response.data?.data?.withdrawals ?? [];
+    const response = await apiClient.patch(`/admin/withdrawals/${encodeURIComponent(id)}`, input);
+    return response.data?.message ?? 'Request updated.';
   } catch (error) {
-    throw new Error(getApiErrorMessage(error, 'Could not load payout history.'));
+    throw new Error(getApiErrorMessage(error, 'Could not update that request.'));
   }
 }

@@ -3,20 +3,28 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   BULK_ORDER_STATUSES,
+  CREDIT_TYPES,
   decideRfq,
   getAdminB2BProfiles,
   getAdminBulkOrders,
   getAdminRfqs,
+  getCreditLedger,
+  recordCredit,
   setB2BProfileVerified,
   setBulkOrderStatus,
+  updateB2BProfile,
   type AdminB2BProfile,
   type AdminBulkOrder,
   type AdminRfq,
+  type CreditLedger,
+  type CreditType,
   type RfqCounts,
 } from '@/lib/admin-b2b';
 import type { RfqStatus } from '@/lib/b2b-api';
-import { formatCurrency, formatDate, formatDateTime } from '@/utils/helpers';
+import { formatPaise, paiseToRupees, rupeesToPaise } from '@/lib/money';
+import { formatDate, formatDateTime } from '@/utils/helpers';
 import { Boxes, Ticket, Users } from '@/components/admin/icons';
+import { useCan } from '@/components/admin/StaffContext';
 
 /**
  * A table inside a zero-padding index card. The global rule that pulls a
@@ -105,11 +113,12 @@ const RfqCard: React.FC<{
   const answerable =
     rfq.status === 'PENDING' || rfq.status === 'QUOTED' || rfq.status === 'EXPIRED';
   const [mode, setMode] = useState<'idle' | 'quote' | 'reject'>('idle');
+  // The form speaks rupees; the API stores paise.
   const [price, setPrice] = useState(
-    rfq.quotedPrice !== null
-      ? String(rfq.quotedPrice)
-      : rfq.desiredPrice !== null
-        ? String(rfq.desiredPrice)
+    rfq.quotedPricePaise != null
+      ? String(paiseToRupees(rfq.quotedPricePaise))
+      : rfq.desiredPricePaise != null
+        ? String(paiseToRupees(rfq.desiredPricePaise))
         : ''
   );
   const [expiry, setExpiry] = useState(isoDateIn(14));
@@ -127,7 +136,7 @@ const RfqCard: React.FC<{
       mode === 'quote'
         ? {
             status: 'QUOTED',
-            quotedPrice: unit,
+            quotedPricePaise: rupeesToPaise(unit),
             expiryDate: expiry,
             ...(notes.trim() ? { notes: notes.trim() } : {}),
           }
@@ -196,16 +205,16 @@ const RfqCard: React.FC<{
           <Fact label="GSTIN">{profile.gstNumber ?? '—'}</Fact>
           <Fact label="Quantity">{rfq.quantity.toLocaleString('en-IN')}</Fact>
           <Fact label="List price">
-            {rfq.product ? `${formatCurrency(rfq.product.price)}/pc` : '—'}
+            {rfq.product ? `${formatPaise(rfq.product.pricePaise)}/pc` : '—'}
           </Fact>
           <Fact label="Target price">
-            {rfq.desiredPrice !== null ? `${formatCurrency(rfq.desiredPrice)}/pc` : '—'}
+            {rfq.desiredPricePaise != null ? `${formatPaise(rfq.desiredPricePaise)}/pc` : '—'}
           </Fact>
           <Fact label="Needed by">{rfq.deliveryDate ? formatDate(rfq.deliveryDate) : '—'}</Fact>
-          {rfq.quotedPrice !== null && (
+          {rfq.quotedPricePaise != null && (
             <Fact label="Quoted">
-              {formatCurrency(rfq.quotedPrice)}/pc ·{' '}
-              {formatCurrency(rfq.quotedPrice * rfq.quantity)} total
+              {formatPaise(rfq.quotedPricePaise)}/pc ·{' '}
+              {formatPaise(rfq.quotedPricePaise * rfq.quantity)} total
               {rfq.expiryDate ? ` · until ${formatDate(rfq.expiryDate)}` : ''}
             </Fact>
           )}
@@ -286,7 +295,9 @@ const RfqCard: React.FC<{
                 <div style={{ alignSelf: 'end' }}>
                   <p className="admin-kpi-sub">Total</p>
                   <p style={{ margin: 0, color: 'var(--a-text)', fontWeight: 600 }}>
-                    {Number.isFinite(unit) && unit > 0 ? formatCurrency(unit * rfq.quantity) : '—'}
+                    {Number.isFinite(unit) && unit > 0
+                      ? formatPaise(rupeesToPaise(unit) * rfq.quantity)
+                      : '—'}
                   </p>
                 </div>
               </div>
@@ -433,7 +444,222 @@ const RfqsView: React.FC<{ onCounts: (counts: RfqCounts) => void }> = ({ onCount
   );
 };
 
+const CREDIT_LABELS: Record<CreditType, string> = {
+  CREDIT_ISSUED: 'Credit issued (buyer owes more)',
+  PAYMENT_RECEIVED: 'Payment received (buyer owes less)',
+  ADJUSTMENT: 'Adjustment (+ or −)',
+};
+
+/**
+ * Trade credit for one business (FINANCE): the limit, what is owed, and the
+ * ledger. Entries are paise on the wire, rupees in the form.
+ */
+const CreditPanel: React.FC<{
+  profile: AdminB2BProfile;
+  onChanged: (message: string) => void;
+}> = ({ profile, onChanged }) => {
+  const [ledger, setLedger] = useState<CreditLedger | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [limit, setLimit] = useState(String(paiseToRupees(profile.creditLimitPaise)));
+  const [entry, setEntry] = useState<{ type: CreditType; amount: string; description: string; reference: string }>({
+    type: 'PAYMENT_RECEIVED',
+    amount: '',
+    description: '',
+    reference: '',
+  });
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getCreditLedger(profile.id)
+      .then((data) => !cancelled && setLedger(data))
+      .catch((err: Error) => !cancelled && setError(err.message));
+    return () => {
+      cancelled = true;
+    };
+  }, [profile.id]);
+
+  const saveLimit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const { message } = await updateB2BProfile(profile.id, {
+        creditLimitPaise: rupeesToPaise(Number(limit) || 0),
+      });
+      setLedger(await getCreditLedger(profile.id));
+      onChanged(message);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const addEntry = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const next = await recordCredit(profile.id, {
+        type: entry.type,
+        amountPaise: rupeesToPaise(Number(entry.amount)),
+        ...(entry.description.trim() ? { description: entry.description.trim() } : {}),
+        ...(entry.reference.trim() ? { reference: entry.reference.trim() } : {}),
+      });
+      setLedger(next);
+      setEntry((current) => ({ ...current, amount: '', description: '', reference: '' }));
+      onChanged(`Credit entry recorded for ${profile.companyName}.`);
+    } catch (err) {
+      setError((err as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const amount = Number(entry.amount);
+  const amountValid =
+    Number.isFinite(amount) && (entry.type === 'ADJUSTMENT' ? amount !== 0 : amount > 0);
+
+  return (
+    <div style={{ display: 'grid', gap: 12, padding: '4px 0' }}>
+      {error && (
+        <div className="admin-alert admin-alert--warn" role="alert">
+          <span>{error}</span>
+        </div>
+      )}
+      <dl className="admin-dl">
+        <Fact label="Limit">{ledger ? formatPaise(ledger.creditLimitPaise) : '…'}</Fact>
+        <Fact label="Owed">{ledger ? formatPaise(ledger.creditUsedPaise) : '…'}</Fact>
+        <Fact label="Available">{ledger ? formatPaise(ledger.availablePaise) : '…'}</Fact>
+      </dl>
+      <form
+        onSubmit={saveLimit}
+        style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'end' }}
+      >
+        <div>
+          <label htmlFor={`credit-limit-${profile.id}`} style={labelStyle}>
+            Credit limit (₹)
+          </label>
+          <input
+            id={`credit-limit-${profile.id}`}
+            type="number"
+            min={0}
+            step="0.01"
+            value={limit}
+            onChange={(e) => setLimit(e.target.value)}
+          />
+        </div>
+        <button type="submit" className="btn btn-sm" disabled={busy || limit === ''}>
+          Save limit
+        </button>
+      </form>
+      <form
+        onSubmit={addEntry}
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))',
+          gap: 8,
+          alignItems: 'end',
+        }}
+      >
+        <div>
+          <label htmlFor={`credit-type-${profile.id}`} style={labelStyle}>
+            Entry
+          </label>
+          <select
+            id={`credit-type-${profile.id}`}
+            value={entry.type}
+            onChange={(e) => setEntry((c) => ({ ...c, type: e.target.value as CreditType }))}
+            style={{ width: '100%' }}
+          >
+            {CREDIT_TYPES.map((type) => (
+              <option key={type} value={type}>
+                {CREDIT_LABELS[type]}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label htmlFor={`credit-amount-${profile.id}`} style={labelStyle}>
+            Amount (₹)
+          </label>
+          <input
+            id={`credit-amount-${profile.id}`}
+            type="number"
+            step="0.01"
+            value={entry.amount}
+            onChange={(e) => setEntry((c) => ({ ...c, amount: e.target.value }))}
+            style={{ width: '100%' }}
+          />
+        </div>
+        <div>
+          <label htmlFor={`credit-ref-${profile.id}`} style={labelStyle}>
+            Reference (UTR, invoice)
+          </label>
+          <input
+            id={`credit-ref-${profile.id}`}
+            maxLength={120}
+            value={entry.reference}
+            onChange={(e) => setEntry((c) => ({ ...c, reference: e.target.value }))}
+            style={{ width: '100%' }}
+          />
+        </div>
+        <div>
+          <label htmlFor={`credit-desc-${profile.id}`} style={labelStyle}>
+            Note
+          </label>
+          <input
+            id={`credit-desc-${profile.id}`}
+            maxLength={500}
+            value={entry.description}
+            onChange={(e) => setEntry((c) => ({ ...c, description: e.target.value }))}
+            style={{ width: '100%' }}
+          />
+        </div>
+        <button type="submit" className="btn btn-sm btn-primary" disabled={busy || !amountValid}>
+          {busy ? 'Saving…' : 'Record entry'}
+        </button>
+      </form>
+      {ledger && ledger.transactions.length > 0 && (
+        <table className="admin-table" style={{ minWidth: 0 }}>
+          <thead>
+            <tr>
+              <th>When</th>
+              <th>Entry</th>
+              <th style={{ textAlign: 'right' }}>Change</th>
+              <th style={{ textAlign: 'right' }}>Owed after</th>
+              <th>Reference</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ledger.transactions.map((tx) => (
+              <tr key={tx.id}>
+                <td>{formatDateTime(tx.createdAt)}</td>
+                <td>
+                  {sentence(tx.type)}
+                  {tx.description && <span style={dim}>{tx.description}</span>}
+                </td>
+                <td style={{ textAlign: 'right' }}>
+                  {tx.amountPaise > 0 ? '+' : tx.amountPaise < 0 ? '−' : ''}
+                  {formatPaise(Math.abs(tx.amountPaise))}
+                </td>
+                <td style={{ textAlign: 'right' }}>{formatPaise(tx.balancePaise)}</td>
+                <td>{tx.reference ?? '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+};
+
 const ProfilesView: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
+  const can = useCan();
+  const canVerify = can('KYC_REVIEW');
+  const canFinance = can('FINANCE');
+  const [creditFor, setCreditFor] = useState<string | null>(null);
   const [filter, setFilter] = useState<'all' | 'unverified' | 'verified'>('unverified');
   const [profiles, setProfiles] = useState<AdminB2BProfile[]>([]);
   const [counts, setCounts] = useState({ verified: 0, unverified: 0 });
@@ -535,13 +761,14 @@ const ProfilesView: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
                   <th>GSTIN / PAN</th>
                   <th>Activity</th>
                   <th>Status</th>
+                  <th style={{ textAlign: 'right' }}>Credit used</th>
                   <th>
                     <span className="sr-only">Action</span>
                   </th>
                 </tr>
               </thead>
               <tbody>
-                {profiles.map((profile) => (
+                {profiles.flatMap((profile) => [
                   <tr key={profile.id}>
                     <td>
                       <span className="admin-row-title">{profile.companyName}</span>
@@ -573,36 +800,67 @@ const ProfilesView: React.FC<{ onChanged: () => void }> = ({ onChanged }) => {
                       >
                         {profile.isVerified ? 'Verified' : 'Unverified'}
                       </span>
-                      <span style={dim}>{sentence(profile.user.role)}</span>
+                      <span style={dim}>{sentence(profile.user.type)} account</span>
+                    </td>
+                    <td style={{ textAlign: 'right' }}>
+                      {formatPaise(profile.creditUsedPaise)}
+                      <span style={dim}>of {formatPaise(profile.creditLimitPaise)}</span>
                     </td>
                     <td>
                       <div className="admin-actions">
-                        <button
-                          type="button"
-                          className={profile.isVerified ? 'btn btn-sm' : 'btn btn-sm btn-primary'}
-                          style={{ minWidth: 76 }}
-                          disabled={busyId === profile.id}
-                          aria-pressed={profile.isVerified}
-                          onClick={() => toggle(profile)}
-                        >
-                          {busyId === profile.id
-                            ? 'Saving…'
-                            : profile.isVerified
-                              ? 'Unverify'
-                              : 'Verify'}
-                        </button>
+                        {canFinance && (
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            aria-expanded={creditFor === profile.id}
+                            onClick={() =>
+                              setCreditFor((current) => (current === profile.id ? null : profile.id))
+                            }
+                          >
+                            Credit
+                          </button>
+                        )}
+                        {canVerify && (
+                          <button
+                            type="button"
+                            className={profile.isVerified ? 'btn btn-sm' : 'btn btn-sm btn-primary'}
+                            style={{ minWidth: 76 }}
+                            disabled={busyId === profile.id}
+                            aria-pressed={profile.isVerified}
+                            onClick={() => toggle(profile)}
+                          >
+                            {busyId === profile.id
+                              ? 'Saving…'
+                              : profile.isVerified
+                                ? 'Unverify'
+                                : 'Verify'}
+                          </button>
+                        )}
                       </div>
                     </td>
-                  </tr>
-                ))}
+                  </tr>,
+                  creditFor === profile.id && (
+                    <tr key={`${profile.id}-credit`}>
+                      <td colSpan={7} style={{ background: 'var(--a-surface-2, transparent)' }}>
+                        <CreditPanel
+                          profile={profile}
+                          onChanged={(message) => {
+                            setNotice(message);
+                            void load(filter);
+                          }}
+                        />
+                      </td>
+                    </tr>
+                  ),
+                ])}
               </tbody>
             </table>
           </div>
         )}
         <div className="admin-index-footer">
           <p style={{ margin: 0, color: 'var(--a-text-dim)', fontSize: 12 }}>
-            Verifying a retail customer&apos;s profile makes them a B2B buyer (wholesale tier
-            pricing, trade coupons). Admin and seller accounts keep their role.
+            Verifying a business profile unlocks wholesale pricing on bulk orders and trade-only
+            coupons. Credit limits and the ledger are kept by Finance.
           </p>
         </div>
       </div>
@@ -704,8 +962,8 @@ const BulkOrdersView: React.FC = () => {
                         {order.quantity.toLocaleString('en-IN')}
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        {formatCurrency(order.totalPrice)}
-                        <span style={dim}>{formatCurrency(order.unitPrice)}/pc</span>
+                        {formatPaise(order.totalPricePaise)}
+                        <span style={dim}>{formatPaise(order.unitPricePaise)}/pc</span>
                       </td>
                       <td>
                         {closed ? (
@@ -740,7 +998,10 @@ const BulkOrdersView: React.FC = () => {
 };
 
 export default function AdminB2BPage() {
-  const [view, setView] = useState<View>('rfqs');
+  const can = useCan();
+  // Quotes and bulk orders are SUPPORT's; profiles are also open to KYC and Finance.
+  const canSupport = can('SUPPORT');
+  const [view, setView] = useState<View>(canSupport ? 'rfqs' : 'profiles');
   const [rfqCounts, setRfqCounts] = useState<RfqCounts>(EMPTY_COUNTS);
   const [unverified, setUnverified] = useState<number | null>(null);
 
@@ -757,15 +1018,19 @@ export default function AdminB2BPage() {
   }, [refreshProfileCount]);
 
   const views: Array<{ key: View; label: string }> = [
-    { key: 'rfqs', label: 'Quote requests' },
+    ...(canSupport ? [{ key: 'rfqs' as const, label: 'Quote requests' }] : []),
     { key: 'profiles', label: 'Profiles' },
-    { key: 'bulk', label: 'Bulk orders' },
+    ...(canSupport ? [{ key: 'bulk' as const, label: 'Bulk orders' }] : []),
   ];
 
   const kpis: Array<{ label: string; value: number | null; sub: string }> = [
-    { label: 'Awaiting a quote', value: rfqCounts.PENDING, sub: 'Oldest first' },
-    { label: 'Quoted', value: rfqCounts.QUOTED, sub: 'Waiting on the buyer' },
-    { label: 'Accepted', value: rfqCounts.ACCEPTED, sub: 'Turned into bulk orders' },
+    ...(canSupport
+      ? [
+          { label: 'Awaiting a quote', value: rfqCounts.PENDING, sub: 'Oldest first' },
+          { label: 'Quoted', value: rfqCounts.QUOTED, sub: 'Waiting on the buyer' },
+          { label: 'Accepted', value: rfqCounts.ACCEPTED, sub: 'Turned into bulk orders' },
+        ]
+      : []),
     { label: 'Unverified profiles', value: unverified, sub: 'Not yet wholesale buyers' },
   ];
 

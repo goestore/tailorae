@@ -4,19 +4,22 @@ import { apiClient } from '@/lib/api-client';
 import { getApiErrorMessage } from '@/lib/api-utils';
 
 /**
- * The admin's image library.
+ * The staff image library (`/admin/media`, CONTENT or MODERATOR).
  *
- * Uploads go to the backend, which re-encodes everything to webp and names each
- * file after the hash of its bytes. The value stored in content is the returned
- * relative path, so it stays valid if the API ever moves host.
+ * Uploads are checked and stored by the API as the original file (it no
+ * longer re-encodes to webp), named after the hash of their bytes, so the same
+ * file uploaded twice returns the existing asset. Each asset's `url` is
+ * absolute — it points at the API's public storage — and that is the value a
+ * content field stores.
  */
 
 export interface MediaAsset {
   id: string;
-  /** Relative, e.g. "/uploads/ab12….webp". */
+  /** Absolute, e.g. "http://localhost:8082/media/ab12….webp". */
   url: string;
   filename: string;
-  alt: string;
+  alt: string | null;
+  contentType?: string;
   width: number;
   height: number;
   bytes: number;
@@ -29,10 +32,10 @@ const toAsset = (raw: unknown): MediaAsset | null => {
   return typeof asset.url === 'string' && typeof asset.id === 'string' ? asset : null;
 };
 
-/** The library, newest first. */
-export async function listMedia(): Promise<MediaAsset[]> {
+/** The library, newest first. The API returns at most `limit` (default 60). */
+export async function listMedia(limit = 200): Promise<MediaAsset[]> {
   try {
-    const res = await apiClient.get('/admin/media');
+    const res = await apiClient.get('/admin/media', { params: { limit } });
     const raw = res.data?.data?.assets;
     return Array.isArray(raw) ? raw.map(toAsset).filter((a): a is MediaAsset => a !== null) : [];
   } catch (error) {
@@ -44,17 +47,33 @@ export async function listMedia(): Promise<MediaAsset[]> {
 export async function uploadMedia(file: File, alt = ''): Promise<MediaAsset> {
   const form = new FormData();
   form.append('file', file);
-  if (alt) form.append('alt', alt);
 
   try {
     // Content-Type is deliberately unset: the browser has to add the multipart
-    // boundary itself, and naming the type here would omit it.
-    const res = await apiClient.post('/admin/media', form);
+    // boundary itself (the API client drops its JSON default for FormData).
+    const res = await apiClient.post('/admin/media', form, {
+      params: alt ? { alt } : undefined,
+      timeout: 60000,
+    });
     const asset = toAsset(res.data?.data?.asset);
     if (!asset) throw new Error('The server did not return an image.');
     return asset;
   } catch (error) {
     throw new Error(getApiErrorMessage(error, 'Upload failed.'));
+  }
+}
+
+/** Changes an asset's alt text (empty clears it). */
+export async function updateMediaAlt(id: string, alt: string): Promise<MediaAsset> {
+  try {
+    const res = await apiClient.patch(`/admin/media/${encodeURIComponent(id)}`, {
+      alt: alt.trim() || null,
+    });
+    const asset = toAsset(res.data?.data?.asset);
+    if (!asset) throw new Error('The server did not return the image.');
+    return asset;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, 'Could not save that alt text.'));
   }
 }
 

@@ -9,7 +9,8 @@ import {
   type ModerationProduct,
   type ModerationStatus,
 } from '@/lib/admin-moderation';
-import { formatCurrency, formatDateTime } from '@/utils/helpers';
+import { formatDateTime } from '@/utils/helpers';
+import { formatPaise } from '@/lib/money';
 import { ShieldCheck } from '@/components/admin/icons';
 
 /**
@@ -117,7 +118,7 @@ const ListingCard: React.FC<{
   const text = excerpt(product);
   const noteId = `moderation-note-${product.id}`;
   const headingId = `moderation-title-${product.id}`;
-  const vendor = product.vendor;
+  const vendor = product.seller;
 
   return (
     <li style={divided ? { borderTop: '1px solid var(--a-edge)' } : undefined}>
@@ -180,8 +181,8 @@ const ListingCard: React.FC<{
               }}
             >
               <Fact label="Price">
-                {formatCurrency(Number(product.price) || 0)}
-                {product.originalPrice && Number(product.originalPrice) > Number(product.price) && (
+                {formatPaise(Number(product.pricePaise) || 0)}
+                {product.mrpPaise && Number(product.mrpPaise) > Number(product.pricePaise) && (
                   <span
                     style={{
                       marginLeft: 6,
@@ -189,7 +190,7 @@ const ListingCard: React.FC<{
                       textDecoration: 'line-through',
                     }}
                   >
-                    {formatCurrency(Number(product.originalPrice))}
+                    {formatPaise(Number(product.mrpPaise))}
                   </span>
                 )}
               </Fact>

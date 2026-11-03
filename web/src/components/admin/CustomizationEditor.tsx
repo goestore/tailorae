@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import {
   parseCustomizationOptions,
   saveCustomizations,
+  toCustomizationRow,
   type ProductCustomizationRow,
 } from '@/lib/admin-products';
 import { cn } from '@/utils/helpers';
@@ -26,6 +27,7 @@ const TYPES: Array<{ value: ProductCustomizationRow['type']; label: string; hint
   { value: 'text', label: 'Text', hint: 'They type something — a name, a number' },
   { value: 'color', label: 'Choice', hint: 'They pick from the options you list' },
   { value: 'embroidery', label: 'Embroidery', hint: 'Stitched text, usually charged extra' },
+  { value: 'print', label: 'Print', hint: 'A printed design or position, usually charged extra' },
   { value: 'image', label: 'Upload', hint: 'They send a file — a logo, artwork' },
 ];
 
@@ -50,8 +52,13 @@ interface Props {
 }
 
 export const CustomizationEditor: React.FC<Props> = ({ productId, initial, as = 'admin', save: saveRows }) => {
+  // Rows may arrive straight from the API (`additionalPaise`, upper-case type)
+  // or already in the editor's rupees; both read the same.
   const [rows, setRows] = useState<ProductCustomizationRow[]>(() =>
-    initial.map((row) => ({ ...row, options: parseCustomizationOptions(row.options) }))
+    initial.map((row) => {
+      const normal = toCustomizationRow(row as unknown as Record<string, unknown>);
+      return { ...normal, options: parseCustomizationOptions(normal.options) };
+    })
   );
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
