@@ -45,9 +45,11 @@ interface Props {
   initial: ProductCustomizationRow[];
   /** Which console is editing; a seller saves through the shop's route. */
   as?: 'admin' | 'seller';
+  /** Replaces the default save (`saveCustomizations`), e.g. the seller console's own route. */
+  save?: (productId: string, rows: ProductCustomizationRow[]) => Promise<ProductCustomizationRow[]>;
 }
 
-export const CustomizationEditor: React.FC<Props> = ({ productId, initial, as = 'admin' }) => {
+export const CustomizationEditor: React.FC<Props> = ({ productId, initial, as = 'admin', save: saveRows }) => {
   const [rows, setRows] = useState<ProductCustomizationRow[]>(() =>
     initial.map((row) => ({ ...row, options: parseCustomizationOptions(row.options) }))
   );
@@ -64,7 +66,7 @@ export const CustomizationEditor: React.FC<Props> = ({ productId, initial, as = 
     setBusy(true);
     setError(null);
     try {
-      const next = await saveCustomizations(productId, rows, as);
+      const next = saveRows ? await saveRows(productId, rows) : await saveCustomizations(productId, rows, as);
       setRows(next.map((row) => ({ ...row, options: parseCustomizationOptions(row.options) })));
       setSaved(true);
     } catch (err) {

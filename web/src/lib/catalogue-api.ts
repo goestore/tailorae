@@ -191,6 +191,23 @@ export interface MissingField {
   group: string;
 }
 
+/**
+ * The API names its money columns in paise (`pricePaise`, `mrpPaise`); the
+ * listing form edits rupees under `price` and `originalPrice` and converts
+ * when it saves. Renaming the spec's fields once here keeps every lookup in
+ * the form (labels, required marks, the go-live checklist) on its own keys.
+ */
+const FORM_FIELD: Record<string, string> = { pricePaise: 'price', mrpPaise: 'originalPrice' };
+
+function withFormFields(spec: ArticleSpec): ArticleSpec {
+  return {
+    ...spec,
+    columns: spec.columns.map((column) =>
+      column.field && FORM_FIELD[column.field] ? { ...column, field: FORM_FIELD[column.field] } : column
+    ),
+  };
+}
+
 let typesCache: Promise<ArticleTypeSummary[]> | null = null;
 const specCache = new Map<string, Promise<ArticleSpec>>();
 
@@ -223,7 +240,7 @@ export function getArticleSpec(typeOrSlug: string, categoryId?: string | null): 
       .then((res) => {
         const spec = res.data?.data?.spec as ArticleSpec | undefined;
         if (!spec) throw new Error('That article type has no listing template.');
-        return spec;
+        return withFormFields(spec);
       })
       .catch((error) => {
         specCache.delete(key);
@@ -237,7 +254,7 @@ export function getArticleSpec(typeOrSlug: string, categoryId?: string | null): 
 /** Manufacturer, packer, importer and origin from the caller's last listing. */
 export async function getLastBusinessDetails(): Promise<BusinessDetails | null> {
   try {
-    const res = await apiClient.get('/catalogue/last-business-details');
+    const res = await apiClient.get('/seller/catalogue/last-business-details');
     return (res.data?.data?.details ?? null) as BusinessDetails | null;
   } catch {
     // Prefill is a convenience; without it the fields simply start empty.
@@ -246,15 +263,18 @@ export async function getLastBusinessDetails(): Promise<BusinessDetails | null> 
 }
 
 /**
- * Brands a seller can pick. Sellers cannot read the admin brand table, so
- * this is the public list (brands with something live).
+ * Brands a seller can pick: every approved brand, plus the shop's own pending
+ * ones (`GET /seller/catalogue/brands`). Sellers cannot read the admin table.
  */
 export async function listPublicBrands(): Promise<Array<{ id: string; name: string }>> {
   try {
     // Every active brand. The public directory only lists brands that already
     // have live products, which left a new seller unable to pick theirs.
-    const res = await apiClient.get('/catalogue/brands');
-    return (res.data?.data?.brands ?? []) as Array<{ id: string; name: string }>;
+    const res = await apiClient.get('/seller/catalogue/brands');
+    const rows = (res.data?.data?.brands ?? []) as Array<{ id: string; name: string; usable?: boolean }>;
+    // A brand the shop asked for but our team has not approved yet cannot go
+    // on a listing (the save answers 403), so say so in the picker.
+    return rows.map((b) => ({ id: b.id, name: b.usable === false ? `${b.name} (awaiting approval)` : b.name }));
   } catch {
     return [];
   }
@@ -263,7 +283,7 @@ export async function listPublicBrands(): Promise<Array<{ id: string; name: stri
 /** Add a brand (or get the existing one with that name). */
 export async function addBrand(name: string): Promise<{ id: string; name: string }> {
   try {
-    const res = await apiClient.post('/catalogue/brands', { name });
+    const res = await apiClient.post('/seller/catalogue/brands', { name });
     return res.data?.data?.brand as { id: string; name: string };
   } catch (error) {
     throw new Error(getApiErrorMessage(error, 'Could not add that brand.'));
@@ -303,15 +323,15 @@ export interface SavedProduct {
 /**
  * Create or update a product for either console.
  *
- * Admin writes go to `/admin/products`; a seller's go to the public
- * `/products` routes, which take the owning shop from the session.
+ * Admin writes go to `/admin/products`; a seller's to `/seller/products`,
+ * which takes the owning shop from the session (never from the body).
  */
 export async function saveListingProduct(
   mode: 'admin' | 'seller',
   id: string | null,
   body: Record<string, unknown>
 ): Promise<{ product: SavedProduct; message: string }> {
-  const base = mode === 'admin' ? '/admin/products' : '/products';
+  const base = mode === 'admin' ? '/admin/products' : '/seller/products';
   try {
     const res = id
       ? await apiClient.put(`${base}/${encodeURIComponent(id)}`, body)
@@ -322,11 +342,12 @@ export async function saveListingProduct(
     };
   } catch (error) {
     const status = axios.isAxiosError(error) ? error.response?.status : undefined;
-    const data = axios.isAxiosError(error)
-      ? (error.response?.data as
-          | { missing?: MissingField[]; conflict?: { id: string; name: string; status: string } }
-          | undefined)
+    type Detail = { missing?: MissingField[]; conflict?: { id: string; name: string; status: string } };
+    // The Kotlin API puts the details under `data`; the old one sent them at the top level.
+    const body = axios.isAxiosError(error)
+      ? (error.response?.data as (Detail & { data?: Detail | null }) | undefined)
       : undefined;
+    const data: Detail | undefined = body?.data ?? body;
     throw new ListingSaveError(
       getApiErrorMessage(error, 'Could not save the listing.'),
       status,

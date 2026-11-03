@@ -159,7 +159,7 @@ export const BusinessSection: React.FC<BusinessSectionProps> = ({
           placeholder={brands.length ? 'Select a brand…' : 'No brands available'}
           hint={
             mode === 'seller'
-              ? 'Not listed? Add your brand below. It can be used straight away.'
+              ? 'Not listed? Add your brand below. It can go on a listing once our team approves it — register it under Brands with your proof to speed that up.'
               : brands.length === 0
                 ? 'No brands yet. Add one below.'
                 : undefined

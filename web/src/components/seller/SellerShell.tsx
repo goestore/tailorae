@@ -15,19 +15,25 @@ import {
   ShieldCheck,
   ShoppingBag,
   Tags,
+  Users,
   Wallet,
   type IconProps,
 } from '@/components/admin/icons';
 import { signOut as endSession } from '@/lib/auth-api';
-import { getMyShop, type MyShop } from '@/lib/seller-api';
+import { ROLE_LABELS, setActiveSeller, type SellerPermission } from '@/lib/seller-api';
 import type { AppDispatch, RootState } from '@/store';
 import { logout } from '@/store/slices/auth';
 import { clearCart } from '@/store/slices/cart';
+import { SellerProvider, useSeller } from './SellerContext';
 
 interface NavItem {
   href: string;
   label: string;
   icon: React.FC<IconProps>;
+  /** Hidden from a member whose role cannot use the page (the API refuses it anyway). */
+  needs?: SellerPermission;
+  /** Only once the person belongs to a shop. */
+  needsShop?: boolean;
 }
 
 const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
@@ -35,23 +41,24 @@ const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
     title: 'Shop',
     items: [
       { href: '/seller', label: 'Overview', icon: LayoutDashboard },
-      { href: '/seller/orders', label: 'Orders', icon: ShoppingBag },
-      { href: '/seller/earnings', label: 'Earnings', icon: Wallet },
+      { href: '/seller/orders', label: 'Orders', icon: ShoppingBag, needs: 'ORDERS' },
+      { href: '/seller/earnings', label: 'Earnings', icon: Wallet, needs: 'FINANCE' },
     ],
   },
   {
     title: 'Catalogue',
     items: [
-      { href: '/seller/products', label: 'Products', icon: Package },
-      { href: '/seller/products/new', label: 'Add a product', icon: FileEdit },
-      { href: '/seller/brands', label: 'Brands', icon: Tags },
+      { href: '/seller/products', label: 'Products', icon: Package, needs: 'CATALOG' },
+      { href: '/seller/products/new', label: 'Add a product', icon: FileEdit, needs: 'CATALOG' },
+      { href: '/seller/brands', label: 'Brands', icon: Tags, needs: 'CATALOG' },
     ],
   },
   {
     title: 'Account',
     items: [
-      { href: '/seller/verification', label: 'Verification', icon: ShieldCheck },
-      { href: '/seller/settings', label: 'Shop settings', icon: Settings },
+      { href: '/seller/verification', label: 'Verification', icon: ShieldCheck, needs: 'PROFILE' },
+      { href: '/seller/settings', label: 'Shop settings', icon: Settings, needsShop: true },
+      { href: '/seller/team', label: 'Team', icon: Users, needsShop: true },
     ],
   },
 ];
@@ -64,6 +71,8 @@ export const SELLER_AUTH_ROUTES = new Set([
   '/seller/register',
   '/seller/forgot-password',
   '/seller/reset-password',
+  // Accepting an invite works signed in or out, so it has no console around it.
+  '/seller/invite',
 ]);
 
 /**
@@ -80,16 +89,13 @@ function activeHref(pathname: string): string | undefined {
  * The seller console: its own top bar and sidebar, deliberately apart from the
  * storefront chrome so a shop owner always knows which side of the marketplace
  * they are on. The console also owns the sign-in gate, so a page never renders
- * for a visitor without a session.
+ * for a visitor without a session, and it reads `GET /seller/me` once for every
+ * page (see `SellerContext`).
  */
 export function SellerShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const dispatch = useDispatch<AppDispatch>();
   const { user, isInitialized } = useSelector((state: RootState) => state.auth);
-  const [shop, setShop] = useState<MyShop | null>(null);
-  const [navOpen, setNavOpen] = useState(false);
-  const menuRef = useRef<HTMLButtonElement>(null);
 
   const isAuthRoute = SELLER_AUTH_ROUTES.has(pathname);
 
@@ -98,18 +104,27 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
     router.replace(`/seller/login?redirect=${encodeURIComponent(pathname)}`);
   }, [isAuthRoute, isInitialized, user, pathname, router]);
 
-  // Refetched per page so the name appears as soon as an application creates
-  // the shop. A failure leaves the bar without a name; it never blocks a page.
-  useEffect(() => {
-    if (isAuthRoute || !user) return;
-    let cancelled = false;
-    getMyShop()
-      .then((next) => !cancelled && setShop(next))
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [isAuthRoute, user, pathname]);
+  if (isAuthRoute) return <div className="seller-auth">{children}</div>;
+
+  if (!isInitialized || !user) {
+    return <LoadingSpinner className="min-h-screen" size="lg" />;
+  }
+
+  return (
+    <SellerProvider key={user.id} enabled>
+      <Console>{children}</Console>
+    </SellerProvider>
+  );
+}
+
+function Console({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const dispatch = useDispatch<AppDispatch>();
+  const user = useSelector((state: RootState) => state.auth.user);
+  const { me, loading, error, activeSellerId, can, switchShop } = useSeller();
+  const [navOpen, setNavOpen] = useState(false);
+  const menuRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!navOpen) return;
@@ -125,21 +140,22 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
     };
   }, [navOpen]);
 
-  if (isAuthRoute) return <div className="seller-auth">{children}</div>;
-
-  if (!isInitialized || !user) {
-    return <LoadingSpinner className="min-h-screen" size="lg" />;
-  }
-
   const signOut = async () => {
     await endSession('seller');
+    // The shop choice belongs to this person; the next one starts fresh.
+    setActiveSeller(null);
     dispatch(logout());
     dispatch(clearCart());
     router.push('/seller/login');
   };
 
+  const shop = me?.shop ?? null;
+  const memberships = me?.memberships ?? [];
   const current = activeHref(pathname);
-  const initials = (shop?.shopName || user.firstName || 'S').trim().charAt(0).toUpperCase();
+  const initials = (shop?.shopName || user?.firstName || 'S').trim().charAt(0).toUpperCase();
+  // Before the business exists there is only the overview, where it is created.
+  const visible = (item: NavItem) =>
+    (!item.needs && !item.needsShop) || Boolean(shop && (!item.needs || can(item.needs)));
 
   return (
     <div className="seller-shell" data-nav-open={navOpen || undefined}>
@@ -169,20 +185,38 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
         </Link>
 
         <div className="seller-topbar-actions">
-          {shop?.applicationStatus === 'APPROVED' && shop.shopSlug && (
+          {shop?.status === 'APPROVED' && shop.shopSlug && (
             <Link href={`/sellers/${shop.shopSlug}`} target="_blank" className="seller-topbar-btn">
               <ExternalLink size={15} />
               <span className="seller-hide-sm">View shop</span>
             </Link>
           )}
-          <div className="seller-account" title={user.email}>
+          {memberships.length > 1 && (
+            <label className="seller-switcher">
+              <span className="sr-only">Shop</span>
+              <select
+                value={activeSellerId ?? ''}
+                onChange={(event) => void switchShop(event.target.value)}
+                className="seller-topbar-btn"
+                aria-label="Switch shop"
+              >
+                {memberships.map((m) => (
+                  <option key={m.sellerId} value={m.sellerId}>
+                    {m.shopName} · {ROLE_LABELS[m.role]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <div className="seller-account" title={user?.email}>
             <span className="seller-avatar" aria-hidden="true">
               {initials}
             </span>
             <span className="seller-account-name seller-hide-sm">
               <strong>{shop?.shopName || 'Your shop'}</strong>
               <span>
-                {user.firstName} {user.lastName}
+                {user?.name || `${user?.firstName ?? ''} ${user?.lastName ?? ''}`.trim()}
+                {me?.role ? ` · ${ROLE_LABELS[me.role]}` : ''}
               </span>
             </span>
           </div>
@@ -204,27 +238,31 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
 
         <aside id="seller-navigation" className="seller-sidebar">
           <nav aria-label="Seller navigation">
-            {NAV_GROUPS.map((group) => (
-              <div key={group.title} className="seller-nav-group" role="group" aria-label={group.title}>
-                <p className="seller-nav-title">{group.title}</p>
-                {group.items.map((item) => {
-                  const Icon = item.icon;
-                  const isActive = current === item.href;
-                  return (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      aria-current={isActive ? 'page' : undefined}
-                      onClick={() => setNavOpen(false)}
-                      className={`seller-nav-link${isActive ? ' seller-nav-link--active' : ''}`}
-                    >
-                      <Icon size={17} strokeWidth={1.8} />
-                      <span>{item.label}</span>
-                    </Link>
-                  );
-                })}
-              </div>
-            ))}
+            {NAV_GROUPS.map((group) => {
+              const items = group.items.filter(visible);
+              if (!items.length) return null;
+              return (
+                <div key={group.title} className="seller-nav-group" role="group" aria-label={group.title}>
+                  <p className="seller-nav-title">{group.title}</p>
+                  {items.map((item) => {
+                    const Icon = item.icon;
+                    const isActive = current === item.href;
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        aria-current={isActive ? 'page' : undefined}
+                        onClick={() => setNavOpen(false)}
+                        className={`seller-nav-link${isActive ? ' seller-nav-link--active' : ''}`}
+                      >
+                        <Icon size={17} strokeWidth={1.8} />
+                        <span>{item.label}</span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              );
+            })}
           </nav>
 
           <div className="seller-sidebar-foot">
@@ -238,7 +276,18 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
         </aside>
 
         <div id="seller-main" className="seller-main" tabIndex={-1}>
-          {children}
+          {error && (
+            <p role="alert" className="alert alert-error m-4 text-sm">
+              {error}
+            </p>
+          )}
+          {loading ? (
+            <LoadingSpinner className="min-h-[50vh]" size="lg" />
+          ) : (
+            // Keyed by shop: switching shops remounts the page, so nothing read
+            // for the previous shop is shown under the new one's name.
+            <React.Fragment key={activeSellerId ?? 'none'}>{children}</React.Fragment>
+          )}
         </div>
       </div>
     </div>
