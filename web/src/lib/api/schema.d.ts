@@ -2324,6 +2324,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/seller/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["session"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/seller/auth/me": {
         parameters: {
             query?: never;
@@ -2740,6 +2756,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/checkout/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["checkoutConfig"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/catalogue/article-types": {
         parameters: {
             query?: never;
@@ -2844,6 +2876,22 @@ export interface paths {
             cookie?: never;
         };
         get: operations["sessions_1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["session_1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3444,6 +3492,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["session_2"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/auth/me": {
         parameters: {
             query?: never;
@@ -3615,27 +3679,27 @@ export interface components {
             marketingOptIn?: boolean;
         };
         ApiResponseMapStringCustomerProfileView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: components["schemas"]["CustomerProfileView"];
             };
         };
         CustomerProfileView: {
             /** Format: uuid */
-            id?: string;
-            email?: string;
-            firstName?: string;
-            lastName?: string;
+            id: string;
+            email: string;
+            firstName: string;
+            lastName: string;
             phone?: string;
-            type?: string;
-            emailVerified?: boolean;
-            marketingOptIn?: boolean;
+            type: string;
+            emailVerified: boolean;
+            marketingOptIn: boolean;
             /** Format: date-time */
-            createdAt?: string;
+            createdAt: string;
         };
         AddressRequest: {
-            label?: string;
+            label: string;
             fullName: string;
             phone: string;
             /** Format: email */
@@ -3645,55 +3709,55 @@ export interface components {
             city: string;
             state: string;
             postalCode: string;
-            country?: string;
+            country: string;
             gstin?: string;
-            default?: boolean;
+            isDefault: boolean;
         };
         AddressView: {
             /** Format: uuid */
-            id?: string;
-            label?: string;
-            fullName?: string;
-            phone?: string;
+            id: string;
+            label: string;
+            fullName: string;
+            phone: string;
             email?: string;
-            line1?: string;
+            line1: string;
             line2?: string;
-            city?: string;
-            state?: string;
-            postalCode?: string;
-            country?: string;
+            city: string;
+            state: string;
+            postalCode: string;
+            country: string;
             gstin?: string;
-            default?: boolean;
+            isDefault: boolean;
         };
         ApiResponseMapStringAddressView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: components["schemas"]["AddressView"];
             };
         };
         ApiResponseMapStringObject: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
-                [key: string]: unknown;
+                [key: string]: Record<string, never>;
             };
         };
         ApiResponseMapStringMapStringObject: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: {
-                    [key: string]: unknown;
+                    [key: string]: Record<string, never>;
                 };
             };
         };
         ApiResponseMapStringListMapStringObject: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: {
-                    [key: string]: unknown;
+                    [key: string]: Record<string, never>;
                 }[];
             };
         };
@@ -3703,7 +3767,7 @@ export interface components {
             city: string;
             state: string;
             postalCode: string;
-            country?: string;
+            country: string;
         };
         UpdateBusinessRequest: {
             shopName?: string;
@@ -3724,15 +3788,15 @@ export interface components {
             lowStockThreshold?: number;
         };
         ApiResponseShopView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["ShopView"];
         };
         ShopView: {
             /** Format: uuid */
-            id?: string;
-            shopName?: string;
-            shopSlug?: string;
+            id: string;
+            shopName: string;
+            shopSlug: string;
             legalName?: string;
             /** @enum {string} */
             businessType?: "INDIVIDUAL" | "PROPRIETORSHIP" | "PARTNERSHIP" | "LLP" | "PRIVATE_LIMITED" | "PUBLIC_LIMITED" | "OTHER";
@@ -3746,24 +3810,24 @@ export interface components {
             shopImage?: string;
             shopBanner?: string;
             /** @enum {string} */
-            status?: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "NEEDS_INFO" | "APPROVED" | "REJECTED" | "SUSPENDED";
+            status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "NEEDS_INFO" | "APPROVED" | "REJECTED" | "SUSPENDED";
             statusNote?: string;
             /** Format: int32 */
             commissionRateBp?: number;
             /** Format: int32 */
-            lowStockThreshold?: number;
+            lowStockThreshold: number;
             /** Format: double */
-            rating?: number;
+            rating: number;
             /** Format: int32 */
-            ratingCount?: number;
+            ratingCount: number;
+            isPlatform: boolean;
             /** Format: date-time */
             submittedAt?: string;
             /** Format: date-time */
             decidedAt?: string;
             /** Format: date-time */
-            createdAt?: string;
-            canSell?: boolean;
-            platform?: boolean;
+            createdAt: string;
+            canSell: boolean;
         };
         BankAccountRequest: {
             accountName: string;
@@ -3772,41 +3836,41 @@ export interface components {
             bankName?: string;
         };
         ApiResponseBankAccountView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["BankAccountView"];
         };
         BankAccountView: {
-            accountName?: string;
-            accountNumberMasked?: string;
-            ifsc?: string;
+            accountName: string;
+            accountNumberMasked: string;
+            ifsc: string;
             bankName?: string;
-            verified?: boolean;
+            verified: boolean;
             /** Format: date-time */
-            updatedAt?: string;
+            updatedAt: string;
         };
         ApiResponseStaffView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["StaffView"];
         };
         StaffView: {
             /** Format: uuid */
-            id?: string;
-            email?: string;
-            fullName?: string;
-            status?: string;
-            permissions?: ("SUPER_ADMIN" | "MODERATOR" | "KYC_REVIEW" | "FINANCE" | "SUPPORT" | "CONTENT")[];
+            id: string;
+            email: string;
+            fullName: string;
+            status: string;
+            permissions: ("SUPER_ADMIN" | "MODERATOR" | "KYC_REVIEW" | "FINANCE" | "SUPPORT" | "CONTENT")[];
             /** Format: date-time */
-            createdAt?: string;
+            createdAt: string;
         };
         CommissionRequest: {
             /** Format: int32 */
             rateBp?: number;
         };
         ApiResponseMapStringBoolean: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: boolean;
             };
@@ -3815,8 +3879,8 @@ export interface components {
             name: string;
             slug?: string;
             sku: string;
-            shortDescription?: string;
-            description?: string;
+            shortDescription: string;
+            description: string;
             gender: string;
             category: string;
             productType: string;
@@ -3825,37 +3889,37 @@ export interface components {
             gsm?: number;
             fit?: string;
             /** Format: int64 */
-            basePricePaise?: number;
+            basePricePaise: number;
             /** Format: int64 */
             maxPricePaise?: number;
-            currency?: string;
-            priceTiers?: components["schemas"]["PriceTier"][];
-            colors?: components["schemas"]["ProductColor"][];
-            sizes?: components["schemas"]["ProductSize"][];
-            customizationMethods?: components["schemas"]["CustomizationMethodOption"][];
-            customizationLocations?: components["schemas"]["CustomizationLocationOption"][];
-            images?: components["schemas"]["ProductImage"][];
+            currency: string;
+            priceTiers: components["schemas"]["PriceTier"][];
+            colors: components["schemas"]["ProductColor"][];
+            sizes: components["schemas"]["ProductSize"][];
+            customizationMethods: components["schemas"]["CustomizationMethodOption"][];
+            customizationLocations: components["schemas"]["CustomizationLocationOption"][];
+            images: components["schemas"]["ProductImage"][];
             /** Format: double */
-            rating?: number;
+            rating: number;
             /** Format: int32 */
-            reviewCount?: number;
-            badges?: string[];
+            reviewCount: number;
+            badges: string[];
             /** Format: int32 */
-            minOrderQuantity?: number;
+            minOrderQuantity: number;
             /** Format: int32 */
             defaultQuantity?: number;
-            highlights?: string[];
-            accordions?: components["schemas"]["ProductAccordionSection"][];
+            highlights: string[];
+            accordions: components["schemas"]["ProductAccordionSection"][];
             descriptionBlock?: components["schemas"]["ProductDescriptionBlock"];
             sizeChart?: components["schemas"]["SizeChart"];
-            relatedProductIds?: string[];
+            relatedProductIds: string[];
             /** Format: int32 */
-            popularity?: number;
-            active?: boolean;
+            popularity: number;
+            isActive: boolean;
         };
         CustomizationLocationOption: {
-            id?: string;
-            supported?: boolean;
+            id: string;
+            supported: boolean;
             /** Format: int32 */
             maxWidthMm?: number;
             /** Format: int32 */
@@ -3864,8 +3928,8 @@ export interface components {
             pricePerUnitPaise?: number;
         };
         CustomizationMethodOption: {
-            id?: string;
-            supported?: boolean;
+            id: string;
+            supported: boolean;
             /** Format: int64 */
             setupFeePaise?: number;
             /** Format: int64 */
@@ -3874,15 +3938,15 @@ export interface components {
         };
         PriceTier: {
             /** Format: int32 */
-            minQty?: number;
+            minQty: number;
             /** Format: int32 */
             maxQty?: number;
             /** Format: int64 */
-            pricePerUnitPaise?: number;
+            pricePerUnitPaise: number;
         };
         ProductAccordionSection: {
-            id?: string;
-            title?: string;
+            id: string;
+            title: string;
             paragraphs?: string[];
             bullets?: string[];
             specs?: components["schemas"]["ProductSpecRow"][];
@@ -3898,7 +3962,7 @@ export interface components {
             inStock?: boolean;
         };
         ProductDescriptionBlock: {
-            heading?: string;
+            heading: string;
             intro?: string;
             benefits?: string[];
             useCases?: string[];
@@ -3906,115 +3970,115 @@ export interface components {
         ProductImage: {
             id: string;
             url: string;
-            alt?: string;
-            role?: string;
+            alt: string;
+            role: string;
             colorId?: string;
         };
         ProductSize: {
             id: string;
             label: string;
-            group?: string;
+            group: string;
             inStock?: boolean;
         };
         ProductSpecRow: {
-            label?: string;
-            value?: string;
+            label: string;
+            value: string;
         };
         ProductTemplateAsset: {
-            id?: string;
-            label?: string;
-            fileType?: string;
-            url?: string;
+            id: string;
+            label: string;
+            fileType: string;
+            url: string;
             description?: string;
         };
         SizeChart: {
-            unit?: string;
-            columns?: string[];
-            rows?: components["schemas"]["SizeChartRow"][];
+            unit: string;
+            columns: string[];
+            rows: components["schemas"]["SizeChartRow"][];
             note?: string;
         };
         SizeChartRow: {
-            size?: string;
-            values?: string[];
+            size: string;
+            values: string[];
         };
         ApiResponseMapStringCustomWearProduct: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: components["schemas"]["CustomWearProduct"];
             };
         };
         CustomWearProduct: {
             /** Format: uuid */
-            id?: string;
-            slug?: string;
-            sku?: string;
-            name?: string;
-            shortDescription?: string;
-            description?: string;
-            gender?: string;
-            category?: string;
-            productType?: string;
+            id: string;
+            slug: string;
+            sku: string;
+            name: string;
+            shortDescription: string;
+            description: string;
+            gender: string;
+            category: string;
+            productType: string;
             fabric?: string;
             /** Format: int32 */
             gsm?: number;
             fit?: string;
             /** Format: int64 */
-            basePricePaise?: number;
-            currency?: string;
+            basePricePaise: number;
+            currency: string;
             /** Format: int64 */
             maxPricePaise?: number;
-            priceTiers?: components["schemas"]["PriceTier"][];
-            colors?: components["schemas"]["ProductColor"][];
-            sizes?: components["schemas"]["ProductSize"][];
-            customizationMethods?: components["schemas"]["CustomizationMethodOption"][];
-            customizationLocations?: components["schemas"]["CustomizationLocationOption"][];
-            images?: components["schemas"]["ProductImage"][];
+            priceTiers: components["schemas"]["PriceTier"][];
+            colors: components["schemas"]["ProductColor"][];
+            sizes: components["schemas"]["ProductSize"][];
+            customizationMethods: components["schemas"]["CustomizationMethodOption"][];
+            customizationLocations: components["schemas"]["CustomizationLocationOption"][];
+            images: components["schemas"]["ProductImage"][];
             /** Format: double */
-            rating?: number;
+            rating: number;
             /** Format: int32 */
-            reviewCount?: number;
-            badges?: string[];
+            reviewCount: number;
+            badges: string[];
             /** Format: int32 */
-            minOrderQuantity?: number;
+            minOrderQuantity: number;
             /** Format: int32 */
             defaultQuantity?: number;
-            highlights?: string[];
-            accordions?: components["schemas"]["ProductAccordionSection"][];
+            highlights: string[];
+            accordions: components["schemas"]["ProductAccordionSection"][];
             descriptionBlock?: components["schemas"]["ProductDescriptionBlock"];
             sizeChart?: components["schemas"]["SizeChart"];
-            relatedProductIds?: string[];
+            relatedProductIds: string[];
             /** Format: int32 */
-            popularity?: number;
+            popularity: number;
+            isActive: boolean;
             /** Format: date-time */
-            createdAt?: string;
+            createdAt: string;
             /** Format: date-time */
-            updatedAt?: string;
-            active?: boolean;
+            updatedAt: string;
         };
         CouponRequest: {
             code: string;
             description?: string;
             /** @enum {string} */
-            discountType?: "PERCENTAGE" | "FIXED_AMOUNT";
+            discountType: "PERCENTAGE" | "FIXED_AMOUNT";
             /** Format: int64 */
-            discountValue?: number;
+            discountValue: number;
             /** Format: int64 */
-            minOrderPaise?: number;
+            minOrderPaise: number;
             /** Format: int64 */
             maxDiscountPaise?: number;
             /** Format: int32 */
             usageLimit?: number;
             /** Format: int32 */
-            perCustomerLimit?: number;
+            perCustomerLimit: number;
             /** Format: date-time */
-            startsAt?: string;
+            startsAt: string;
             /** Format: date-time */
-            endsAt?: string;
-            applicableCategoryIds?: string[];
-            applicableProductIds?: string[];
-            requireBusiness?: boolean;
-            active?: boolean;
+            endsAt: string;
+            isActive: boolean;
+            applicableCategoryIds: string[];
+            applicableProductIds: string[];
+            requireBusiness: boolean;
         };
         JsonNode: {
             array?: boolean;
@@ -4022,123 +4086,123 @@ export interface components {
             null?: boolean;
             float?: boolean;
             floatingPointNumber?: boolean;
+            number?: boolean;
+            /** @deprecated */
+            textual?: boolean;
+            int?: boolean;
+            boolean?: boolean;
+            long?: boolean;
+            string?: boolean;
+            pojo?: boolean;
+            short?: boolean;
+            object?: boolean;
+            binary?: boolean;
+            double?: boolean;
+            bigInteger?: boolean;
+            valueNode?: boolean;
+            integralNumber?: boolean;
+            missingNode?: boolean;
+            container?: boolean;
             /** @enum {string} */
             nodeType?: "ARRAY" | "BINARY" | "BOOLEAN" | "MISSING" | "NULL" | "NUMBER" | "OBJECT" | "POJO" | "STRING";
             bigDecimal?: boolean;
-            bigInteger?: boolean;
-            integralNumber?: boolean;
-            valueNode?: boolean;
-            container?: boolean;
-            short?: boolean;
-            boolean?: boolean;
-            pojo?: boolean;
-            binary?: boolean;
-            /** @deprecated */
-            textual?: boolean;
-            string?: boolean;
-            int?: boolean;
-            double?: boolean;
-            long?: boolean;
-            object?: boolean;
-            number?: boolean;
-            missingNode?: boolean;
             embeddedValue?: boolean;
         };
         ApiResponseDraftView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["DraftView"];
         };
         ContentEntryView: {
-            path?: string;
-            value?: components["schemas"]["JsonNode"];
+            path: string;
+            value: components["schemas"]["JsonNode"];
             /** Format: int32 */
-            version?: number;
+            version: number;
+            isPrivate: boolean;
             /** Format: uuid */
             updatedById?: string;
             /** Format: date-time */
-            updatedAt?: string;
+            updatedAt: string;
             /** Format: date-time */
             publishedAt?: string;
-            private?: boolean;
         };
         DraftView: {
-            namespace?: string;
-            draft?: components["schemas"]["ContentEntryView"][];
+            namespace: string;
+            draft: components["schemas"]["ContentEntryView"][];
         };
         ApiResponseUnit: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
         };
         ApiResponseMapStringBannerView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: components["schemas"]["BannerView"];
             };
         };
         BannerView: {
             /** Format: uuid */
-            id?: string;
-            title?: string;
+            id: string;
+            title: string;
             subtitle?: string;
-            image?: string;
+            image: string;
             imageAlt?: string;
             link?: string;
-            position?: string;
-            type?: string;
+            position: string;
+            type: string;
             /** Format: int32 */
-            displayOrder?: number;
+            displayOrder: number;
             /** Format: date-time */
             startDate?: string;
             /** Format: date-time */
             endDate?: string;
+            isActive: boolean;
             /** Format: date-time */
-            createdAt?: string;
+            createdAt: string;
             /** Format: date-time */
-            updatedAt?: string;
-            active?: boolean;
+            updatedAt: string;
         };
         ApiResponseMapStringListWishlistEntry: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: components["schemas"]["WishlistEntry"][];
             };
         };
         WishlistEntry: {
             /** Format: uuid */
-            productId?: string;
-            name?: string;
-            slug?: string;
+            productId: string;
+            name: string;
+            slug: string;
             thumbnail?: string;
             /** Format: int64 */
-            pricePaise?: number;
+            pricePaise: number;
             /** Format: int64 */
             mrpPaise?: number;
-            inStock?: boolean;
-            available?: boolean;
+            inStock: boolean;
+            available: boolean;
             /** Format: date-time */
-            addedAt?: string;
+            addedAt: string;
         };
         ApiResponseWithdrawalView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["WithdrawalView"];
         };
         WithdrawalView: {
             /** Format: uuid */
-            id?: string;
+            id: string;
             /** Format: uuid */
-            sellerId?: string;
+            sellerId: string;
             shopName?: string;
             /** Format: int64 */
-            amountPaise?: number;
-            status?: string;
+            amountPaise: number;
+            status: string;
             transactionRef?: string;
             rejectionReason?: string;
             /** Format: date-time */
-            createdAt?: string;
+            createdAt: string;
             /** Format: date-time */
             decidedAt?: string;
             /** Format: date-time */
@@ -4148,63 +4212,63 @@ export interface components {
             /** Format: email */
             email: string;
             /** @enum {string} */
-            role?: "OWNER" | "MANAGER" | "CATALOG" | "FULFILMENT" | "FINANCE";
+            role: "OWNER" | "MANAGER" | "CATALOG" | "FULFILMENT" | "FINANCE";
         };
         ApiResponseInviteView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["InviteView"];
         };
         InviteView: {
             /** Format: uuid */
-            id?: string;
-            email?: string;
+            id: string;
+            email: string;
             /** @enum {string} */
-            role?: "OWNER" | "MANAGER" | "CATALOG" | "FULFILMENT" | "FINANCE";
+            role: "OWNER" | "MANAGER" | "CATALOG" | "FULFILMENT" | "FINANCE";
             /** Format: date-time */
-            expiresAt?: string;
+            expiresAt: string;
             /** Format: date-time */
-            createdAt?: string;
+            createdAt: string;
         };
         ApiResponseKycDocumentView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["KycDocumentView"];
         };
         KycDocumentView: {
             /** Format: uuid */
-            id?: string;
+            id: string;
             /** @enum {string} */
-            kind?: "PAN" | "GST_CERTIFICATE" | "ADDRESS_PROOF" | "CANCELLED_CHEQUE" | "OTHER";
-            filename?: string;
-            contentType?: string;
+            kind: "PAN" | "GST_CERTIFICATE" | "ADDRESS_PROOF" | "CANCELLED_CHEQUE" | "OTHER";
+            filename: string;
+            contentType: string;
             /** Format: int64 */
-            bytes?: number;
+            bytes: number;
             /** Format: date-time */
-            createdAt?: string;
+            createdAt: string;
         };
         AcceptInviteRequest: {
             token: string;
         };
         ApiResponseMembershipView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["MembershipView"];
         };
         MembershipView: {
             /** Format: uuid */
-            sellerId?: string;
-            shopName?: string;
+            sellerId: string;
+            shopName: string;
             /** @enum {string} */
-            role?: "OWNER" | "MANAGER" | "CATALOG" | "FULFILMENT" | "FINANCE";
+            role: "OWNER" | "MANAGER" | "CATALOG" | "FULFILMENT" | "FINANCE";
             /** @enum {string} */
-            status?: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "NEEDS_INFO" | "APPROVED" | "REJECTED" | "SUSPENDED";
+            status: "DRAFT" | "SUBMITTED" | "UNDER_REVIEW" | "NEEDS_INFO" | "APPROVED" | "REJECTED" | "SUSPENDED";
         };
         CreateBusinessRequest: {
             shopName: string;
             legalName: string;
             /** @enum {string} */
-            businessType?: "INDIVIDUAL" | "PROPRIETORSHIP" | "PARTNERSHIP" | "LLP" | "PRIVATE_LIMITED" | "PUBLIC_LIMITED" | "OTHER";
+            businessType: "INDIVIDUAL" | "PROPRIETORSHIP" | "PARTNERSHIP" | "LLP" | "PRIVATE_LIMITED" | "PUBLIC_LIMITED" | "OTHER";
             pan?: string;
             gstin?: string;
             registeredAddress?: components["schemas"]["PostalAddress"];
@@ -4218,15 +4282,15 @@ export interface components {
             token: string;
         };
         ApiResponseMapStringString: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: string;
             };
         };
         ApiResponseMapStringInteger: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: number;
             };
@@ -4244,15 +4308,15 @@ export interface components {
         };
         AccountSummary: {
             /** Format: uuid */
-            id?: string;
-            realm?: string;
-            email?: string;
-            name?: string;
-            emailVerified?: boolean;
+            id: string;
+            realm: string;
+            email: string;
+            name: string;
+            emailVerified: boolean;
         };
         ApiResponseAccountSummary: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["AccountSummary"];
         };
         LoginRequest: {
@@ -4270,33 +4334,33 @@ export interface components {
         };
         ReviewRequest: {
             /** Format: int32 */
-            rating?: number;
+            rating: number;
             title?: string;
             comment?: string;
-            images?: string[];
+            images: string[];
         };
         ApiResponseReviewView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["ReviewView"];
         };
         ReviewView: {
             /** Format: uuid */
-            id?: string;
+            id: string;
             /** Format: uuid */
-            productId?: string;
+            productId: string;
             /** Format: int32 */
-            rating?: number;
+            rating: number;
             title?: string;
             comment?: string;
-            images?: string[];
+            images: string[];
+            isVerified: boolean;
             /** Format: int32 */
-            helpfulCount?: number;
-            authorName?: string;
+            helpfulCount: number;
+            authorName: string;
+            isPublished: boolean;
             /** Format: date-time */
-            createdAt?: string;
-            verified?: boolean;
-            published?: boolean;
+            createdAt: string;
         };
         VerifyRequest: {
             /** Format: uuid */
@@ -4306,29 +4370,29 @@ export interface components {
             razorpay_signature?: string;
         };
         ApiResponseVerifyResult: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["VerifyResult"];
         };
         VerifyResult: {
-            confirmed?: boolean;
+            confirmed: boolean;
             paymentStatus?: string;
         };
         ApiResponseCheckoutSession: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["CheckoutSession"];
         };
         CheckoutSession: {
-            keyId?: string;
-            gatewayOrderId?: string;
+            keyId: string;
+            gatewayOrderId: string;
             /** Format: int64 */
-            amountPaise?: number;
-            currency?: string;
+            amountPaise: number;
+            currency: string;
             /** Format: uuid */
-            orderId?: string;
-            orderNumber?: string;
-            email?: string;
+            orderId: string;
+            orderNumber: string;
+            email: string;
         };
         CheckoutRequest: {
             /** Format: uuid */
@@ -4336,295 +4400,296 @@ export interface components {
             shippingAddress?: components["schemas"]["AddressRequest"];
             billingAddress?: components["schemas"]["AddressRequest"];
             /** @enum {string} */
-            paymentMethod?: "COD" | "RAZORPAY";
+            paymentMethod: "COD" | "RAZORPAY";
             couponCode?: string;
             notes?: string;
-            saveAddress?: boolean;
+            saveAddress: boolean;
         };
         ApiResponseDeliveryEstimate: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["DeliveryEstimate"];
         };
         DeliveryEstimate: {
-            pincode?: string;
-            serviceable?: boolean;
-            city?: string;
-            state?: string;
-            cod?: boolean;
+            pincode: string;
+            serviceable: boolean;
+            city: string;
+            state: string;
+            cod: boolean;
             /** Format: int32 */
-            minDays?: number;
+            minDays: number;
             /** Format: int32 */
-            maxDays?: number;
-            earliest?: string;
-            latest?: string;
-            source?: string;
+            maxDays: number;
+            earliest: string;
+            latest: string;
+            source: string;
         };
         ApiResponseMapStringArtworkView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: components["schemas"]["ArtworkView"];
             };
         };
         ArtworkView: {
             /** Format: uuid */
-            id?: string;
-            url?: string;
-            reference?: string;
-            name?: string;
-            format?: string;
+            id: string;
+            url: string;
+            reference: string;
+            name: string;
+            format: string;
             /** Format: int64 */
-            bytes?: number;
+            bytes: number;
             /** Format: int32 */
             width?: number;
             /** Format: int32 */
             height?: number;
-            rasterised?: boolean;
+            rasterised: boolean;
         };
         ApiResponseCouponPreview: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["CouponPreview"];
         };
         CouponPreview: {
-            code?: string;
+            code: string;
             /** Format: int64 */
-            discountPaise?: number;
+            discountPaise: number;
             /** Format: int64 */
             eligibleSubtotalPaise?: number;
             /** Format: int64 */
-            subtotalPaise?: number;
+            subtotalPaise: number;
             description?: string;
         };
         ApiResponseMapStringContactRequestView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: components["schemas"]["ContactRequestView"];
             };
         };
         ContactRequestView: {
             /** Format: uuid */
-            id?: string;
-            name?: string;
-            email?: string;
-            subject?: string;
-            message?: string;
-            status?: string;
+            id: string;
+            name: string;
+            email: string;
+            subject: string;
+            message: string;
+            status: string;
             notes?: string;
             /** Format: date-time */
-            createdAt?: string;
+            createdAt: string;
             /** Format: date-time */
-            updatedAt?: string;
+            updatedAt: string;
         };
         AddToCartRequest: {
             /** Format: uuid */
-            productId?: string;
+            productId: string;
             /** Format: uuid */
             variantId?: string;
             /** Format: int32 */
-            quantity?: number;
+            quantity: number;
             customization?: {
-                [key: string]: unknown;
+                [key: string]: Record<string, never>;
             };
             mockupImage?: string;
-            bulkOrder?: boolean;
+            isBulkOrder: boolean;
         };
         ApiResponseMapStringCartView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: components["schemas"]["CartView"];
             };
         };
         CartItemView: {
             /** Format: uuid */
-            id?: string;
+            id: string;
             /** Format: uuid */
-            productId?: string;
+            productId: string;
             /** Format: uuid */
             variantId?: string;
             /** Format: int32 */
-            quantity?: number;
+            quantity: number;
             /** Format: int64 */
-            unitPaise?: number;
+            unitPaise: number;
             /** Format: int64 */
-            lineTotalPaise?: number;
+            lineTotalPaise: number;
             customization?: {
-                [key: string]: unknown;
+                [key: string]: Record<string, never>;
             };
             mockupImage?: string;
-            available?: boolean;
-            product?: {
-                [key: string]: unknown;
+            available: boolean;
+            product: {
+                [key: string]: Record<string, never>;
             };
             variant?: {
-                [key: string]: unknown;
+                [key: string]: Record<string, never>;
             };
         };
         CartView: {
             /** Format: uuid */
-            id?: string;
-            items?: components["schemas"]["CartItemView"][];
+            id: string;
+            items: components["schemas"]["CartItemView"][];
             /** Format: int64 */
-            subtotalPaise?: number;
+            subtotalPaise: number;
             /** Format: int32 */
-            itemCount?: number;
-            problems?: string[];
+            itemCount: number;
+            problems: string[];
         };
         ApiResponseMapStringBulkOrderView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: components["schemas"]["BulkOrderView"];
             };
         };
         B2bUserView: {
             /** Format: uuid */
-            id?: string;
-            email?: string;
-            firstName?: string;
-            lastName?: string;
+            id: string;
+            email: string;
+            firstName: string;
+            lastName: string;
             phone?: string;
-            type?: string;
-            status?: string;
+            type: string;
+            status: string;
         };
         BulkOrderView: {
             /** Format: uuid */
-            id?: string;
-            orderNumber?: string;
+            id: string;
+            orderNumber: string;
             /** Format: uuid */
             productId?: string;
             product?: components["schemas"]["ProductSummary"];
             /** Format: uuid */
             rfqId?: string;
             /** Format: int32 */
-            quantity?: number;
+            quantity: number;
             /** Format: int64 */
-            unitPricePaise?: number;
+            unitPricePaise: number;
             /** Format: int64 */
-            totalPricePaise?: number;
-            status?: string;
+            totalPricePaise: number;
+            status: string;
             /** Format: date-time */
             expectedDelivery?: string;
             specialRequirements?: string;
             paymentTerms?: string;
             /** Format: date-time */
-            createdAt?: string;
+            createdAt: string;
             /** Format: date-time */
-            updatedAt?: string;
+            updatedAt: string;
             b2bProfile?: components["schemas"]["ProfileSummary"];
         };
         ProductSummary: {
             /** Format: uuid */
-            id?: string;
-            name?: string;
-            slug?: string;
+            id: string;
+            name: string;
+            slug: string;
             thumbnail?: string;
             /** Format: int64 */
-            pricePaise?: number;
+            pricePaise: number;
         };
         ProfileSummary: {
             /** Format: uuid */
-            id?: string;
-            companyName?: string;
-            businessType?: string;
+            id: string;
+            companyName: string;
+            businessType: string;
             gstNumber?: string;
             panNumber?: string;
-            user?: components["schemas"]["B2bUserView"];
-            verified?: boolean;
+            isVerified: boolean;
+            user: components["schemas"]["B2bUserView"];
         };
         CustomerRegisterRequest: {
             /** Format: email */
             email: string;
             password: string;
             firstName: string;
-            lastName?: string;
+            lastName: string;
             phone?: string;
-            marketingOptIn?: boolean;
+            marketingOptIn: boolean;
         };
         StaffRequest: {
             /** Format: email */
             email: string;
             fullName: string;
             password: string;
-            permissions?: ("SUPER_ADMIN" | "MODERATOR" | "KYC_REVIEW" | "FINANCE" | "SUPPORT" | "CONTENT")[];
+            permissions: ("SUPER_ADMIN" | "MODERATOR" | "KYC_REVIEW" | "FINANCE" | "SUPPORT" | "CONTENT")[];
         };
         DecisionRequest: {
             /** @enum {string} */
-            action?: "SUBMIT" | "START_REVIEW" | "APPROVE" | "REJECT" | "REQUEST_INFO" | "SUSPEND" | "REINSTATE";
+            action: "SUBMIT" | "START_REVIEW" | "APPROVE" | "REJECT" | "REQUEST_INFO" | "SUSPEND" | "REINSTATE";
             note?: string;
         };
         ApiResponseMapStringLong: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: number;
             };
         };
         ApiResponseMapStringOrderView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: components["schemas"]["OrderView"];
             };
         };
         OrderItemView: {
             /** Format: uuid */
-            id?: string;
+            id: string;
             /** Format: uuid */
-            productId?: string;
+            productId: string;
+            productSlug?: string;
             /** Format: uuid */
             variantId?: string;
             /** Format: uuid */
-            sellerId?: string;
-            name?: string;
-            sku?: string;
+            sellerId: string;
+            name: string;
+            sku: string;
             size?: string;
             color?: string;
             thumbnail?: string;
             /** Format: int32 */
-            quantity?: number;
+            quantity: number;
             /** Format: int64 */
-            unitPaise?: number;
+            unitPaise: number;
             /** Format: int64 */
-            discountPaise?: number;
-            customization?: unknown;
+            discountPaise: number;
+            customization?: Record<string, never>;
             mockupImage?: string;
         };
         OrderView: {
             /** Format: uuid */
-            id?: string;
-            orderNumber?: string;
+            id: string;
+            orderNumber: string;
             /** Format: uuid */
-            customerId?: string;
+            customerId: string;
             /** @enum {string} */
-            status?: "PENDING" | "CONFIRMED" | "PROCESSING" | "READY_FOR_SHIPMENT" | "SHIPPED" | "DELIVERED" | "CANCELLED" | "RETURNED";
+            status: "PENDING" | "CONFIRMED" | "PROCESSING" | "READY_FOR_SHIPMENT" | "SHIPPED" | "DELIVERED" | "CANCELLED" | "RETURNED";
             /** @enum {string} */
-            paymentStatus?: "PENDING" | "PAID" | "FAILED" | "REFUNDED" | "CANCELLED";
+            paymentStatus: "PENDING" | "PAID" | "FAILED" | "REFUNDED" | "CANCELLED";
             /** @enum {string} */
-            paymentMethod?: "COD" | "RAZORPAY";
-            shippingAddress?: {
-                [key: string]: unknown;
+            paymentMethod: "COD" | "RAZORPAY";
+            shippingAddress: {
+                [key: string]: Record<string, never>;
             };
-            billingAddress?: {
-                [key: string]: unknown;
+            billingAddress: {
+                [key: string]: Record<string, never>;
             };
-            contactEmail?: string;
+            contactEmail: string;
             /** Format: int64 */
-            subtotalPaise?: number;
+            subtotalPaise: number;
             /** Format: int64 */
-            discountPaise?: number;
+            discountPaise: number;
             couponCode?: string;
             /** Format: int64 */
-            taxPaise?: number;
+            taxPaise: number;
             /** Format: int64 */
-            shippingPaise?: number;
+            shippingPaise: number;
             /** Format: int64 */
-            totalPaise?: number;
+            totalPaise: number;
             /** Format: int64 */
-            refundedPaise?: number;
+            refundedPaise: number;
             trackingNumber?: string;
             carrier?: string;
             /** Format: date-time */
@@ -4634,39 +4699,39 @@ export interface components {
             /** Format: date-time */
             paymentDueBy?: string;
             /** Format: date-time */
-            createdAt?: string;
-            items?: components["schemas"]["OrderItemView"][];
-            sellerOrders?: components["schemas"]["SellerPartView"][];
-            timeline?: components["schemas"]["TimelineView"][];
+            createdAt: string;
+            items: components["schemas"]["OrderItemView"][];
+            sellerOrders: components["schemas"]["SellerPartView"][];
+            timeline: components["schemas"]["TimelineView"][];
             returnRequest?: components["schemas"]["ReturnView"];
         };
         ReturnView: {
             /** Format: uuid */
-            id?: string;
-            requestType?: string;
-            reason?: string;
+            id: string;
+            requestType: string;
+            reason: string;
             description?: string;
-            images?: string[];
-            status?: string;
+            images: string[];
+            status: string;
             /** Format: int64 */
             refundPaise?: number;
             /** Format: date-time */
             refundedAt?: string;
             notes?: string;
             /** Format: date-time */
-            createdAt?: string;
+            createdAt: string;
         };
         SellerPartView: {
             /** Format: uuid */
-            id?: string;
-            orderNumber?: string;
+            id: string;
+            orderNumber: string;
             /** Format: uuid */
-            sellerId?: string;
-            shopName?: string;
+            sellerId: string;
+            shopName: string;
             /** @enum {string} */
-            status?: "PENDING" | "CONFIRMED" | "PROCESSING" | "READY_FOR_SHIPMENT" | "SHIPPED" | "DELIVERED" | "CANCELLED" | "RETURNED";
+            status: "PENDING" | "CONFIRMED" | "PROCESSING" | "READY_FOR_SHIPMENT" | "SHIPPED" | "DELIVERED" | "CANCELLED" | "RETURNED";
             /** Format: int64 */
-            totalPaise?: number;
+            totalPaise: number;
             trackingNumber?: string;
             carrier?: string;
             /** Format: date-time */
@@ -4675,87 +4740,87 @@ export interface components {
             deliveredAt?: string;
         };
         TimelineView: {
-            status?: string;
+            status: string;
             message?: string;
             /** Format: date-time */
-            createdAt?: string;
+            createdAt: string;
         };
         ApiResponsePublishView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["PublishView"];
         };
         PublishView: {
-            namespace?: string;
+            namespace: string;
             /** Format: int32 */
-            version?: number;
-            published?: components["schemas"]["ContentEntryView"][];
-            revalidated?: boolean;
+            version: number;
+            published: components["schemas"]["ContentEntryView"][];
+            revalidated: boolean;
             /** Format: int32 */
-            publishedCount?: number;
+            publishedCount: number;
         };
         ApiResponseMapStringCreditView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: components["schemas"]["CreditView"];
             };
         };
         CreditTransactionView: {
             /** Format: uuid */
-            id?: string;
-            type?: string;
+            id: string;
+            type: string;
             /** Format: int64 */
-            amountPaise?: number;
+            amountPaise: number;
             /** Format: int64 */
-            balancePaise?: number;
+            balancePaise: number;
             /** Format: uuid */
             orderId?: string;
             description?: string;
             reference?: string;
             /** Format: date-time */
-            createdAt?: string;
+            createdAt: string;
         };
         CreditView: {
             /** Format: int64 */
-            creditLimitPaise?: number;
+            creditLimitPaise: number;
             /** Format: int64 */
-            creditUsedPaise?: number;
+            creditUsedPaise: number;
             /** Format: int64 */
-            availablePaise?: number;
-            transactions?: components["schemas"]["CreditTransactionView"][];
+            availablePaise: number;
+            transactions: components["schemas"]["CreditTransactionView"][];
         };
         StatusUpdate: {
             /** @enum {string} */
-            status?: "PENDING" | "CONFIRMED" | "PROCESSING" | "READY_FOR_SHIPMENT" | "SHIPPED" | "DELIVERED" | "CANCELLED" | "RETURNED";
+            status: "PENDING" | "CONFIRMED" | "PROCESSING" | "READY_FOR_SHIPMENT" | "SHIPPED" | "DELIVERED" | "CANCELLED" | "RETURNED";
             message?: string;
             trackingNumber?: string;
             carrier?: string;
         };
         ApiResponseSellerOrderView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["SellerOrderView"];
         };
         SellerOrderView: {
             /** Format: uuid */
-            id?: string;
-            orderNumber?: string;
+            id: string;
+            orderNumber: string;
             /** @enum {string} */
-            status?: "PENDING" | "CONFIRMED" | "PROCESSING" | "READY_FOR_SHIPMENT" | "SHIPPED" | "DELIVERED" | "CANCELLED" | "RETURNED";
-            paymentMethod?: string;
+            status: "PENDING" | "CONFIRMED" | "PROCESSING" | "READY_FOR_SHIPMENT" | "SHIPPED" | "DELIVERED" | "CANCELLED" | "RETURNED";
+            paymentMethod: string;
             /** Format: int64 */
-            subtotalPaise?: number;
+            subtotalPaise: number;
             /** Format: int64 */
-            discountPaise?: number;
+            discountPaise: number;
             /** Format: int64 */
-            shippingPaise?: number;
+            shippingPaise: number;
             /** Format: int64 */
-            totalPaise?: number;
+            totalPaise: number;
             /** Format: int64 */
-            commissionPaise?: number;
+            commissionPaise: number;
             /** Format: int64 */
-            payoutPaise?: number;
+            payoutPaise: number;
             trackingNumber?: string;
             carrier?: string;
             /** Format: date-time */
@@ -4765,209 +4830,209 @@ export interface components {
             /** Format: date-time */
             settledAt?: string;
             /** Format: date-time */
-            createdAt?: string;
-            shipTo?: {
+            createdAt: string;
+            shipTo: {
                 [key: string]: string;
             };
             notes?: string;
-            items?: components["schemas"]["OrderItemView"][];
+            items: components["schemas"]["OrderItemView"][];
         };
         ReturnRequestBody: {
-            requestType?: string;
-            reason?: string;
+            requestType: string;
+            reason: string;
             description?: string;
-            images?: string[];
+            images: string[];
         };
         ApiResponseMapStringStockNotificationView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: components["schemas"]["StockNotificationView"];
             };
         };
         StockItemRef: {
             /** Format: uuid */
-            id?: string;
-            name?: string;
-            sku?: string;
+            id: string;
+            name: string;
+            sku: string;
             /** Format: int32 */
-            quantity?: number;
+            quantity: number;
         };
         StockNotificationView: {
             /** Format: uuid */
-            id?: string;
+            id: string;
             /** Format: uuid */
-            productId?: string;
+            productId: string;
             /** Format: uuid */
             variantId?: string;
-            email?: string;
+            email: string;
             /** Format: date-time */
             notifiedAt?: string;
             /** Format: date-time */
-            createdAt?: string;
+            createdAt: string;
             product?: components["schemas"]["StockItemRef"];
             variant?: components["schemas"]["StockItemRef"];
         };
         ReturnDecision: {
-            status?: string;
+            status: string;
             /** Format: int64 */
             refundPaise?: number;
             notes?: string;
         };
         ApiResponseMapStringSubscriberView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: components["schemas"]["SubscriberView"];
             };
         };
         SubscriberView: {
             /** Format: uuid */
-            id?: string;
-            email?: string;
-            source?: string;
+            id: string;
+            email: string;
+            source: string;
+            isSubscribed: boolean;
             /** Format: date-time */
             unsubscribedAt?: string;
             /** Format: date-time */
-            createdAt?: string;
+            createdAt: string;
             /** Format: date-time */
-            updatedAt?: string;
-            subscribed?: boolean;
+            updatedAt: string;
         };
         AltRequest: {
             alt?: string;
         };
         ApiResponseCustomerAdminRow: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["CustomerAdminRow"];
         };
         CustomerAdminRow: {
             /** Format: uuid */
-            id?: string;
-            email?: string;
-            firstName?: string;
-            lastName?: string;
+            id: string;
+            email: string;
+            firstName: string;
+            lastName: string;
             phone?: string;
-            type?: string;
-            status?: string;
-            emailVerified?: boolean;
+            type: string;
+            status: string;
+            emailVerified: boolean;
             /** Format: int64 */
-            orders?: number;
+            orders: number;
             /** Format: int64 */
-            spentPaise?: number;
+            spentPaise: number;
             /** Format: date-time */
-            createdAt?: string;
+            createdAt: string;
         };
         AdminQuoteView: {
             /** Format: uuid */
-            id?: string;
-            reference?: string;
+            id: string;
+            reference: string;
             /** Format: uuid */
             userId?: string;
             /** Format: uuid */
             productId?: string;
-            productSlug?: string;
-            productName?: string;
-            sku?: string;
+            productSlug: string;
+            productName: string;
+            sku: string;
             colorName?: string;
-            sizes?: string[];
+            sizes: string[];
             /** Format: int32 */
-            quantity?: number;
+            quantity: number;
             method?: string;
-            locations?: string[];
-            designFiles?: string[];
-            artwork?: components["schemas"]["StaffArtworkView"][];
+            locations: string[];
+            designFiles: string[];
+            artwork: components["schemas"]["StaffArtworkView"][];
             notes?: string;
-            customerName?: string;
+            customerName: string;
             company?: string;
-            email?: string;
+            email: string;
             phone?: string;
-            country?: string;
+            country: string;
             postcode?: string;
             requiredBy?: string;
-            status?: string;
+            status: string;
             /** Format: int64 */
             quotedPricePaise?: number;
             adminNotes?: string;
             /** Format: date-time */
-            createdAt?: string;
+            createdAt: string;
             /** Format: date-time */
-            updatedAt?: string;
+            updatedAt: string;
             user?: components["schemas"]["QuoteCustomerView"];
         };
         ApiResponseMapStringAdminQuoteView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: components["schemas"]["AdminQuoteView"];
             };
         };
         QuoteCustomerView: {
             /** Format: uuid */
-            id?: string;
-            email?: string;
-            firstName?: string;
-            lastName?: string;
+            id: string;
+            email: string;
+            firstName: string;
+            lastName: string;
         };
         StaffArtworkView: {
-            reference?: string;
-            name?: string;
-            format?: string;
+            reference: string;
+            name: string;
+            format: string;
             /** Format: int64 */
-            bytes?: number;
+            bytes: number;
             /** Format: int32 */
             width?: number;
             /** Format: int32 */
             height?: number;
-            url?: string;
+            url: string;
         };
         ApiResponseMapStringRfqView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: components["schemas"]["RfqView"];
             };
         };
         RfqView: {
             /** Format: uuid */
-            id?: string;
-            rfqNumber?: string;
+            id: string;
+            rfqNumber: string;
             /** Format: uuid */
             productId?: string;
             product?: components["schemas"]["ProductSummary"];
             /** Format: int32 */
-            quantity?: number;
+            quantity: number;
             /** Format: int64 */
             desiredPricePaise?: number;
             /** Format: date-time */
             deliveryDate?: string;
             specialRequirements?: string;
-            status?: string;
+            status: string;
             /** Format: int64 */
             quotedPricePaise?: number;
             /** Format: date-time */
             quotedDate?: string;
             notes?: string;
-            documents?: string[];
+            documents: string[];
             /** Format: date-time */
             expiryDate?: string;
             /** Format: date-time */
-            createdAt?: string;
+            createdAt: string;
             /** Format: date-time */
-            updatedAt?: string;
+            updatedAt: string;
             /** Format: uuid */
             quotedBy?: string;
             b2bProfile?: components["schemas"]["ProfileSummary"];
         };
         AdminProfileView: {
             /** Format: uuid */
-            id?: string;
-            companyName?: string;
+            id: string;
+            companyName: string;
             companyRegistration?: string;
             gstNumber?: string;
             panNumber?: string;
-            businessType?: string;
+            businessType: string;
             businessCategory?: string;
             /** Format: int64 */
             monthlyBudgetPaise?: number;
@@ -4975,542 +5040,543 @@ export interface components {
             employeeCount?: number;
             businessDescription?: string;
             website?: string;
+            isVerified: boolean;
             /** Format: date-time */
             verifiedAt?: string;
             /** Format: int32 */
-            minOrderQuantity?: number;
-            discountTier?: string;
+            minOrderQuantity: number;
+            discountTier: string;
             /** Format: int64 */
-            creditLimitPaise?: number;
+            creditLimitPaise: number;
             /** Format: int64 */
-            creditUsedPaise?: number;
+            creditUsedPaise: number;
             /** Format: date-time */
-            createdAt?: string;
+            createdAt: string;
             /** Format: date-time */
-            updatedAt?: string;
-            verified?: boolean;
-            user?: components["schemas"]["B2bUserView"];
-            _count?: components["schemas"]["ProfileCounts"];
+            updatedAt: string;
+            user: components["schemas"]["B2bUserView"];
+            _count: components["schemas"]["ProfileCounts"];
         };
         ApiResponseMapStringAdminProfileView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: components["schemas"]["AdminProfileView"];
             };
         };
         ProfileCounts: {
             /** Format: int64 */
-            rfqs?: number;
+            rfqs: number;
             /** Format: int64 */
-            bulkOrders?: number;
+            bulkOrders: number;
         };
         ApiResponseMapStringListAddressView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: components["schemas"]["AddressView"][];
             };
         };
         ApiResponsePagePublicShopView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["PagePublicShopView"];
         };
         PagePublicShopView: {
-            items?: components["schemas"]["PublicShopView"][];
+            items: components["schemas"]["PublicShopView"][];
             /** Format: int64 */
-            total?: number;
+            total: number;
             /** Format: int32 */
-            page?: number;
+            page: number;
             /** Format: int32 */
-            limit?: number;
+            limit: number;
             /** Format: int32 */
-            pages?: number;
+            pages: number;
         };
         PublicShopView: {
             /** Format: uuid */
-            id?: string;
-            shopName?: string;
-            shopSlug?: string;
+            id: string;
+            shopName: string;
+            shopSlug: string;
             shopDescription?: string;
             shopImage?: string;
             shopBanner?: string;
             /** Format: double */
-            rating?: number;
+            rating: number;
             /** Format: int32 */
-            ratingCount?: number;
+            ratingCount: number;
             /** Format: date-time */
-            since?: string;
+            since: string;
         };
         ApiResponsePublicShopView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["PublicShopView"];
         };
         ApiResponsePageWithdrawalView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["PageWithdrawalView"];
         };
         PageWithdrawalView: {
-            items?: components["schemas"]["WithdrawalView"][];
+            items: components["schemas"]["WithdrawalView"][];
             /** Format: int64 */
-            total?: number;
+            total: number;
             /** Format: int32 */
-            page?: number;
+            page: number;
             /** Format: int32 */
-            limit?: number;
+            limit: number;
             /** Format: int32 */
-            pages?: number;
+            pages: number;
         };
         ApiResponseSellerDashboard: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["SellerDashboard"];
         };
         SellerDashboard: {
             /** Format: int64 */
-            ordersToShip?: number;
+            ordersToShip: number;
             /** Format: int64 */
-            ordersThisMonth?: number;
+            ordersThisMonth: number;
             /** Format: int64 */
-            salesThisMonthPaise?: number;
-            lowStock?: {
-                [key: string]: unknown;
+            salesThisMonthPaise: number;
+            lowStock: {
+                [key: string]: Record<string, never>;
             }[];
-            recentOrders?: components["schemas"]["SellerOrderView"][];
+            recentOrders: components["schemas"]["SellerOrderView"][];
         };
         ApiResponsePageSellerOrderView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["PageSellerOrderView"];
         };
         PageSellerOrderView: {
-            items?: components["schemas"]["SellerOrderView"][];
+            items: components["schemas"]["SellerOrderView"][];
             /** Format: int64 */
-            total?: number;
+            total: number;
             /** Format: int32 */
-            page?: number;
+            page: number;
             /** Format: int32 */
-            limit?: number;
+            limit: number;
             /** Format: int32 */
-            pages?: number;
+            pages: number;
         };
         ApiResponseSellerMeView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["SellerMeView"];
         };
         SellerMeView: {
             shop?: components["schemas"]["ShopView"];
             /** @enum {string} */
             role?: "OWNER" | "MANAGER" | "CATALOG" | "FULFILMENT" | "FINANCE";
-            memberships?: components["schemas"]["MembershipView"][];
-            checklist?: string[];
-            applicationsOpen?: boolean;
+            memberships: components["schemas"]["MembershipView"][];
+            checklist: string[];
+            applicationsOpen: boolean;
         };
         ApiResponseListKycDocumentView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["KycDocumentView"][];
         };
         ApiResponseEarningsSummary: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["EarningsSummary"];
         };
         EarningsSummary: {
             /** Format: int64 */
-            balancePaise?: number;
+            balancePaise: number;
             /** Format: int64 */
-            heldPaise?: number;
-            held?: components["schemas"]["HeldOrder"][];
+            heldPaise: number;
+            held: components["schemas"]["HeldOrder"][];
             /** Format: int64 */
-            lifetimeSalesPaise?: number;
+            lifetimeSalesPaise: number;
             /** Format: int64 */
-            lifetimePayoutsPaise?: number;
+            lifetimePayoutsPaise: number;
             openWithdrawal?: components["schemas"]["WithdrawalView"];
         };
         HeldOrder: {
             /** Format: uuid */
-            sellerOrderId?: string;
-            orderNumber?: string;
+            sellerOrderId: string;
+            orderNumber: string;
             /** Format: int64 */
-            payoutPaise?: number;
-            reason?: string;
+            payoutPaise: number;
+            reason: string;
         };
         ApiResponseListSessionView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["SessionView"][];
         };
         SessionView: {
             /** Format: uuid */
-            id?: string;
+            id: string;
             userAgent?: string;
             ip?: string;
             /** Format: date-time */
-            createdAt?: string;
+            createdAt: string;
             /** Format: date-time */
-            expiresAt?: string;
-            current?: boolean;
+            expiresAt: string;
+            current: boolean;
         };
         ApiResponseMapStringListColourFamily: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: components["schemas"]["ColourFamily"][];
             };
         };
         ColourFamily: {
-            name?: string;
-            slug?: string;
-            hex?: string;
+            name: string;
+            slug: string;
+            hex: string;
         };
         ApiResponsePageOrderSummaryView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["PageOrderSummaryView"];
         };
         OrderSummaryView: {
             /** Format: uuid */
-            id?: string;
-            orderNumber?: string;
+            id: string;
+            orderNumber: string;
             /** @enum {string} */
-            status?: "PENDING" | "CONFIRMED" | "PROCESSING" | "READY_FOR_SHIPMENT" | "SHIPPED" | "DELIVERED" | "CANCELLED" | "RETURNED";
+            status: "PENDING" | "CONFIRMED" | "PROCESSING" | "READY_FOR_SHIPMENT" | "SHIPPED" | "DELIVERED" | "CANCELLED" | "RETURNED";
             /** @enum {string} */
-            paymentStatus?: "PENDING" | "PAID" | "FAILED" | "REFUNDED" | "CANCELLED";
+            paymentStatus: "PENDING" | "PAID" | "FAILED" | "REFUNDED" | "CANCELLED";
             /** @enum {string} */
-            paymentMethod?: "COD" | "RAZORPAY";
+            paymentMethod: "COD" | "RAZORPAY";
             /** Format: int64 */
-            totalPaise?: number;
+            totalPaise: number;
             /** Format: int32 */
-            itemCount?: number;
+            itemCount: number;
             firstItemName?: string;
             firstItemThumbnail?: string;
             customerEmail?: string;
             /** Format: date-time */
-            createdAt?: string;
+            createdAt: string;
+            returnStatus?: string;
         };
         PageOrderSummaryView: {
-            items?: components["schemas"]["OrderSummaryView"][];
+            items: components["schemas"]["OrderSummaryView"][];
             /** Format: int64 */
-            total?: number;
+            total: number;
             /** Format: int32 */
-            page?: number;
+            page: number;
             /** Format: int32 */
-            limit?: number;
+            limit: number;
             /** Format: int32 */
-            pages?: number;
+            pages: number;
         };
         ApiResponsePincodeInfo: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["PincodeInfo"];
         };
         PincodeInfo: {
-            pincode?: string;
-            serviceable?: boolean;
-            city?: string;
-            district?: string;
-            state?: string;
+            pincode: string;
+            serviceable: boolean;
+            city: string;
+            district: string;
+            state: string;
         };
         ApiResponseProductQueryResult: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["ProductQueryResult"];
         };
         PriceBounds: {
             /** Format: int64 */
-            minPaise?: number;
+            minPaise: number;
             /** Format: int64 */
-            maxPaise?: number;
+            maxPaise: number;
         };
         ProductQueryResult: {
-            products?: components["schemas"]["CustomWearProduct"][];
+            products: components["schemas"]["CustomWearProduct"][];
             /** Format: int32 */
-            total?: number;
+            total: number;
             /** Format: int32 */
-            page?: number;
+            page: number;
             /** Format: int32 */
-            pageSize?: number;
+            pageSize: number;
             /** Format: int32 */
-            pageCount?: number;
-            priceBounds?: components["schemas"]["PriceBounds"];
+            pageCount: number;
+            priceBounds: components["schemas"]["PriceBounds"];
         };
         ApiResponseMapStringListCustomWearProduct: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: components["schemas"]["CustomWearProduct"][];
             };
         };
         ApiResponseMapStringListString: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: string[];
             };
         };
         ApiResponsePublicContentView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["PublicContentView"];
         };
         PublicContentView: {
-            namespace?: string;
+            namespace: string;
             /** Format: int32 */
-            version?: number;
-            values?: components["schemas"]["StoredValue"][];
+            version: number;
+            values: components["schemas"]["StoredValue"][];
         };
         StoredValue: {
-            path?: string;
-            value?: components["schemas"]["JsonNode"];
+            path: string;
+            value: components["schemas"]["JsonNode"];
         };
         ApiResponseMapStringListBannerView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: components["schemas"]["BannerView"][];
             };
         };
         ApiResponseMapStringListRfqView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: components["schemas"]["RfqView"][];
             };
         };
         ApiResponseMapStringListBulkOrderView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: {
                 [key: string]: components["schemas"]["BulkOrderView"][];
             };
         };
         ApiResponsePageStaffView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["PageStaffView"];
         };
         PageStaffView: {
-            items?: components["schemas"]["StaffView"][];
+            items: components["schemas"]["StaffView"][];
             /** Format: int64 */
-            total?: number;
+            total: number;
             /** Format: int32 */
-            page?: number;
+            page: number;
             /** Format: int32 */
-            limit?: number;
+            limit: number;
             /** Format: int32 */
-            pages?: number;
+            pages: number;
         };
         ApiResponsePageShopView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["PageShopView"];
         };
         PageShopView: {
-            items?: components["schemas"]["ShopView"][];
+            items: components["schemas"]["ShopView"][];
             /** Format: int64 */
-            total?: number;
+            total: number;
             /** Format: int32 */
-            page?: number;
+            page: number;
             /** Format: int32 */
-            limit?: number;
+            limit: number;
             /** Format: int32 */
-            pages?: number;
+            pages: number;
         };
         ApiResponseSellerReviewView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["SellerReviewView"];
         };
         MemberView: {
             /** Format: uuid */
-            accountId?: string;
-            fullName?: string;
-            email?: string;
+            accountId: string;
+            fullName: string;
+            email: string;
             /** @enum {string} */
-            role?: "OWNER" | "MANAGER" | "CATALOG" | "FULFILMENT" | "FINANCE";
+            role: "OWNER" | "MANAGER" | "CATALOG" | "FULFILMENT" | "FINANCE";
             /** Format: date-time */
-            since?: string;
+            since: string;
         };
         ReviewDocument: {
-            document?: components["schemas"]["KycDocumentView"];
-            url?: string;
+            document: components["schemas"]["KycDocumentView"];
+            url: string;
         };
         SellerReviewView: {
-            shop?: components["schemas"]["ShopView"];
+            shop: components["schemas"]["ShopView"];
             owner?: components["schemas"]["MemberView"];
-            documents?: components["schemas"]["ReviewDocument"][];
+            documents: components["schemas"]["ReviewDocument"][];
             bank?: components["schemas"]["BankAccountView"];
-            history?: components["schemas"]["StatusEventView"][];
-            allowedActions?: ("SUBMIT" | "START_REVIEW" | "APPROVE" | "REJECT" | "REQUEST_INFO" | "SUSPEND" | "REINSTATE")[];
+            history: components["schemas"]["StatusEventView"][];
+            allowedActions: ("SUBMIT" | "START_REVIEW" | "APPROVE" | "REJECT" | "REQUEST_INFO" | "SUSPEND" | "REINSTATE")[];
         };
         StatusEventView: {
             fromStatus?: string;
-            toStatus?: string;
+            toStatus: string;
             note?: string;
-            actorRealm?: string;
+            actorRealm: string;
             /** Format: date-time */
-            createdAt?: string;
+            createdAt: string;
         };
         ApiResponsePageReviewView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["PageReviewView"];
         };
         PageReviewView: {
-            items?: components["schemas"]["ReviewView"][];
+            items: components["schemas"]["ReviewView"][];
             /** Format: int64 */
-            total?: number;
+            total: number;
             /** Format: int32 */
-            page?: number;
+            page: number;
             /** Format: int32 */
-            limit?: number;
+            limit: number;
             /** Format: int32 */
-            pages?: number;
+            pages: number;
         };
         ApiResponsePageMapStringObject: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["PageMapStringObject"];
         };
         PageMapStringObject: {
-            items?: {
-                [key: string]: unknown;
+            items: {
+                [key: string]: Record<string, never>;
             }[];
             /** Format: int64 */
-            total?: number;
+            total: number;
             /** Format: int32 */
-            page?: number;
+            page: number;
             /** Format: int32 */
-            limit?: number;
+            limit: number;
             /** Format: int32 */
-            pages?: number;
+            pages: number;
         };
         ApiResponsePageSellerBalanceRow: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["PageSellerBalanceRow"];
         };
         PageSellerBalanceRow: {
-            items?: components["schemas"]["SellerBalanceRow"][];
+            items: components["schemas"]["SellerBalanceRow"][];
             /** Format: int64 */
-            total?: number;
+            total: number;
             /** Format: int32 */
-            page?: number;
+            page: number;
             /** Format: int32 */
-            limit?: number;
+            limit: number;
             /** Format: int32 */
-            pages?: number;
+            pages: number;
         };
         SellerBalanceRow: {
             /** Format: uuid */
-            sellerId?: string;
-            shopName?: string;
+            sellerId: string;
+            shopName: string;
             /** Format: int64 */
-            balancePaise?: number;
+            balancePaise: number;
             /** Format: int64 */
-            heldPaise?: number;
+            heldPaise: number;
             /** Format: date-time */
             lastPayoutAt?: string;
         };
         ApiResponsePageCustomerAdminRow: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["PageCustomerAdminRow"];
         };
         PageCustomerAdminRow: {
-            items?: components["schemas"]["CustomerAdminRow"][];
+            items: components["schemas"]["CustomerAdminRow"][];
             /** Format: int64 */
-            total?: number;
+            total: number;
             /** Format: int32 */
-            page?: number;
+            page: number;
             /** Format: int32 */
-            limit?: number;
+            limit: number;
             /** Format: int32 */
-            pages?: number;
+            pages: number;
         };
         AdminQuoteList: {
-            quotes?: components["schemas"]["AdminQuoteView"][];
-            counts?: {
+            quotes: components["schemas"]["AdminQuoteView"][];
+            counts: {
                 [key: string]: number;
             };
-            pagination?: components["schemas"]["QuotePagination"];
+            pagination: components["schemas"]["QuotePagination"];
         };
         ApiResponseAdminQuoteList: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["AdminQuoteList"];
         };
         QuotePagination: {
             /** Format: int32 */
-            page?: number;
+            page: number;
             /** Format: int32 */
-            limit?: number;
+            limit: number;
             /** Format: int64 */
-            total?: number;
+            total: number;
             /** Format: int32 */
-            pages?: number;
+            pages: number;
         };
         ApiResponseContentStagesView: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["ContentStagesView"];
         };
         ContentStagesView: {
-            namespace?: string;
+            namespace: string;
             /** Format: int32 */
-            version?: number;
-            published?: components["schemas"]["ContentEntryView"][];
-            draft?: components["schemas"]["ContentEntryView"][];
+            version: number;
+            published: components["schemas"]["ContentEntryView"][];
+            draft: components["schemas"]["ContentEntryView"][];
         };
         AdminRfqList: {
-            rfqs?: components["schemas"]["RfqView"][];
-            counts?: {
+            rfqs: components["schemas"]["RfqView"][];
+            counts: {
                 [key: string]: number;
             };
-            pagination?: components["schemas"]["Pagination"];
+            pagination: components["schemas"]["Pagination"];
         };
         ApiResponseAdminRfqList: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["AdminRfqList"];
         };
         Pagination: {
             /** Format: int32 */
-            page?: number;
+            page: number;
             /** Format: int32 */
-            limit?: number;
+            limit: number;
             /** Format: int64 */
-            total?: number;
+            total: number;
             /** Format: int32 */
-            pages?: number;
+            pages: number;
         };
         AdminProfileList: {
-            profiles?: components["schemas"]["AdminProfileView"][];
-            counts?: {
+            profiles: components["schemas"]["AdminProfileView"][];
+            counts: {
                 [key: string]: number;
             };
-            pagination?: components["schemas"]["Pagination"];
+            pagination: components["schemas"]["Pagination"];
         };
         ApiResponseAdminProfileList: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["AdminProfileList"];
         };
         AdminBulkOrderList: {
-            bulkOrders?: components["schemas"]["BulkOrderView"][];
-            counts?: {
+            bulkOrders: components["schemas"]["BulkOrderView"][];
+            counts: {
                 [key: string]: number;
             };
-            pagination?: components["schemas"]["Pagination"];
+            pagination: components["schemas"]["Pagination"];
         };
         ApiResponseAdminBulkOrderList: {
-            success?: boolean;
-            message?: string;
+            success: boolean;
+            message: string;
             data?: components["schemas"]["AdminBulkOrderList"];
         };
     };
@@ -10237,6 +10303,26 @@ export interface operations {
             };
         };
     };
+    session: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMapStringBoolean"];
+                };
+            };
+        };
+    };
     me_1: {
         parameters: {
             query?: never;
@@ -10820,6 +10906,26 @@ export interface operations {
             };
         };
     };
+    checkoutConfig: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMapStringObject"];
+                };
+            };
+        };
+    };
     articleTypes: {
         parameters: {
             query?: never;
@@ -10982,6 +11088,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseListSessionView"];
+                };
+            };
+        };
+    };
+    session_1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMapStringBoolean"];
                 };
             };
         };
@@ -11830,6 +11956,26 @@ export interface operations {
                 };
                 content: {
                     "*/*": components["schemas"]["ApiResponseListSessionView"];
+                };
+            };
+        };
+    };
+    session_2: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "*/*": components["schemas"]["ApiResponseMapStringBoolean"];
                 };
             };
         };

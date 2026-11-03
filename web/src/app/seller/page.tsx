@@ -2,201 +2,373 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import { Button, Input, LoadingSpinner } from '@/components/common';
+import { useSeller } from '@/components/seller/SellerContext';
+import { formatPaise } from '@/lib/money';
 import {
-  applyToSell,
-  getApplicationsOpen,
-  getSellerSummary,
+  EDITABLE_STATUSES,
   PENDING_SHOP_KEY,
-  type CompanyDetails,
-  type LowStockItem,
-  type MyShop,
-  type SellerApplicationStatus,
-  type SellerOrderSummary,
-  type SellerStats,
+  ROLE_LABELS,
+  createBusiness,
+  getContactVerification,
+  getEarnings,
+  getSellerSummary,
+  resendEmailConfirmation,
+  sendPhoneCode,
+  submitApplication,
+  verifyPhoneCode,
+  type EarningsSummary,
+  type SellerDashboard,
+  type SellerMe,
+  type Shop,
 } from '@/lib/seller-api';
-import { formatCurrency } from '@/utils/helpers';
-import { RootState } from '@/store';
 import {
-  CompanyFields,
-  EMPTY_COMPANY,
-  companyPayload,
-  companyProblem,
+  BusinessFields,
+  EMPTY_BUSINESS,
+  businessPayload,
+  businessProblem,
+  type BusinessForm,
 } from './_components/CompanyFields';
 import { TextArea } from './_components/fields';
+import { Notice, PageHeader, SectionTitle, Stat, StatusNotice, formatDate, prettyStatus } from './_components/ui';
 
-const Stat: React.FC<{ label: string; value: string; note?: string }> = ({
-  label,
-  value,
-  note,
-}) => (
-  <div className="border border-line p-4">
-    <p
-      className="m-0 text-caption font-bold uppercase tracking-[0.12em]"
-      style={{ color: 'var(--ink-3)' }}
-    >
-      {label}
-    </p>
-    <p className="m-0 mt-2 text-[26px] font-semibold leading-none text-ink">{value}</p>
-    {note && (
-      <p className="m-0 mt-1.5 text-small" style={{ color: 'var(--ink-3)' }}>
-        {note}
-      </p>
-    )}
-  </div>
+/**
+ * Seller Central's overview.
+ *
+ * Until the shop is approved this is the onboarding checklist, in order:
+ * confirm email, confirm phone, create the business, upload the documents,
+ * add the bank account, submit (docs/ACCOUNTS.md, "Seller"). It is driven by
+ * what the API says is missing (`GET /seller/me` → `checklist`) plus the
+ * account's own email/phone state, so a step is ticked exactly when the
+ * server agrees it is done. Once approved it becomes the dashboard.
+ */
+export default function SellerOverviewPage() {
+  const { me, refresh, can } = useSeller();
+  const shop = me?.shop ?? null;
+
+  if (!me) return <LoadingSpinner className="min-h-[50vh]" size="lg" />;
+
+  return (
+    <main className="section-y">
+      <div className="container-max">
+        <PageHeader
+          title={shop ? shop.shopName : 'Become a seller'}
+          lead={
+            shop ? (
+              <>
+                {shop.status === 'APPROVED' ? (
+                  <>
+                    Approved ·{' '}
+                    <Link href={`/sellers/${shop.shopSlug}`} className="underline underline-offset-2 hover:text-ink">
+                      view your shop page
+                    </Link>
+                  </>
+                ) : (
+                  'Not selling yet — your listings are not visible to shoppers.'
+                )}
+                {me.role ? ` · you are ${ROLE_LABELS[me.role].toLowerCase()}` : ''}
+                {shop.commissionRateBp != null ? ` · ${shop.commissionRateBp / 100}% commission` : ''}
+              </>
+            ) : (
+              'A few steps and you can start listing. You can stop at any point and pick up where you left off.'
+            )
+          }
+        />
+
+        {shop && <StatusNotice shop={shop} />}
+
+        {shop?.status === 'APPROVED' ? (
+          <Dashboard shop={shop} canFinance={can('FINANCE')} canOrders={can('ORDERS')} canCatalog={can('CATALOG')} />
+        ) : (
+          <Onboarding me={me} refresh={refresh} isOwner={!shop || can('PROFILE')} />
+        )}
+      </div>
+    </main>
+  );
+}
+
+/* ── Onboarding ────────────────────────────────────────────────────── */
+
+type StepState = 'done' | 'current' | 'todo';
+
+const Step: React.FC<{
+  n: number;
+  title: string;
+  state: StepState;
+  children?: React.ReactNode;
+}> = ({ n, title, state, children }) => (
+  <li
+    className="border border-line p-4 md:p-5"
+    style={state === 'current' ? { borderColor: 'var(--ink)' } : undefined}
+    aria-current={state === 'current' ? 'step' : undefined}
+  >
+    <div className="flex items-start gap-3">
+      <span
+        aria-hidden="true"
+        className="inline-flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-[13px] font-semibold"
+        style={
+          state === 'done'
+            ? { background: 'var(--ink)', color: 'var(--brand)' }
+            : state === 'current'
+              ? { background: 'var(--brand)', color: 'var(--ink)' }
+              : { border: '1px solid var(--border-strong)', color: 'var(--ink-3)' }
+        }
+      >
+        {state === 'done' ? '✓' : n}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="m-0 text-[15px] font-semibold text-ink">
+          {title}
+          <span className="sr-only">{state === 'done' ? ' (done)' : state === 'current' ? ' (next)' : ''}</span>
+        </p>
+        {children && <div className="mt-2 text-[14px]" style={{ color: 'var(--ink-2)' }}>{children}</div>}
+      </div>
+    </div>
+  </li>
 );
 
-/**
- * What stands between a new shop and its first sale, in order.
- *
- * Approval used to be a single "awaiting approval" message with nothing for
- * the seller to do. Now the identity check is the seller's own step, so the
- * banner says which step they are on and links straight to it.
- */
-const VerificationBanner: React.FC<{ shop: MyShop }> = ({ shop }) => {
-  const copy: Record<MyShop['kycStatus'], { title: string; body: string; cta?: string }> = {
-    NOT_SUBMITTED: {
-      title: 'Verify your business to start selling',
-      body: 'Add your PAN (and GSTIN if you have one) with a supporting document. It takes about two minutes. You can keep adding products in the meantime.',
-      cta: 'Start verification',
-    },
-    PENDING: {
-      title: 'Your verification is being reviewed',
-      body: 'We usually finish within one working day. Your listings go live as soon as you are approved.',
-    },
-    REJECTED: {
-      title: 'We could not verify your business',
-      body: shop.kycRejectionReason
-        ? `Reason: ${shop.kycRejectionReason}`
-        : 'Please check your details and submit again.',
-      cta: 'Fix and resubmit',
-    },
-    APPROVED: {
-      title: 'Your shop is awaiting final approval',
-      body: 'Your identity is verified. An admin will switch your shop on shortly.',
-    },
-  };
-  const step = copy[shop.kycStatus] ?? copy.NOT_SUBMITTED;
+/** Which checklist line belongs to which step (the server's own wording). */
+const isEmailItem = (item: string) => /^confirm your email/i.test(item);
+const isPhoneItem = (item: string) => /^confirm your phone/i.test(item);
+const isDocumentItem = (item: string) => /^upload/i.test(item);
+const isBankItem = (item: string) => /bank account/i.test(item);
+const isBusinessItem = (item: string) =>
+  !isEmailItem(item) && !isPhoneItem(item) && !isDocumentItem(item) && !isBankItem(item) && !/create your business/i.test(item);
 
-  return (
-    <div
-      className="mt-6 flex flex-wrap items-center justify-between gap-4 border px-4 py-3.5 text-[14px]"
-      style={{ borderColor: 'var(--brand)', background: 'var(--brand-soft)' }}
-    >
-      <div className="min-w-0 flex-1">
-        <p className="m-0 font-semibold text-ink">{step.title}</p>
-        <p className="m-0 mt-1" style={{ color: 'var(--ink-2)' }}>
-          {step.body}
-        </p>
-      </div>
-      {step.cta && (
-        <Link href="/seller/verification" className="btn btn-primary btn-sm">
-          {step.cta}
-        </Link>
-      )}
-    </div>
+const Onboarding: React.FC<{
+  me: SellerMe;
+  refresh: () => Promise<SellerMe | null>;
+  isOwner: boolean;
+}> = ({ me, refresh, isOwner }) => {
+  const shop = me.shop;
+  const [contact, setContact] = useState<{ email: boolean; phone: boolean } | null>(null);
+
+  const loadContact = useCallback(
+    () =>
+      getContactVerification()
+        .then(setContact)
+        .catch(() => setContact({ email: false, phone: false })),
+    []
   );
-};
 
-/**
- * Where the owner's decision on the application stands.
- *
- * The shop exists from the moment someone applies, but listing stays closed
- * until it is APPROVED. Each state says what happens next, and a rejection or
- * suspension shows the admin's note so the seller knows what to fix.
- */
-const ApplicationBanner: React.FC<{ shop: MyShop }> = ({ shop }) => {
-  const copy: Partial<
-    Record<SellerApplicationStatus, { title: string; body: string; tone: 'brand' | 'alert' }>
-  > = {
-    APPLIED: {
-      title: 'Application received',
-      body: 'We review every new seller before they can list. While you wait, add your bank details, verify your identity and register any brand you sell under — approval is quicker when they are done.',
-      tone: 'brand',
-    },
-    UNDER_REVIEW: {
-      title: 'Your application is being reviewed',
-      body: 'We are checking your business details. You will be able to list products as soon as it is approved.',
-      tone: 'brand',
-    },
-    REJECTED: {
-      title: 'Your application was not approved',
-      body: shop.applicationNote
-        ? `Note from our team: ${shop.applicationNote}. Update your business details in Shop settings, then contact us to be reconsidered.`
-        : 'Update your business details in Shop settings, then contact us to be reconsidered.',
-      tone: 'alert',
-    },
-    SUSPENDED: {
-      title: 'Your shop is suspended',
-      body: shop.applicationNote
-        ? `Note from our team: ${shop.applicationNote}. Your listings are hidden from shoppers until it is reinstated.`
-        : 'Your listings are hidden from shoppers until it is reinstated. Contact us to resolve it.',
-      tone: 'alert',
-    },
+  useEffect(() => {
+    void loadContact();
+  }, [loadContact]);
+
+  const after = async () => {
+    await Promise.all([loadContact(), refresh()]);
   };
-  const step = copy[shop.applicationStatus];
-  if (!step) return null;
+
+  if (!contact) return <LoadingSpinner className="min-h-[30vh]" />;
+
+  if (shop && !isOwner) {
+    return (
+      <Notice title="The owner is finishing the application" tone="plain">
+        Your role in {shop.shopName} does not include the business details, documents or bank account. Once the
+        shop is approved, the pages for your role open here.
+      </Notice>
+    );
+  }
+
+  const checklist = me.checklist;
+  const businessMissing = checklist.filter(isBusinessItem);
+  const docsMissing = checklist.filter(isDocumentItem);
+  const bankMissing = checklist.some(isBankItem);
+  const editable = shop ? EDITABLE_STATUSES.includes(shop.status) : true;
+
+  const done = {
+    email: contact.email,
+    phone: contact.phone,
+    business: Boolean(shop) && businessMissing.length === 0,
+    documents: Boolean(shop) && docsMissing.length === 0,
+    bank: Boolean(shop) && !bankMissing,
+    submitted: Boolean(shop) && !editable,
+  };
+  const order: Array<keyof typeof done> = ['email', 'phone', 'business', 'documents', 'bank', 'submitted'];
+  const firstOpen = order.find((key) => !done[key]);
+  const state = (key: keyof typeof done): StepState => (done[key] ? 'done' : key === firstOpen ? 'current' : 'todo');
 
   return (
-    <div
-      className="mt-6 border px-4 py-3.5 text-[14px]"
-      style={
-        step.tone === 'alert'
-          ? { borderColor: 'var(--sale)', background: 'var(--surface-2)' }
-          : { borderColor: 'var(--brand)', background: 'var(--brand-soft)' }
-      }
-    >
-      <p className="m-0 font-semibold text-ink">{step.title}</p>
-      <p className="m-0 mt-1" style={{ color: 'var(--ink-2)' }}>
-        {step.body}
-      </p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {step.tone === 'brand' ? (
+    <ol className="m-0 mt-8 flex max-w-[760px] list-none flex-col gap-3 p-0">
+      <Step n={1} title="Confirm your email address" state={state('email')}>
+        {done.email ? 'Confirmed.' : <EmailStep onDone={after} />}
+      </Step>
+      <Step n={2} title="Confirm your phone number" state={state('phone')}>
+        {done.phone ? 'Confirmed.' : <PhoneStep onDone={after} />}
+      </Step>
+      <Step n={3} title="Tell us about your business" state={state('business')}>
+        {!shop ? (
+          me.applicationsOpen ? (
+            <CreateBusinessForm onDone={after} />
+          ) : (
+            <p className="m-0">
+              We are not taking open applications right now. If you would like to sell on TAILORAE, tell us about
+              your business and we will be in touch.{' '}
+              <Link href="/info/contact" className="underline underline-offset-2">
+                Contact us
+              </Link>
+              .
+            </p>
+          )
+        ) : businessMissing.length ? (
           <>
-            {!shop.hasBankDetails && (
-              <Link href="/seller/settings" className="btn btn-primary btn-sm">
-                Add bank details
-              </Link>
-            )}
-            {shop.kycStatus !== 'APPROVED' && shop.kycStatus !== 'PENDING' && (
-              <Link href="/seller/verification" className="btn btn-outline btn-sm">
-                Verify identity
-              </Link>
-            )}
-            <Link href="/seller/brands" className="btn btn-outline btn-sm">
-              Register a brand
+            <MissingList items={businessMissing} />
+            <Link href="/seller/settings#business" className="btn btn-outline btn-sm mt-3">
+              Complete business details
+            </Link>
+          </>
+        ) : (
+          'Saved. You can change the details in Shop settings.'
+        )}
+      </Step>
+      <Step n={4} title="Upload your documents" state={state('documents')}>
+        {!shop ? (
+          'PAN card, plus the GST certificate if you are registered. Private to you and our review team.'
+        ) : docsMissing.length ? (
+          <>
+            <MissingList items={docsMissing} />
+            <Link href="/seller/verification" className="btn btn-outline btn-sm mt-3">
+              Upload documents
             </Link>
           </>
         ) : (
           <>
-            <Link href="/seller/settings" className="btn btn-outline btn-sm">
-              Business details
+            On file.{' '}
+            <Link href="/seller/verification" className="underline underline-offset-2">
+              See your documents
             </Link>
-            <Link href="/info/contact" className="btn btn-outline btn-sm">
-              Contact us
-            </Link>
+            .
           </>
         )}
-      </div>
-    </div>
+      </Step>
+      <Step n={5} title="Add the bank account for payouts" state={state('bank')}>
+        {!shop ? (
+          'Where we send what you earn. We only ever show it back masked.'
+        ) : bankMissing ? (
+          <Link href="/seller/settings#bank" className="btn btn-outline btn-sm">
+            Add bank account
+          </Link>
+        ) : (
+          'On file.'
+        )}
+      </Step>
+      <Step n={6} title="Submit for review" state={state('submitted')}>
+        {shop && !editable ? (
+          'Submitted. We will email you when it is decided.'
+        ) : (
+          <SubmitStep shop={shop} checklist={checklist} onDone={after} />
+        )}
+      </Step>
+    </ol>
   );
 };
 
-const APPLY_STEPS = ['Business', 'Shop'] as const;
+const MissingList: React.FC<{ items: string[] }> = ({ items }) => (
+  <ul className="m-0 list-disc pl-5">
+    {items.map((item) => (
+      <li key={item}>{item}</li>
+    ))}
+  </ul>
+);
 
-/**
- * The form someone fills in to become a seller, in two steps: the business
- * behind the shop (what the owner approves), then the shop itself (what
- * shoppers see). Bank details, identity documents and brand proof come after,
- * from the dashboard — the shop has to exist before private documents can be
- * filed against it.
- */
-const ApplyForm: React.FC<{ onDone: () => void }> = ({ onDone }) => {
-  // Prefilled from the /sell landing page, which stashes the name before
-  // sign-in. This form only mounts client-side, after auth has loaded.
+const EmailStep: React.FC<{ onDone: () => Promise<void> }> = ({ onDone }) => {
+  const [busy, setBusy] = useState(false);
+  const resend = async () => {
+    setBusy(true);
+    try {
+      toast.success(await resendEmailConfirmation());
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <p className="m-0">
+        We sent a confirmation link to your email when you signed up. Open it, then come back here.
+      </p>
+      <div className="mt-3 flex flex-wrap gap-2">
+        <Button size="sm" variant="outline" loading={busy} onClick={resend}>
+          Send the link again
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => void onDone()}>
+          I have confirmed it
+        </Button>
+      </div>
+    </>
+  );
+};
+
+const PhoneStep: React.FC<{ onDone: () => Promise<void> }> = ({ onDone }) => {
+  const [sent, setSent] = useState(false);
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState<null | 'send' | 'verify'>(null);
+
+  const send = async () => {
+    setBusy('send');
+    try {
+      toast.success(await sendPhoneCode());
+      setSent(true);
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const verify = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!/^\d{6}$/.test(code.trim())) {
+      toast.error('Enter the 6-digit code from the text message.');
+      return;
+    }
+    setBusy('verify');
+    try {
+      toast.success(await verifyPhoneCode(code));
+      await onDone();
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <>
+      <p className="m-0">We text a 6-digit code to the number you signed up with.</p>
+      {!sent ? (
+        <Button size="sm" className="mt-3" loading={busy === 'send'} onClick={send}>
+          Send code
+        </Button>
+      ) : (
+        <form onSubmit={verify} className="mt-3 flex flex-wrap items-end gap-2">
+          <div className="w-[160px]">
+            <Input
+              id="phone-code"
+              label="Code"
+              value={code}
+              onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))}
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              placeholder="123456"
+            />
+          </div>
+          <Button type="submit" size="sm" loading={busy === 'verify'}>
+            Confirm
+          </Button>
+          <Button type="button" size="sm" variant="ghost" disabled={busy !== null} onClick={send}>
+            Send a new code
+          </Button>
+        </form>
+      )}
+    </>
+  );
+};
+
+const CreateBusinessForm: React.FC<{ onDone: () => Promise<void> }> = ({ onDone }) => {
+  // Prefilled from the /sell landing page, which stashes the name before sign-up.
   const [shopName, setShopName] = useState(() => {
     try {
       return sessionStorage.getItem(PENDING_SHOP_KEY) ?? '';
@@ -205,31 +377,8 @@ const ApplyForm: React.FC<{ onDone: () => void }> = ({ onDone }) => {
     }
   });
   const [shopDescription, setShopDescription] = useState('');
-  const [company, setCompany] = useState<CompanyDetails>(EMPTY_COMPANY);
-  const [step, setStep] = useState(0);
+  const [form, setForm] = useState<BusinessForm>(EMPTY_BUSINESS);
   const [isSaving, setIsSaving] = useState(false);
-  // null while checking; the owner may have closed public applications.
-  const [open, setOpen] = useState<boolean | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    void getApplicationsOpen().then((value) => {
-      if (alive) setOpen(value);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const next = (event: React.FormEvent) => {
-    event.preventDefault();
-    const problem = companyProblem(company);
-    if (problem) {
-      toast.error(problem);
-      return;
-    }
-    setStep(1);
-  };
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -237,20 +386,25 @@ const ApplyForm: React.FC<{ onDone: () => void }> = ({ onDone }) => {
       toast.error('Give your shop a name.');
       return;
     }
+    const problem = businessProblem(form);
+    if (problem) {
+      toast.error(problem);
+      return;
+    }
     setIsSaving(true);
     try {
-      await applyToSell({
+      await createBusiness({
         shopName: shopName.trim(),
         shopDescription: shopDescription.trim() || undefined,
-        ...companyPayload(company),
+        ...businessPayload(form),
       });
       try {
         sessionStorage.removeItem(PENDING_SHOP_KEY);
       } catch {
         /* storage blocked */
       }
-      toast.success('Application sent.');
-      onDone();
+      toast.success('Your business is saved.');
+      await onDone();
     } catch (error) {
       toast.error((error as Error).message);
     } finally {
@@ -258,396 +412,222 @@ const ApplyForm: React.FC<{ onDone: () => void }> = ({ onDone }) => {
     }
   };
 
-  if (open === null) return <LoadingSpinner className="min-h-[30vh]" />;
-
-  if (!open) {
-    return (
-      <div className="mx-auto mt-10" style={{ maxWidth: '620px' }}>
-        <div className="border border-line bg-surface-2 p-6 md:p-8">
-          <h2 className="m-0 text-ink" style={{ fontSize: '20px', letterSpacing: '-0.02em' }}>
-            Seller registration is by invitation
-          </h2>
-          <p className="mt-2 text-[15px]" style={{ color: 'var(--ink-2)', lineHeight: 1.65 }}>
-            We are not taking open applications right now. If you would like to sell on TAILORAE,
-            tell us about your business and we will be in touch.
-          </p>
-          <Link href="/info/contact" className="btn btn-primary mt-4">
-            Contact us
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="mx-auto mt-10" style={{ maxWidth: '620px' }}>
-      <div className="border border-line bg-surface-2 p-6 md:p-8">
-        <h2 className="m-0 text-ink" style={{ fontSize: '20px', letterSpacing: '-0.02em' }}>
-          Sell on TAILORAE
-        </h2>
-        <p className="mt-2 text-[15px]" style={{ color: 'var(--ink-2)', lineHeight: 1.65 }}>
-          List your own products alongside ours. You keep control of your catalogue, your stock and
-          your dispatch; we handle the storefront, checkout and payment.
-        </p>
-
-        <ol className="m-0 mt-6 flex list-none gap-2 p-0 text-meta font-semibold">
-          {APPLY_STEPS.map((label, index) => (
-            <li
-              key={label}
-              className="flex-1 border-t-2 pt-2"
-              style={{
-                borderColor: index <= step ? 'var(--brand)' : 'var(--border)',
-                color: index === step ? 'var(--ink)' : 'var(--ink-3)',
-              }}
-              aria-current={index === step ? 'step' : undefined}
-            >
-              {index + 1}. {label}
-            </li>
-          ))}
-          <li
-            className="flex-1 border-t-2 pt-2"
-            style={{ borderColor: 'var(--border)', color: 'var(--ink-3)' }}
-          >
-            3. Bank &amp; KYC
-          </li>
-        </ol>
-
-        {step === 0 ? (
-          <form onSubmit={next} className="mt-6 flex flex-col gap-4">
-            <CompanyFields value={company} onChange={setCompany} />
-            <Button type="submit" size="lg">
-              Continue
-            </Button>
-          </form>
-        ) : (
-          <form onSubmit={submit} className="mt-6 flex flex-col gap-4">
-            <Input
-              label="Shop name *"
-              value={shopName}
-              onChange={(event) => setShopName(event.target.value)}
-              placeholder="The name shoppers will see"
-              helperText="This becomes your shop page address, so pick the name you trade under."
-            />
-            <TextArea
-              id="shop-description"
-              label="What do you sell?"
-              rows={4}
-              maxLength={2000}
-              value={shopDescription}
-              onChange={(event) => setShopDescription(event.target.value)}
-              placeholder="A line or two about your range — this shows on your shop page."
-            />
-
-            <div className="flex flex-wrap gap-3">
-              <Button type="button" variant="outline" size="lg" onClick={() => setStep(0)}>
-                Back
-              </Button>
-              <Button type="submit" size="lg" loading={isSaving} className="flex-1">
-                Send application
-              </Button>
-            </div>
-
-            <p className="m-0 text-meta" style={{ color: 'var(--ink-3)' }}>
-              Next you add bank details, verify your identity and register your brand. You can list
-              products once we have approved your application.
-            </p>
-          </form>
-        )}
+    <form onSubmit={submit} className="mt-2 flex flex-col gap-4">
+      <Input
+        id="shop-name"
+        label="Shop name *"
+        value={shopName}
+        onChange={(event) => setShopName(event.target.value)}
+        maxLength={80}
+        placeholder="The name shoppers will see"
+        helperText="This becomes your shop page address, so pick the name you trade under."
+      />
+      <TextArea
+        id="shop-description"
+        label="What do you sell?"
+        rows={3}
+        maxLength={2000}
+        value={shopDescription}
+        onChange={(event) => setShopDescription(event.target.value)}
+        placeholder="A line or two about your range — this shows on your shop page."
+      />
+      <BusinessFields value={form} onChange={setForm} />
+      <div>
+        <Button type="submit" size="lg" loading={isSaving}>
+          Save and continue
+        </Button>
       </div>
-    </div>
+    </form>
   );
 };
 
-/**
- * A seller's own dashboard.
- *
- * Two states in one page: someone without a shop gets the application form,
- * someone with one gets their figures. Every number is read back from their
- * own sub-orders, which carry the commission and payout recorded at order time
- * — nothing is recalculated here, so what a seller sees is what was settled on.
- */
-export default function SellerDashboardPage() {
-  const router = useRouter();
-  const { user, isInitialized } = useSelector((state: RootState) => state.auth);
+const SubmitStep: React.FC<{
+  shop: Shop | null;
+  checklist: string[];
+  onDone: () => Promise<void>;
+}> = ({ shop, checklist, onDone }) => {
+  const [busy, setBusy] = useState(false);
+  const ready = Boolean(shop) && checklist.length === 0;
 
-  const [shop, setShop] = useState<MyShop | null>(null);
-  const [stats, setStats] = useState<SellerStats | null>(null);
-  const [recent, setRecent] = useState<SellerOrderSummary[]>([]);
-  const [lowStock, setLowStock] = useState<LowStockItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (isInitialized && !user) router.replace('/seller/login?redirect=/seller');
-  }, [isInitialized, user, router]);
-
-  // Nothing is set synchronously here: the effect below only starts the fetch,
-  // and every setState lands in a callback once it resolves.
-  const load = useCallback(
-    () =>
-      getSellerSummary()
-        .then((data) => {
-          setShop(data?.shop ?? null);
-          setStats(data?.stats ?? null);
-          setRecent(data?.recentOrders ?? []);
-          setLowStock(data?.lowStock ?? []);
-          setError(null);
-        })
-        .catch((err: Error) => setError(err.message))
-        .finally(() => setIsLoading(false)),
-    []
-  );
-
-  useEffect(() => {
-    if (user) void load();
-  }, [user, load]);
-
-  if (!isInitialized || (user && isLoading)) {
-    return <LoadingSpinner className="min-h-[50vh]" size="lg" />;
-  }
-  if (!user) return null;
+  const submit = async () => {
+    setBusy(true);
+    try {
+      await submitApplication();
+      toast.success('Application submitted.');
+      await onDone();
+    } catch (error) {
+      toast.error((error as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
-    <main className="section-y">
-      <div className="container-max">
-        <header className="border-b border-line pb-6">
-          <h1
-            className="m-0 text-ink"
-            style={{
-              fontSize: 'clamp(26px, 3.6vw, 38px)',
-              lineHeight: 1.05,
-              letterSpacing: '-0.03em',
-            }}
-          >
-            {shop ? shop.shopName : 'Become a seller'}
-          </h1>
-          {shop && (
-            <p className="mt-2 text-[14px]" style={{ color: 'var(--ink-3)' }}>
-              {shop.isVerified ? (
-                <>
-                  Approved ·{' '}
-                  <Link
-                    href={`/sellers/${shop.shopSlug}`}
-                    className="underline underline-offset-2 hover:text-ink"
-                  >
-                    view your shop page
-                  </Link>
-                </>
-              ) : (
-                'Awaiting approval — your listings are not visible to shoppers yet.'
-              )}
-              {' · '}
-              {shop.commissionRate}% commission
-            </p>
+    <>
+      <p className="m-0">
+        {ready
+          ? shop?.status === 'NEEDS_INFO'
+            ? 'Everything is in. Send it back to us for another look.'
+            : 'Everything is in. Our team checks your business, documents and bank account, usually within one working day.'
+          : 'Once everything above is done, send your application to our team.'}
+      </p>
+      {!ready && shop && checklist.length > 0 && (
+        <div className="mt-2">
+          <p className="m-0 text-meta" style={{ color: 'var(--ink-3)' }}>
+            Still missing:
+          </p>
+          <MissingList items={checklist} />
+        </div>
+      )}
+      <Button size="sm" className="mt-3" disabled={!ready} loading={busy} onClick={submit}>
+        Submit application
+      </Button>
+    </>
+  );
+};
+
+/* ── Dashboard ─────────────────────────────────────────────────────── */
+
+const Dashboard: React.FC<{ shop: Shop; canFinance: boolean; canOrders: boolean; canCatalog: boolean }> = ({
+  shop,
+  canFinance,
+  canOrders,
+  canCatalog,
+}) => {
+  const [summary, setSummary] = useState<SellerDashboard | null>(null);
+  const [earnings, setEarnings] = useState<EarningsSummary | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    Promise.all([getSellerSummary(), canFinance ? getEarnings().catch(() => null) : Promise.resolve(null)])
+      .then(([s, e]) => {
+        if (!alive) return;
+        setSummary(s);
+        setEarnings(e);
+      })
+      .catch((err: Error) => alive && setError(err.message))
+      .finally(() => alive && setLoading(false));
+    return () => {
+      alive = false;
+    };
+  }, [canFinance]);
+
+  if (loading) return <LoadingSpinner className="min-h-[30vh]" />;
+
+  return (
+    <>
+      {error && <p className="alert alert-error mt-6 text-sm">{error}</p>}
+
+      {summary && (
+        <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <Stat label="To ship" value={String(summary.ordersToShip)} note="Accepted, not yet shipped" />
+          <Stat label="Orders this month" value={String(summary.ordersThisMonth)} />
+          <Stat label="Sales this month" value={formatPaise(summary.salesThisMonthPaise)} note="What buyers paid" />
+          {earnings ? (
+            <Stat
+              label="Ready to pay"
+              value={formatPaise(earnings.balancePaise)}
+              note={earnings.heldPaise > 0 ? `${formatPaise(earnings.heldPaise)} held` : 'Nothing held'}
+            />
+          ) : (
+            <Stat
+              label="Rating"
+              value={shop.ratingCount > 0 ? shop.rating.toFixed(1) : '—'}
+              note={shop.ratingCount > 0 ? `${shop.ratingCount} ratings` : 'No ratings yet'}
+            />
           )}
-        </header>
+        </div>
+      )}
 
-        {error && <p className="alert alert-error mt-6 text-sm">{error}</p>}
-
-        {!shop ? (
-          <ApplyForm onDone={load} />
-        ) : (
+      <div className="mt-8 flex flex-wrap gap-3">
+        {canOrders && (
+          <Link href="/seller/orders" className="btn btn-primary">
+            Manage orders
+          </Link>
+        )}
+        {canCatalog && (
           <>
-            <ApplicationBanner shop={shop} />
-            {!shop.isVerified &&
-              shop.applicationStatus !== 'REJECTED' &&
-              shop.applicationStatus !== 'SUSPENDED' && <VerificationBanner shop={shop} />}
-
-            {/*
-              The one thing a seller cannot discover for themselves. Everything
-              downstream of a payout — the request button on the earnings page,
-              the settle button in the admin console — is disabled until an
-              account is on file, and none of those screens can say so here.
-            */}
-            {!shop.hasBankDetails && (
-              <div className="mt-6 flex flex-wrap items-center justify-between gap-4 border border-line bg-surface-2 px-4 py-3.5 text-[14px]">
-                <div>
-                  <p className="m-0 font-semibold text-ink">We cannot pay you yet</p>
-                  <p className="m-0 mt-1" style={{ color: 'var(--ink-2)' }}>
-                    Your earnings are counted and held either way — they just cannot be released
-                    until we know which account to send them to.
-                  </p>
-                </div>
-                <Link href="/seller/settings" className="btn btn-primary btn-sm">
-                  Add bank details
-                </Link>
-              </div>
-            )}
-
-            {stats && (
-              <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
-                <Stat
-                  label="Ready to pay"
-                  value={formatCurrency(stats.payoutDue)}
-                  note={
-                    stats.ordersDue > 0
-                      ? `${stats.ordersDue} order${stats.ordersDue === 1 ? '' : 's'} past the return window`
-                      : 'Nothing has cleared yet'
-                  }
-                />
-                <Stat
-                  label="Held"
-                  value={formatCurrency(stats.payoutHeld)}
-                  note={
-                    stats.ordersHeld > 0
-                      ? `${stats.ordersHeld} order${stats.ordersHeld === 1 ? '' : 's'} in transit or returnable`
-                      : 'Nothing in the pipeline'
-                  }
-                />
-                <Stat
-                  label="Paid out"
-                  value={formatCurrency(stats.payoutSettled)}
-                  note="Settled to date"
-                />
-                <Stat
-                  label="Commission"
-                  value={formatCurrency(stats.commissionCharged)}
-                  note={`${shop.commissionRate}% of sales`}
-                />
-                <Stat
-                  label="Gross sales"
-                  value={formatCurrency(stats.grossSales)}
-                  note="What buyers paid"
-                />
-                <Stat label="Orders" value={String(stats.orders)} note="All time" />
-                <Stat label="To fulfil" value={String(stats.openOrders)} note="Not yet shipped" />
-                <Stat
-                  label="Products"
-                  value={String(stats.products)}
-                  note={
-                    stats.awaitingReview > 0
-                      ? `${stats.liveProducts} live · ${stats.awaitingReview} in review`
-                      : `${stats.liveProducts} live`
-                  }
-                />
-                <Stat
-                  label="Rating"
-                  value={shop.ratingCount > 0 ? shop.rating.toFixed(1) : '—'}
-                  note={shop.ratingCount > 0 ? `${shop.ratingCount} ratings` : 'No ratings yet'}
-                />
-              </div>
-            )}
-
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/seller/orders" className="btn btn-primary">
-                Manage orders
-              </Link>
-              <Link href="/seller/products" className="btn btn-outline">
-                My products
-              </Link>
-              <Link href="/seller/earnings" className="btn btn-outline">
-                Earnings &amp; payouts
-              </Link>
-              <Link href="/seller/products/new" className="btn btn-outline">
-                List a product
-              </Link>
-              <Link href="/seller/settings" className="btn btn-outline">
-                Shop settings
-              </Link>
-              <Link href="/seller/verification" className="btn btn-outline">
-                Verification
-              </Link>
-              <Link href="/seller/brands" className="btn btn-outline">
-                Brands
-              </Link>
-            </div>
-
-            {stats && stats.rejected > 0 && (
-              <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border border-line bg-surface-2 px-4 py-3.5 text-[14px]">
-                <p className="m-0" style={{ color: 'var(--ink-2)' }}>
-                  <strong className="text-ink">
-                    {stats.rejected} listing{stats.rejected === 1 ? ' needs' : 's need'} changes
-                  </strong>{' '}
-                  before {stats.rejected === 1 ? 'it' : 'they'} can go live.
-                </p>
-                <Link href="/seller/products" className="btn btn-outline btn-sm">
-                  See what to fix
-                </Link>
-              </div>
-            )}
-
-            {lowStock.length > 0 && (
-              <section className="mt-10">
-                <h2
-                  className="m-0 text-ink"
-                  style={{ fontSize: '17px', fontWeight: 600, letterSpacing: '-0.01em' }}
-                >
-                  Running low
-                </h2>
-                <p className="m-0 mt-1 text-meta" style={{ color: 'var(--ink-3)' }}>
-                  {shop.lowStockThreshold} or fewer left. Restock before these sell out.
-                </p>
-                <ul
-                  className="m-0 mt-4 flex list-none flex-col gap-px p-0"
-                  style={{ background: 'var(--border)' }}
-                >
-                  {lowStock.map((item) => (
-                    <li
-                      key={item.variantId ?? item.productId}
-                      className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 p-3.5"
-                      style={{ background: 'var(--surface)' }}
-                    >
-                      <Link
-                        href={`/seller/products/${item.productId}`}
-                        className="min-w-0 truncate text-[14px] text-ink hover:underline"
-                      >
-                        {item.name}
-                      </Link>
-                      <span className="font-mono text-small" style={{ color: 'var(--ink-3)' }}>
-                        {item.sku}
-                      </span>
-                      <span
-                        className="text-meta font-semibold"
-                        style={{ color: item.quantity === 0 ? 'var(--sale)' : 'var(--ink)' }}
-                      >
-                        {item.quantity === 0 ? 'Sold out' : `${item.quantity} left`}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            )}
-
-            <section className="mt-10">
-              <h2
-                className="m-0 text-ink"
-                style={{ fontSize: '17px', fontWeight: 600, letterSpacing: '-0.01em' }}
-              >
-                Recent orders
-              </h2>
-              {recent.length === 0 ? (
-                <p className="mt-3 text-[14px]" style={{ color: 'var(--ink-3)' }}>
-                  Nothing yet. Orders appear here as soon as someone buys from you.
-                </p>
-              ) : (
-                <ul
-                  className="m-0 mt-4 flex list-none flex-col gap-px p-0"
-                  style={{ background: 'var(--border)' }}
-                >
-                  {recent.map((order) => (
-                    <li
-                      key={order.id}
-                      className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 p-3.5"
-                      style={{ background: 'var(--surface)' }}
-                    >
-                      <span className="font-mono text-meta text-ink">{order.orderNumber}</span>
-                      <span className="text-meta" style={{ color: 'var(--ink-3)' }}>
-                        {order.status.replace(/_/g, ' ').toLowerCase()}
-                      </span>
-                      <span className="text-meta" style={{ color: 'var(--ink-2)' }}>
-                        {formatCurrency(order.total)} paid
-                      </span>
-                      <span className="text-meta font-semibold text-ink">
-                        {formatCurrency(order.payoutAmount)} to you
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+            <Link href="/seller/products" className="btn btn-outline">
+              My products
+            </Link>
+            <Link href="/seller/products/new" className="btn btn-outline">
+              List a product
+            </Link>
           </>
         )}
+        {canFinance && (
+          <Link href="/seller/earnings" className="btn btn-outline">
+            Earnings &amp; payouts
+          </Link>
+        )}
+        <Link href="/seller/team" className="btn btn-outline">
+          Team
+        </Link>
       </div>
-    </main>
+
+      {summary && summary.lowStock.length > 0 && (
+        <section className="mt-10">
+          <SectionTitle>Running low</SectionTitle>
+          <p className="m-0 mt-1 text-meta" style={{ color: 'var(--ink-3)' }}>
+            {shop.lowStockThreshold} or fewer left. Restock before these sell out.
+          </p>
+          <ul className="m-0 mt-4 flex list-none flex-col gap-px p-0" style={{ background: 'var(--border)' }}>
+            {summary.lowStock.map((item) => (
+              <li
+                key={item.id}
+                className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 p-3.5"
+                style={{ background: 'var(--surface)' }}
+              >
+                <Link href={`/seller/products/${item.id}`} className="min-w-0 truncate text-[14px] text-ink hover:underline">
+                  {item.name}
+                </Link>
+                <span className="font-mono text-small" style={{ color: 'var(--ink-3)' }}>
+                  {item.sku}
+                </span>
+                <span
+                  className="text-meta font-semibold"
+                  style={{ color: item.quantity === 0 ? 'var(--sale)' : 'var(--ink)' }}
+                >
+                  {item.quantity === 0 ? 'Sold out' : `${item.quantity} left`}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {summary && (
+        <section className="mt-10">
+          <SectionTitle>Recent orders</SectionTitle>
+          {summary.recentOrders.length === 0 ? (
+            <p className="mt-3 text-[14px]" style={{ color: 'var(--ink-3)' }}>
+              Nothing yet. Orders appear here as soon as someone buys from you.
+            </p>
+          ) : (
+            <ul className="m-0 mt-4 flex list-none flex-col gap-px p-0" style={{ background: 'var(--border)' }}>
+              {summary.recentOrders.map((order) => (
+                <li
+                  key={order.id}
+                  className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 p-3.5"
+                  style={{ background: 'var(--surface)' }}
+                >
+                  <span className="font-mono text-meta text-ink">{order.orderNumber}</span>
+                  <span className="text-meta" style={{ color: 'var(--ink-3)' }}>
+                    {formatDate(order.createdAt)} · {prettyStatus(order.status).toLowerCase()}
+                  </span>
+                  <span className="text-meta" style={{ color: 'var(--ink-2)' }}>
+                    {formatPaise(order.totalPaise)} paid
+                  </span>
+                  <span className="text-meta font-semibold text-ink">{formatPaise(order.payoutPaise)} to you</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+    </>
   );
-}
+};

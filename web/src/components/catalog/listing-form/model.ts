@@ -192,13 +192,22 @@ export const EMPTY_DRAFT: ListingDraft = {
 
 /* ── Loading a product into the form ────────────────────────────────── */
 
-/** The product and variant shape both consoles return (admin and seller). */
+/**
+ * The product and variant shape both consoles return (admin and seller).
+ *
+ * Money arrives as integer paise (`pricePaise`, `mrpPaise`, `costPaise`);
+ * the form edits rupees, so it converts here on the way in and in
+ * `buildProductPayload` on the way out. The rupee fields are still read when
+ * a caller hands over a product in the old shape.
+ */
 export interface LoadedVariant {
   id: string;
   sku: string;
   size: string | null;
   color: string | null;
-  price: number | null;
+  pricePaise?: number | null;
+  /** @deprecated rupees, the legacy shape; prefer `pricePaise`. */
+  price?: number | null;
   quantity: number;
   standardSize?: string | null;
   sizeOnLabel?: boolean | null;
@@ -215,8 +224,15 @@ export interface LoadedProduct {
   categoryId: string;
   brandId?: string | null;
   vendorId?: string | null;
-  price: number;
-  originalPrice: number | null;
+  sellerId?: string | null;
+  pricePaise?: number | null;
+  mrpPaise?: number | null;
+  costPaise?: number | null;
+  /** @deprecated rupees, the legacy shape; prefer `pricePaise`. */
+  price?: number | null;
+  /** @deprecated rupees, the legacy shape; prefer `mrpPaise`. */
+  originalPrice?: number | null;
+  /** @deprecated rupees, the legacy shape; prefer `costPaise`. */
   costPrice?: number | null;
   quantity: number;
   status: ProductStatus | string;
@@ -272,6 +288,16 @@ export interface LoadedProduct {
 const text = (value: unknown): string =>
   value === null || value === undefined ? '' : String(value);
 
+/** Paise from the API as the rupee text the form edits; falls back to a legacy rupee value. */
+const rupeeText = (paise: number | null | undefined, legacyRupees?: number | null): string =>
+  paise !== null && paise !== undefined ? String(paise / 100) : text(legacyRupees);
+
+/** Rupees typed in the form → integer paise for the API. */
+const paiseOrNull = (value: string): number | null => {
+  const n = numOrNull(value);
+  return n === null ? null : Math.round(n * 100);
+};
+
 /**
  * A multi-select category field ("Ports: HDMI, USB") is held in the draft as
  * one string, like every other attribute, and sent to the server as a list.
@@ -322,7 +348,7 @@ export function draftFromProduct(product: LoadedProduct, variants: LoadedVariant
     sizeOnLabel: yesNo(v.sizeOnLabel),
     gtin: text(v.gtin),
     quantity: String(v.quantity ?? 0),
-    price: v.price === null || v.price === undefined ? '' : String(v.price),
+    price: rupeeText(v.pricePaise, v.price),
   }));
 
   const measurements: ListingDraft['measurements'] = {};
@@ -339,7 +365,7 @@ export function draftFromProduct(product: LoadedProduct, variants: LoadedVariant
     ...EMPTY_DRAFT,
     articleType: text(product.articleType),
     categoryId: product.categoryId ?? '',
-    vendorId: text(product.vendorId),
+    vendorId: text(product.sellerId ?? product.vendorId),
     name: product.name ?? '',
     displayName: text(product.displayName),
     listViewName: text(product.listViewName),
@@ -348,10 +374,10 @@ export function draftFromProduct(product: LoadedProduct, variants: LoadedVariant
     styleGroupId: text(product.styleGroupId),
     colourGroupId: text(product.colourGroupId),
     brandId: text(product.brandId),
-    originalPrice: text(product.originalPrice),
+    originalPrice: rupeeText(product.mrpPaise, product.originalPrice),
     // A draft saved without a selling price is stored as 0; show it empty.
-    price: product.price ? text(product.price) : '',
-    costPrice: text(product.costPrice),
+    price: (product.pricePaise ?? product.price) ? rupeeText(product.pricePaise, product.price) : '',
+    costPrice: rupeeText(product.costPaise, product.costPrice),
     brandColour: text(product.brandColour) || text(product.color),
     colourHexes:
       product.colourHexes && typeof product.colourHexes === 'object' ? { ...product.colourHexes } : {},
@@ -867,8 +893,8 @@ export function buildProductPayload(
     sku: draft.sku.trim(),
     categoryId: draft.categoryId,
     brandId: draft.brandId,
-    price: numOrNull(draft.price) ?? 0,
-    originalPrice: numOrNull(draft.originalPrice),
+    pricePaise: paiseOrNull(draft.price) ?? 0,
+    mrpPaise: paiseOrNull(draft.originalPrice),
     quantity: totalStock(draft),
     description: draft.description,
     shortDescription: draft.shortDescription,
@@ -924,7 +950,7 @@ export function buildProductPayload(
 
   if (mode === 'admin') {
     body.vendorId = draft.vendorId;
-    body.costPrice = numOrNull(draft.costPrice);
+    body.costPaise = paiseOrNull(draft.costPrice);
     body.isFeatured = draft.isFeatured;
     body.allowBulkOrders = draft.allowBulkOrders;
     body.metaTitle = draft.metaTitle;
@@ -952,7 +978,7 @@ export function buildVariantPayload(draft: ListingDraft, row: VariantRow) {
     color:
       orNull(row.colour) ??
       (draft.colours.filter(Boolean).length === 0 ? orNull(draft.brandColour) : null),
-    price: numOrNull(row.price),
+    pricePaise: paiseOrNull(row.price),
     quantity: Math.max(0, intOrNull(row.quantity) ?? 0),
     standardSize: orNull(row.standardSize),
     sizeOnLabel: row.sizeOnLabel === '' ? null : row.sizeOnLabel === 'Yes',

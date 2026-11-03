@@ -3,48 +3,34 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import { LoadingSpinner } from '@/components/common';
 import { ListingForm } from '@/components/catalog/listing-form';
-import {
-  discontinueSellerProduct,
-  getSellerProduct,
-  type SellerProductDetail,
-} from '@/lib/seller-api';
-import { RootState } from '@/store';
+import { useSeller } from '@/components/seller/SellerContext';
+import { discontinueSellerProduct, getSellerProduct, type SellerProductDetail } from '@/lib/seller-api';
+import { NoShopYet, NotForRole, Notice, sellingClosedText } from '../../_components/ui';
 
 /**
  * Editing one of the seller's own listings.
  *
- * The Edit links in the seller area used to point at `/admin/products/{id}`,
- * which is behind an admin-only guard — a seller was shown the admin console
- * and then refused by the API. This saves through the public
- * `PUT /api/products/:id`, which admits a VENDOR and answers 404 rather than
- * 403 for a listing belonging to another shop, so ids cannot be probed.
- *
- * The listing itself is read through `/seller/products/:id` rather than the
- * public product route: that one hides anything not ACTIVE in an approved
- * shop, which is the state of every draft its own author most needs to open.
+ * Read and saved through `/seller/products/:id`, which answers 404 rather than
+ * 403 for a listing belonging to another shop, so ids cannot be probed. The
+ * public product route is no use here: it hides anything not live, which is
+ * the state of every draft its own author most needs to open.
  */
-
 export default function EditSellerProductPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const id = typeof params?.id === 'string' ? params.id : '';
-  const { user, isInitialized } = useSelector((state: RootState) => state.auth);
+  const { me, can } = useSeller();
+  const shop = me?.shop ?? null;
+  const allowed = Boolean(shop) && can('CATALOG');
 
   const [product, setProduct] = useState<SellerProductDetail | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRemoving, setIsRemoving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isInitialized && !user) router.replace(`/seller/login?redirect=/seller/products/${id}`);
-  }, [isInitialized, user, router, id]);
-
-  // Nothing is set synchronously here: the effect below only starts the fetch,
-  // and every setState lands in a callback once it resolves.
   const load = useCallback(
     () =>
       getSellerProduct(id)
@@ -58,11 +44,18 @@ export default function EditSellerProductPage() {
   );
 
   useEffect(() => {
-    if (user && id) void load();
-  }, [user, id, load]);
+    if (allowed && id) void load();
+  }, [allowed, id, load]);
+
+  if (!shop) return <NoShopYet />;
+  if (!can('CATALOG')) return <NotForRole what="the catalogue" />;
+  if (isLoading) return <LoadingSpinner className="min-h-[50vh]" size="lg" />;
+
+  const canSell = shop.status === 'APPROVED';
 
   const discontinue = async () => {
     if (!product) return;
+    if (!window.confirm(`Take ${product.name} off the shop? It stays in past orders.`)) return;
     setIsRemoving(true);
     try {
       await discontinueSellerProduct(product.id);
@@ -73,11 +66,6 @@ export default function EditSellerProductPage() {
       setIsRemoving(false);
     }
   };
-
-  if (!isInitialized || (user && isLoading)) {
-    return <LoadingSpinner className="min-h-[50vh]" size="lg" />;
-  }
-  if (!user) return null;
 
   if (!product) {
     return (
@@ -96,6 +84,8 @@ export default function EditSellerProductPage() {
     );
   }
 
+  const live = product.status === 'ACTIVE' && product.moderationStatus === 'APPROVED';
+
   return (
     <main className="section-y">
       <div className="container-max">
@@ -103,11 +93,7 @@ export default function EditSellerProductPage() {
           <div className="min-w-0">
             <h1
               className="m-0 truncate text-ink"
-              style={{
-                fontSize: 'clamp(24px, 3.2vw, 34px)',
-                lineHeight: 1.05,
-                letterSpacing: '-0.03em',
-              }}
+              style={{ fontSize: 'clamp(24px, 3.2vw, 34px)', lineHeight: 1.05, letterSpacing: '-0.03em' }}
             >
               {product.name}
             </h1>
@@ -123,7 +109,7 @@ export default function EditSellerProductPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {product.status === 'ACTIVE' && product.moderationStatus !== 'PENDING' && product.moderationStatus !== 'REJECTED' && (
+            {live && shop.status === 'APPROVED' && (
               <Link href={`/products/${product.slug}`} className="btn btn-outline btn-sm">
                 View in shop
               </Link>
@@ -136,36 +122,44 @@ export default function EditSellerProductPage() {
 
         {error && <p className="alert alert-error mt-6 text-sm">{error}</p>}
 
-        <div className="mt-6">
-          <ListingForm
-            mode="seller"
-            productId={product.id}
-            onSaved={(saved) =>
-              setProduct((p) =>
-                p
-                  ? {
-                      ...p,
-                      status: saved.status as SellerProductDetail['status'],
-                      moderationStatus: (saved.moderationStatus ??
-                        p.moderationStatus) as SellerProductDetail['moderationStatus'],
-                    }
-                  : p
-              )
-            }
-          />
-        </div>
+        {canSell ? (
+          <>
+            <div className="mt-6">
+              <ListingForm
+                mode="seller"
+                productId={product.id}
+                onSaved={(saved) =>
+                  setProduct((p) =>
+                    p
+                      ? {
+                          ...p,
+                          status: saved.status as SellerProductDetail['status'],
+                          moderationStatus: (saved.moderationStatus ??
+                            p.moderationStatus) as SellerProductDetail['moderationStatus'],
+                        }
+                      : p
+                  )
+                }
+              />
+            </div>
 
-        <div className="mt-8 border-t border-line pt-6">
-          <button
-            type="button"
-            onClick={discontinue}
-            disabled={isRemoving}
-            className="text-meta underline underline-offset-2 disabled:opacity-40"
-            style={{ color: 'var(--sale)' }}
-          >
-            Take off the shop
-          </button>
-        </div>
+            <div className="mt-8 border-t border-line pt-6">
+              <button
+                type="button"
+                onClick={discontinue}
+                disabled={isRemoving}
+                className="text-meta underline underline-offset-2 disabled:opacity-40"
+                style={{ color: 'var(--sale)' }}
+              >
+                Take off the shop
+              </button>
+            </div>
+          </>
+        ) : (
+          <Notice title="Listings cannot be changed right now" tone="alert">
+            {sellingClosedText(shop)}
+          </Notice>
+        )}
       </div>
     </main>
   );

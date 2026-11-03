@@ -2,93 +2,60 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import { Button, Input, LoadingSpinner } from '@/components/common';
+import { useSeller } from '@/components/seller/SellerContext';
 import {
+  EDITABLE_STATUSES,
+  KYC_KIND_LABELS,
+  STATUS_LABELS,
   deleteKycDocument,
-  fetchKycDocument,
-  getSellerKyc,
-  submitKyc,
+  kycDocumentUrl,
+  listKycDocuments,
+  submitApplication,
+  updateBusiness,
   uploadKycDocument,
-  type KycStatus,
-  type SellerKyc,
+  type KycDocument,
+  type KycKind,
 } from '@/lib/seller-api';
-import { RootState } from '@/store';
+import { cleanId, taxIdProblem } from '../_components/CompanyFields';
+import { Select } from '../_components/fields';
+import { NoShopYet, NotForRole, Notice, PageHeader, SectionTitle, StatusNotice, formatDate } from '../_components/ui';
 
 /**
- * A seller's identity check (KYC).
+ * The seller's identity check (KYC): PAN and GSTIN, the documents that back
+ * them up, and the button that sends the application for review.
  *
- * The marketplace pays out to whoever signs up, so before a shop goes live the
- * seller gives a PAN, a GSTIN if registered, and a document that backs them
- * up. The server checks the numbers' format and checksum and that the GSTIN
- * belongs to the PAN. The same checks run here first, so typos are caught
- * before the round trip. Documents are private: they never get a public URL,
- * and opening one fetches it with the seller's own token.
+ * Documents go to the private bucket (`POST /seller/kyc/documents`, one kind
+ * per file). They never get a public address: opening one asks the API for a
+ * five-minute signed link. Only the shop's owner can see this page; the API
+ * answers 403 to every other role.
  */
 
-const PAN_PATTERN = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
-const GSTIN_PATTERN = /^\d{2}[A-Z]{5}\d{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/;
-const BASE36 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-
-/** Mirrors `gstinCheckChar` in the backend's utils/kyc.ts. */
-function gstinChecksumOk(gstin: string): boolean {
-  let sum = 0;
-  for (let i = 0; i < 14; i += 1) {
-    const product = BASE36.indexOf(gstin[i]) * (i % 2 === 0 ? 1 : 2);
-    sum += Math.floor(product / 36) + (product % 36);
-  }
-  return BASE36[(36 - (sum % 36)) % 36] === gstin[14];
-}
-
-const clean = (value: string): string => value.replace(/\s+/g, '').toUpperCase();
-
-const STATUS_COPY: Record<KycStatus, { label: string; body: string }> = {
-  NOT_SUBMITTED: {
-    label: 'Not started',
-    body: 'Fill in your details and upload at least one document, then submit.',
-  },
-  PENDING: {
-    label: 'In review',
-    body: 'We have your details and are checking them. This usually takes one working day. You can still add or replace documents.',
-  },
-  REJECTED: {
-    label: 'Needs changes',
-    body: 'Fix what is described below and submit again.',
-  },
-  APPROVED: {
-    label: 'Verified',
-    body: 'Your business is verified. To change these details, contact support.',
-  },
-};
-
 const ACCEPTED = 'application/pdf,image/jpeg,image/png,image/webp';
+const KINDS = Object.keys(KYC_KIND_LABELS) as KycKind[];
+
+const kb = (bytes: number) => (bytes >= 1024 * 1024 ? `${(bytes / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
 
 export default function SellerVerificationPage() {
-  const router = useRouter();
-  const { user, isInitialized } = useSelector((state: RootState) => state.auth);
-  const fileInput = useRef<HTMLInputElement>(null);
+  const { me, refresh, can } = useSeller();
+  const shop = me?.shop ?? null;
 
-  const [kyc, setKyc] = useState<SellerKyc | null>(null);
-  const [pan, setPan] = useState('');
-  const [gstin, setGstin] = useState('');
+  const [documents, setDocuments] = useState<KycDocument[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isUploading, setIsUploading] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (isInitialized && !user) router.replace('/seller/login?redirect=/seller/verification');
-  }, [isInitialized, user, router]);
+  const [kind, setKind] = useState<KycKind>('PAN');
+  const [busy, setBusy] = useState<string | null>(null);
+  const [pan, setPan] = useState(shop?.pan ?? '');
+  const [gstin, setGstin] = useState(shop?.gstin ?? '');
+  const fileRef = useRef<HTMLInputElement>(null);
+  const allowed = Boolean(shop) && can('PROFILE');
 
   const load = useCallback(
     () =>
-      getSellerKyc()
-        .then((data) => {
-          setKyc(data);
-          setPan(data.pan ?? '');
-          setGstin(data.gstin ?? '');
+      listKycDocuments()
+        .then((rows) => {
+          setDocuments(rows);
           setError(null);
         })
         .catch((err: Error) => setError(err.message))
@@ -97,281 +64,241 @@ export default function SellerVerificationPage() {
   );
 
   useEffect(() => {
-    if (user) void load();
-  }, [user, load]);
+    if (allowed) void load();
+  }, [allowed, load]);
 
-  const locked = kyc?.status === 'APPROVED';
-  const panValue = clean(pan);
-  const gstinValue = clean(gstin);
-  const panError = panValue && !PAN_PATTERN.test(panValue) ? 'A PAN looks like ABCDE1234F.' : null;
-  const gstinError = !gstinValue
-    ? null
-    : !GSTIN_PATTERN.test(gstinValue) || !gstinChecksumOk(gstinValue)
-      ? 'That GSTIN is not valid. Check each character.'
-      : panValue && gstinValue.slice(2, 12) !== panValue
-        ? 'This GSTIN belongs to a different PAN.'
-        : null;
+  if (!shop) return <NoShopYet />;
+  if (!can('PROFILE')) return <NotForRole what="the business's verification documents" />;
+  if (isLoading) return <LoadingSpinner className="min-h-[50vh]" size="lg" />;
 
-  const onFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const editable = EDITABLE_STATUSES.includes(shop.status);
+  const missing = me?.checklist ?? [];
+
+  const pick = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     event.target.value = '';
-    if (!file || !kyc) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error('That file is over 5 MB. Try a smaller scan or a photo.');
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('That file is over 10 MB. A scan or photo of the page is enough.');
       return;
     }
-    setIsUploading(true);
+    setBusy('upload');
     try {
-      const documents = await uploadKycDocument(file);
-      setKyc({ ...kyc, documents });
-      toast.success('Document uploaded.');
+      await uploadKycDocument(kind, file);
+      toast.success(`${KYC_KIND_LABELS[kind]} uploaded.`);
+      await Promise.all([load(), refresh()]);
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
-      setIsUploading(false);
+      setBusy(null);
     }
   };
 
-  const openDocument = async (name: string) => {
-    // Opened before the fetch so popup blockers see it as a direct click.
+  const open = async (doc: KycDocument) => {
+    // Opened before the request so the browser treats it as the click's own window.
     const tab = window.open('', '_blank');
     try {
-      const blob = await fetchKycDocument(name);
-      const url = URL.createObjectURL(blob);
+      const url = await kycDocumentUrl(doc.id);
       if (tab) tab.location.href = url;
       else window.location.assign(url);
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (err) {
       tab?.close();
       toast.error((err as Error).message);
     }
   };
 
-  const removeDocument = async (name: string) => {
-    if (!kyc) return;
+  const remove = async (doc: KycDocument) => {
+    if (!window.confirm(`Remove ${doc.filename}?`)) return;
+    setBusy(doc.id);
     try {
-      const documents = await deleteKycDocument(name);
-      setKyc({ ...kyc, documents });
-    } catch (err) {
-      toast.error((err as Error).message);
-    }
-  };
-
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!kyc) return;
-    if (!panValue) {
-      toast.error('Enter your PAN.');
-      return;
-    }
-    if (panError || gstinError) {
-      toast.error(panError ?? gstinError ?? 'Check your details.');
-      return;
-    }
-    if (kyc.documents.length === 0) {
-      toast.error('Upload at least one document first.');
-      return;
-    }
-    setIsSubmitting(true);
-    try {
-      await submitKyc({ pan: panValue, ...(gstinValue ? { gstin: gstinValue } : {}) });
-      toast.success('Submitted. We will review it shortly.');
-      await load();
+      await deleteKycDocument(doc.id);
+      toast.success('Document removed.');
+      await Promise.all([load(), refresh()]);
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
-      setIsSubmitting(false);
+      setBusy(null);
     }
   };
 
-  if (!isInitialized || (user && isLoading)) {
-    return <LoadingSpinner className="min-h-[50vh]" size="lg" />;
-  }
-  if (!user) return null;
+  const saveIds = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const problem = taxIdProblem(pan, gstin);
+    if (problem) {
+      toast.error(problem);
+      return;
+    }
+    if (!cleanId(pan)) {
+      toast.error('Enter your PAN.');
+      return;
+    }
+    setBusy('ids');
+    try {
+      await updateBusiness({ pan: cleanId(pan), gstin: cleanId(gstin) || undefined });
+      toast.success('Saved.');
+      await refresh();
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
 
-  if (!kyc) {
-    return (
-      <main className="section-y">
-        <div className="container-max">
-          {error && <p className="alert alert-error text-sm">{error}</p>}
-          <p className="text-[15px]" style={{ color: 'var(--ink-2)' }}>
-            You need a seller account before you can verify it.{' '}
-            <Link href="/seller" className="underline underline-offset-2">
-              Set one up
-            </Link>
-            .
-          </p>
-        </div>
-      </main>
-    );
-  }
-
-  const status = STATUS_COPY[kyc.status];
+  const submit = async () => {
+    setBusy('submit');
+    try {
+      await submitApplication();
+      toast.success('Application submitted.');
+      await refresh();
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
 
   return (
     <main className="section-y">
       <div className="container-max">
-        <header className="flex flex-wrap items-end justify-between gap-4 border-b border-line pb-6">
-          <div>
-            <h1
-              className="m-0 text-ink"
-              style={{ fontSize: 'clamp(26px, 3.6vw, 38px)', lineHeight: 1.05, letterSpacing: '-0.03em' }}
-            >
-              Verify your business
-            </h1>
-            <p className="mt-2 text-[14px]" style={{ color: 'var(--ink-3)' }}>
-              Shoppers buy with more confidence from verified sellers, and we need it to pay you.
-            </p>
-          </div>
-          <Link href="/seller" className="btn btn-outline btn-sm">
-            Back to dashboard
-          </Link>
-        </header>
+        <PageHeader
+          title="Verification"
+          lead={`Your PAN, GSTIN and the documents that back them up. Status: ${STATUS_LABELS[shop.status].toLowerCase()}.`}
+          actions={
+            <Link href="/seller" className="btn btn-outline btn-sm">
+              Back to overview
+            </Link>
+          }
+        />
 
-        <div className="mt-8 flex max-w-[720px] flex-col gap-8">
-          <div
-            className="border px-4 py-3.5 text-[14px]"
-            role="status"
-            style={
-              kyc.status === 'APPROVED'
-                ? { borderColor: 'var(--border)', background: 'var(--surface-2)' }
-                : kyc.status === 'REJECTED'
-                  ? { borderColor: 'var(--sale)', background: 'var(--surface-2)' }
-                  : { borderColor: 'var(--brand)', background: 'var(--brand-soft)' }
-            }
-          >
-            <p className="m-0 font-semibold text-ink">Status: {status.label}</p>
-            <p className="m-0 mt-1" style={{ color: 'var(--ink-2)' }}>
-              {status.body}
-            </p>
-            {kyc.status === 'REJECTED' && kyc.rejectionReason && (
-              <p className="m-0 mt-2 text-ink">
-                <strong>What to fix:</strong> {kyc.rejectionReason}
+        <StatusNotice shop={shop} />
+        {error && <p className="alert alert-error mt-6 text-sm">{error}</p>}
+
+        <div className="mt-8 flex max-w-[720px] flex-col gap-10">
+          <form onSubmit={saveIds} className="flex flex-col gap-4">
+            <SectionTitle>Tax identity</SectionTitle>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Input
+                id="kyc-pan"
+                label="PAN *"
+                value={pan}
+                onChange={(event) => setPan(cleanId(event.target.value))}
+                maxLength={10}
+                autoComplete="off"
+                placeholder="ABCDE1234F"
+                disabled={!editable}
+              />
+              <Input
+                id="kyc-gstin"
+                label="GSTIN"
+                value={gstin}
+                onChange={(event) => setGstin(cleanId(event.target.value))}
+                maxLength={15}
+                autoComplete="off"
+                placeholder="Only if you are registered"
+                disabled={!editable}
+              />
+            </div>
+            {editable ? (
+              <div>
+                <Button type="submit" variant="outline" loading={busy === 'ids'}>
+                  Save PAN and GSTIN
+                </Button>
+              </div>
+            ) : (
+              <p className="m-0 text-meta" style={{ color: 'var(--ink-3)' }}>
+                Locked while your application is reviewed and once it is decided. Contact us to change them.
               </p>
             )}
-          </div>
+          </form>
 
-          <form onSubmit={submit} className="flex flex-col gap-8">
-            <section className="flex flex-col gap-4">
-              <h2 className="m-0 text-ink" style={{ fontSize: '17px', fontWeight: 600, letterSpacing: '-0.01em' }}>
-                Tax details
-              </h2>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Input
-                  id="kyc-pan"
-                  label="PAN *"
-                  value={pan}
-                  onChange={(event) => setPan(event.target.value.toUpperCase())}
-                  maxLength={10}
-                  autoComplete="off"
-                  placeholder="ABCDE1234F"
-                  disabled={locked}
-                  error={panError ?? undefined}
-                  helperText={panError ? undefined : 'The business PAN, or your own if you sell as an individual.'}
-                />
-                <Input
-                  id="kyc-gstin"
-                  label="GSTIN"
-                  value={gstin}
-                  onChange={(event) => setGstin(event.target.value.toUpperCase())}
-                  maxLength={15}
-                  autoComplete="off"
-                  placeholder="27ABCDE1234F1Z5"
-                  disabled={locked}
-                  error={gstinError ?? undefined}
-                  helperText={gstinError ? undefined : 'Optional if you are below the GST threshold.'}
-                />
-              </div>
-            </section>
+          <section className="flex flex-col gap-4 border-t border-line pt-8">
+            <SectionTitle>Documents</SectionTitle>
+            <p className="m-0 text-[14px]" style={{ color: 'var(--ink-3)' }}>
+              A PAN card is always needed; add the GST certificate if you gave a GSTIN. PDF, JPG, PNG or WebP, up to
+              10 MB. Only you and our review team can open them.
+            </p>
 
-            <section className="flex flex-col gap-4 border-t border-line pt-8">
-              <div>
-                <h2 className="m-0 text-ink" style={{ fontSize: '17px', fontWeight: 600, letterSpacing: '-0.01em' }}>
-                  Documents
-                </h2>
-                <p className="m-0 mt-2 text-[14px]" style={{ color: 'var(--ink-3)' }}>
-                  Your PAN card, and your GST certificate if you gave a GSTIN. A cancelled cheque helps
-                  us confirm your bank account. PDF or photo, up to 5 MB each. Only our verification
-                  team can see these.
-                </p>
-              </div>
-
-              {kyc.documents.length > 0 ? (
-                <ul className="m-0 flex list-none flex-col gap-px p-0" style={{ background: 'var(--border)' }}>
-                  {kyc.documents.map((name, index) => (
-                    <li
-                      key={name}
-                      className="flex flex-wrap items-center justify-between gap-3 p-3.5"
-                      style={{ background: 'var(--surface)' }}
-                    >
-                      <span className="text-[14px] text-ink">
-                        Document {index + 1}{' '}
-                        <span className="text-small" style={{ color: 'var(--ink-3)' }}>
-                          ({name.endsWith('.pdf') ? 'PDF' : 'Image'})
-                        </span>
-                      </span>
-                      <span className="flex gap-4 text-meta">
+            {documents.length === 0 ? (
+              <p className="m-0 text-[14px]" style={{ color: 'var(--ink-2)' }}>
+                Nothing uploaded yet.
+              </p>
+            ) : (
+              <ul className="m-0 flex list-none flex-col gap-px p-0" style={{ background: 'var(--border)' }}>
+                {documents.map((doc) => (
+                  <li
+                    key={doc.id}
+                    className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 p-3.5"
+                    style={{ background: 'var(--surface)' }}
+                  >
+                    <div className="min-w-0">
+                      <p className="m-0 text-[14px] font-medium text-ink">{KYC_KIND_LABELS[doc.kind]}</p>
+                      <p className="m-0 truncate text-small" style={{ color: 'var(--ink-3)' }}>
+                        {doc.filename} · {kb(doc.bytes)} · {formatDate(doc.createdAt)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-3 text-meta">
+                      <button type="button" className="underline underline-offset-2" onClick={() => void open(doc)}>
+                        View
+                      </button>
+                      {editable && (
                         <button
                           type="button"
-                          onClick={() => openDocument(name)}
-                          className="underline underline-offset-2 text-ink"
+                          className="underline underline-offset-2 disabled:opacity-40"
+                          style={{ color: 'var(--sale)' }}
+                          disabled={busy === doc.id}
+                          onClick={() => void remove(doc)}
                         >
-                          View
+                          Remove
                         </button>
-                        {!locked && (
-                          <button
-                            type="button"
-                            onClick={() => removeDocument(name)}
-                            className="underline underline-offset-2"
-                            style={{ color: 'var(--ink-3)' }}
-                            aria-label={`Remove document ${index + 1}`}
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="m-0 text-[14px]" style={{ color: 'var(--ink-3)' }}>
-                  No documents yet.
-                </p>
-              )}
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
 
-              {!locked && kyc.documents.length < kyc.maxDocuments && (
-                <div>
-                  <input
-                    ref={fileInput}
-                    id="kyc-file"
-                    type="file"
-                    accept={ACCEPTED}
-                    onChange={onFile}
-                    className="sr-only"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    loading={isUploading}
-                    onClick={() => fileInput.current?.click()}
-                  >
-                    Upload a document
-                  </Button>
+            {editable && (
+              <div className="flex flex-wrap items-end gap-3">
+                <div className="min-w-[220px]">
+                  <Select id="kyc-kind" label="Document" value={kind} onChange={(event) => setKind(event.target.value as KycKind)}>
+                    {KINDS.map((k) => (
+                      <option key={k} value={k}>
+                        {KYC_KIND_LABELS[k]}
+                      </option>
+                    ))}
+                  </Select>
                 </div>
-              )}
-            </section>
-
-            {!locked && (
-              <div className="flex flex-wrap items-center gap-3 border-t border-line pt-6">
-                <Button type="submit" size="lg" loading={isSubmitting}>
-                  {kyc.status === 'PENDING' ? 'Update and resubmit' : 'Submit for review'}
+                <input ref={fileRef} type="file" accept={ACCEPTED} className="hidden" onChange={pick} aria-label="Choose a file" />
+                <Button type="button" loading={busy === 'upload'} onClick={() => fileRef.current?.click()}>
+                  Choose file and upload
                 </Button>
-                <p className="m-0 text-meta" style={{ color: 'var(--ink-3)' }}>
-                  By submitting you confirm these documents are yours and accurate.
-                </p>
               </div>
             )}
-          </form>
+          </section>
+
+          {editable && (
+            <section className="flex flex-col gap-3 border-t border-line pt-8">
+              <SectionTitle>Send for review</SectionTitle>
+              {missing.length > 0 ? (
+                <Notice title="Not ready yet" tone="plain" className="mt-0">
+                  <ul className="m-0 list-disc pl-5">
+                    {missing.map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
+                  </ul>
+                </Notice>
+              ) : (
+                <p className="m-0 text-[14px]" style={{ color: 'var(--ink-2)' }}>
+                  Everything we need is in. Submit and our team will review it, usually within one working day.
+                </p>
+              )}
+              <div>
+                <Button disabled={missing.length > 0} loading={busy === 'submit'} onClick={submit}>
+                  Submit application
+                </Button>
+              </div>
+            </section>
+          )}
         </div>
       </div>
     </main>

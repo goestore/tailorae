@@ -89,6 +89,13 @@
   color: var(--ink);
 }
 
+.seller-switcher select {
+  max-width: 220px;
+  padding-right: 28px;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+
 .seller-account {
   display: flex;
   align-items: center;

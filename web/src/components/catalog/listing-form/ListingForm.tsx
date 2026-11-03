@@ -8,26 +8,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  createVariant,
-  deleteVariant,
-  getProduct,
   listBrands,
   listCategories,
-  listProducts,
   listSellerOptions,
   slugify,
   suggestVariantSku,
-  updateVariant,
   type ProductStatus,
   type SellerOption,
 } from '@/lib/admin-products';
-import {
-  createSellerVariant,
-  deleteSellerVariant,
-  getSellerProduct,
-  getSellerProducts,
-  updateSellerVariant,
-} from '@/lib/seller-api';
 import {
   ListingSaveError,
   getArticleSpec,
@@ -36,7 +24,6 @@ import {
   listCategoryChoices,
   listPublicBrands,
   addBrand,
-  saveListingProduct,
   type ArticleSpec,
   type ArticleTypeSummary,
   type MissingField,
@@ -57,6 +44,7 @@ import { AttributesSection } from './AttributesSection';
 import { SizesSection } from './SizesSection';
 import { ImagesSection } from './ImagesSection';
 import { Checklist } from './Checklist';
+import { listingApi, type ListingFormApi } from './api';
 import {
   EMPTY_DRAFT,
   SECTIONS,
@@ -75,8 +63,6 @@ import {
   targetForMissing,
   type FormMode,
   type ListingDraft,
-  type LoadedProduct,
-  type LoadedVariant,
   type SectionId,
   type VariantRow,
 } from './model';
@@ -87,6 +73,11 @@ export interface ListingFormProps {
   productId?: string;
   /** Told the stored status after every save, so the page header can follow. */
   onSaved?: (product: SavedProduct) => void;
+  /**
+   * Replaces any of the product requests (load, save, sizes, personalisation,
+   * search). Defaults to the console's own routes for `mode`. Must be stable.
+   */
+  api?: Partial<ListingFormApi>;
 }
 
 interface CategoryOption {
@@ -116,24 +107,6 @@ const FLASH_KEY = 'tl:listing-flash';
 const editHref = (mode: FormMode, id: string) =>
   mode === 'admin' ? `/admin/products/${id}` : `/seller/products/${id}`;
 const newHref = (mode: FormMode) => (mode === 'admin' ? '/admin/products/new' : '/seller/products/new');
-
-/** A product with its variants, from whichever console is asking. */
-async function loadFull(
-  mode: FormMode,
-  id: string
-): Promise<{ product: LoadedProduct; variants: LoadedVariant[] }> {
-  if (mode === 'admin') {
-    const product = (await getProduct(id)) as unknown as LoadedProduct & {
-      variants?: LoadedVariant[];
-    };
-    return { product, variants: product.variants ?? [] };
-  }
-  const product = await getSellerProduct(id);
-  return {
-    product: product as unknown as LoadedProduct,
-    variants: (product.variants ?? []) as LoadedVariant[],
-  };
-}
 
 const norm = (value: string) => value.toLowerCase().replace(/[^a-z]/g, '');
 
@@ -184,30 +157,9 @@ function skuFromName(name: string, tail: string): string {
   return stem ? `${stem}-${tail}` : '';
 }
 
-const variantApi = (mode: FormMode) =>
-  mode === 'admin'
-    ? {
-        create: (pid: string, body: ReturnType<typeof buildVariantPayload>) =>
-          createVariant(pid, body),
-        update: async (
-          pid: string,
-          vid: string,
-          body: Partial<ReturnType<typeof buildVariantPayload>>
-        ) => {
-          await updateVariant(pid, vid, body);
-        },
-        remove: (pid: string, vid: string) => deleteVariant(pid, vid),
-      }
-    : {
-        create: (pid: string, body: ReturnType<typeof buildVariantPayload>) =>
-          createSellerVariant(pid, body),
-        update: (pid: string, vid: string, body: Partial<ReturnType<typeof buildVariantPayload>>) =>
-          updateSellerVariant(pid, vid, body),
-        remove: (pid: string, vid: string) => deleteSellerVariant(pid, vid),
-      };
-
-export const ListingForm: React.FC<ListingFormProps> = ({ mode, productId: initialId, onSaved }) => {
+export const ListingForm: React.FC<ListingFormProps> = ({ mode, productId: initialId, onSaved, api }) => {
   const router = useRouter();
+  const io = useMemo(() => listingApi(mode, api), [mode, api]);
   // Print / embroidery options of a saved clothing product.
   const [customizations, setCustomizations] = useState<ProductCustomizationRow[] | null>(null);
   const [customizationsKey, setCustomizationsKey] = useState(0);
@@ -272,7 +224,7 @@ export const ListingForm: React.FC<ListingFormProps> = ({ mode, productId: initi
       }))
     );
     const sellersP = mode === 'admin' ? listSellerOptions() : Promise.resolve<SellerOption[]>([]);
-    const productP = initialId ? loadFull(mode, initialId) : Promise.resolve(null);
+    const productP = initialId ? io.loadProduct(initialId) : Promise.resolve(null);
     const lastP = initialId ? Promise.resolve(null) : getLastBusinessDetails();
 
     Promise.all([listArticleTypes(), categoriesP, brandsP, sellersP, productP, lastP])
@@ -290,10 +242,7 @@ export const ListingForm: React.FC<ListingFormProps> = ({ mode, productId: initi
         setSpec(loadedSpec);
         if (loaded) {
           setDraft(draftFromProduct(loaded.product, loaded.variants));
-          setCustomizations(
-            ((loaded.product as unknown as { customizations?: ProductCustomizationRow[] })
-              .customizations ?? []) as ProductCustomizationRow[]
-          );
+          setCustomizations(loaded.customizations);
           setStoredStatus(String(loaded.product.status));
           setModeration({
             status: loaded.product.moderationStatus,
@@ -331,7 +280,7 @@ export const ListingForm: React.FC<ListingFormProps> = ({ mode, productId: initi
     return () => {
       cancelled = true;
     };
-  }, [mode, initialId]);
+  }, [mode, initialId, io]);
 
   /* ── Unsaved changes ─────────────────────────────────────────────── */
 
@@ -611,7 +560,7 @@ export const ListingForm: React.FC<ListingFormProps> = ({ mode, productId: initi
 
 
   const copyFrom = async (id: string, asColour = false) => {
-    const { product, variants } = await loadFull(mode, id);
+    const { product, variants } = await io.loadProduct(id);
     const copySpec = product.articleType
       ? await getArticleSpec(product.articleType, product.categoryId).catch(() => null)
       : null;
@@ -624,7 +573,7 @@ export const ListingForm: React.FC<ListingFormProps> = ({ mode, productId: initi
       group = (product.colourGroupId ?? '').trim() || product.sku;
       base.colourGroupId = group;
       if (!product.colourGroupId) {
-        await saveListingProduct(mode, id, { colourGroupId: group }).catch(() => undefined);
+        await io.saveProduct(id, { colourGroupId: group }).catch(() => undefined);
       }
     }
     const sku = skuFromName(base.name, skuTail.current);
@@ -756,11 +705,7 @@ export const ListingForm: React.FC<ListingFormProps> = ({ mode, productId: initi
       //    listing stays live while it is edited; the server re-checks it).
       const status: ProductStatus | undefined =
         intent === 'publish' ? (isLive ? undefined : 'DRAFT') : secondaryStatus;
-      const saved = await saveListingProduct(
-        mode,
-        id,
-        buildProductPayload(snapshot, spec, mode, status)
-      );
+      const saved = await io.saveProduct(id, buildProductPayload(snapshot, spec, mode, status));
       productSaved = true;
       if (/review/i.test(saved.message)) reviewNote = saved.message;
       created = !id;
@@ -775,12 +720,9 @@ export const ListingForm: React.FC<ListingFormProps> = ({ mode, productId: initi
       // Switching personalisation on gives the product starter options on the
       // server; read them back so the editor shows what the shopper will see.
       if (snapshot.isCustomizable && spec && isApparel(spec)) {
-        loadFull(mode, id)
+        io.loadProduct(id)
           .then((fresh) => {
-            setCustomizations(
-              ((fresh.product as unknown as { customizations?: ProductCustomizationRow[] })
-                .customizations ?? []) as ProductCustomizationRow[]
-            );
+            setCustomizations(fresh.customizations);
             setCustomizationsKey((k) => k + 1);
           })
           .catch(() => undefined);
@@ -790,14 +732,13 @@ export const ListingForm: React.FC<ListingFormProps> = ({ mode, productId: initi
       setDraft((d) => ({ ...d, slug: saved.product.slug ?? d.slug }));
 
       // 2. Sizes: removals first, so a SKU can move from a removed row to a new one.
-      const api = variantApi(mode);
       const keep = new Set(snapshot.rows.map((r) => r.id).filter(Boolean));
       const errors: string[] = [];
       const remaining: string[] = [];
       for (const vid of serverVariantIds) {
         if (keep.has(vid)) continue;
         try {
-          await api.remove(id, vid);
+          await io.deleteVariant(id, vid);
         } catch (error) {
           remaining.push(vid);
           errors.push((error as Error).message);
@@ -809,15 +750,15 @@ export const ListingForm: React.FC<ListingFormProps> = ({ mode, productId: initi
         const label = `${row.colour ? `${row.colour} ` : ''}${row.size || row.sku}`;
         try {
           if (row.id) {
-            await api.update(id, row.id, body);
+            await io.updateVariant(id, row.id, body);
             idsByKey.set(row.key, row.id);
           } else {
-            const createdVariant = await api.create(id, body);
+            const createdVariant = await io.createVariant(id, body);
             idsByKey.set(row.key, createdVariant.id);
             // Create stores the basics; the listing values go on with an update.
             const { standardSize, sizeOnLabel, gtin, measurements } = body;
             if (standardSize || sizeOnLabel !== null || gtin || Object.keys(measurements).length) {
-              await api.update(id, createdVariant.id, {
+              await io.updateVariant(id, createdVariant.id, {
                 standardSize,
                 sizeOnLabel,
                 gtin,
@@ -847,7 +788,7 @@ export const ListingForm: React.FC<ListingFormProps> = ({ mode, productId: initi
 
       // 3. Go live, which is where the server checks the listing is complete.
       if (intent === 'publish') {
-        const live = await saveListingProduct(mode, id, { status: 'ACTIVE' });
+        const live = await io.saveProduct(id, { status: 'ACTIVE' });
         setStoredStatus(live.product.status);
         onSaved?.(live.product);
         if (/review/i.test(live.message)) reviewNote = live.message;
@@ -1030,7 +971,7 @@ export const ListingForm: React.FC<ListingFormProps> = ({ mode, productId: initi
               </div>
             )}
 
-            {!productId && <CopyFrom mode={mode} onPick={copyFrom} />}
+            {!productId && <CopyFrom search={io.searchProducts} onPick={copyFrom} />}
             {productId && (
               <div className="lf-copy lf-inline lf-wrap" style={{ justifyContent: 'space-between' }}>
                 <span className="lf-hint" style={{ margin: 0 }}>
@@ -1427,6 +1368,7 @@ export const ListingForm: React.FC<ListingFormProps> = ({ mode, productId: initi
                       productId={productId}
                       initial={customizations}
                       as={mode}
+                      save={io.saveCustomizations}
                     />
                   )}
                   {mode === 'admin' && (
@@ -1543,11 +1485,11 @@ export const ListingForm: React.FC<ListingFormProps> = ({ mode, productId: initi
 /* ── Copy from an existing product ─────────────────────────────────── */
 
 interface CopyFromProps {
-  mode: FormMode;
+  search: ListingFormApi['searchProducts'];
   onPick: (id: string) => Promise<void>;
 }
 
-const CopyFrom: React.FC<CopyFromProps> = ({ mode, onPick }) => {
+const CopyFrom: React.FC<CopyFromProps> = ({ search: find, onPick }) => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Array<{ id: string; name: string; sku: string }> | null>(
     null
@@ -1559,21 +1501,7 @@ const CopyFrom: React.FC<CopyFromProps> = ({ mode, onPick }) => {
     setBusy(true);
     setError(null);
     try {
-      if (mode === 'admin') {
-        const page = await listProducts({ search: query.trim(), limit: 8 });
-        setResults(page.products.map((p) => ({ id: p.id, name: p.name, sku: p.sku })));
-      } else {
-        const q = query.trim().toLowerCase();
-        const rows = await getSellerProducts();
-        setResults(
-          rows
-            .filter(
-              (p) => !q || p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q)
-            )
-            .slice(0, 8)
-            .map((p) => ({ id: p.id, name: p.name, sku: p.sku }))
-        );
-      }
+      setResults(await find(query.trim()));
     } catch (err) {
       setError((err as Error).message);
     } finally {

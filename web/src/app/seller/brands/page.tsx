@@ -2,22 +2,21 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import { Button, Input, LoadingSpinner } from '@/components/common';
 import { ProductThumb } from '@/components/product';
+import { useSeller } from '@/components/seller/SellerContext';
 import {
-  fetchSellerBrandDocument,
   getSellerBrands,
+  sellerBrandDocumentUrl,
   registerSellerBrand,
   type BrandAuthorizationType,
   type BrandStatus,
   type SellerBrand,
 } from '@/lib/seller-api';
-import { RootState } from '@/store';
 import { ImageField } from '../_components/ImageField';
 import { Select, TextArea } from '../_components/fields';
+import { NoShopYet, NotForRole } from '../_components/ui';
 
 /**
  * Brands a shop sells under.
@@ -38,7 +37,7 @@ const STATUS_COPY: Record<BrandStatus, { label: string; color: string }> = {
 };
 
 const AUTH_LABELS: Record<BrandAuthorizationType, string> = {
-  TRADEMARK_OWNER: 'Trademark owner',
+  OWNER: 'Trademark owner',
   AUTHORISED_RESELLER: 'Authorised reseller',
 };
 
@@ -54,13 +53,14 @@ const EMPTY: FormValues = {
   name: '',
   description: '',
   logo: '',
-  authorizationType: 'TRADEMARK_OWNER',
+  authorizationType: 'OWNER',
   document: null,
 };
 
 export default function SellerBrandsPage() {
-  const router = useRouter();
-  const { user, isInitialized } = useSelector((state: RootState) => state.auth);
+  const { me, can } = useSeller();
+  const shop = me?.shop ?? null;
+  const allowed = Boolean(shop) && can('CATALOG');
 
   const [brands, setBrands] = useState<SellerBrand[]>([]);
   const [values, setValues] = useState<FormValues>(EMPTY);
@@ -69,10 +69,6 @@ export default function SellerBrandsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (isInitialized && !user) router.replace('/seller/login?redirect=/seller/brands');
-  }, [isInitialized, user, router]);
 
   const load = useCallback(
     () =>
@@ -87,8 +83,8 @@ export default function SellerBrandsPage() {
   );
 
   useEffect(() => {
-    if (user) void load();
-  }, [user, load]);
+    if (allowed) void load();
+  }, [allowed, load]);
 
   const set = <K extends keyof FormValues>(key: K, value: FormValues[K]) =>
     setValues((current) => ({ ...current, [key]: value }));
@@ -99,7 +95,7 @@ export default function SellerBrandsPage() {
       name: brand.name,
       description: brand.description ?? '',
       logo: brand.logo ?? '',
-      authorizationType: brand.authorizationType ?? 'TRADEMARK_OWNER',
+      authorizationType: brand.authorizationType ?? 'OWNER',
       document: null,
     });
     setFormKey((key) => key + 1);
@@ -144,21 +140,19 @@ export default function SellerBrandsPage() {
     // Opened before the fetch so popup blockers see it as a direct click.
     const tab = window.open('', '_blank');
     try {
-      const blob = await fetchSellerBrandDocument(brandId);
-      const url = URL.createObjectURL(blob);
+      // A five-minute signed link: the proof sits in the private bucket.
+      const url = await sellerBrandDocumentUrl(brandId);
       if (tab) tab.location.href = url;
       else window.location.assign(url);
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch (err) {
       tab?.close();
       toast.error((err as Error).message);
     }
   };
 
-  if (!isInitialized || (user && isLoading)) {
-    return <LoadingSpinner className="min-h-[50vh]" size="lg" />;
-  }
-  if (!user) return null;
+  if (!shop) return <NoShopYet />;
+  if (!can('CATALOG')) return <NotForRole what="brands" />;
+  if (isLoading) return <LoadingSpinner className="min-h-[50vh]" size="lg" />;
 
   return (
     <main className="section-y">
@@ -180,7 +174,7 @@ export default function SellerBrandsPage() {
             </p>
           </div>
           <Link href="/seller" className="btn btn-outline btn-sm">
-            Back to dashboard
+            Back to overview
           </Link>
         </header>
 
@@ -203,7 +197,9 @@ export default function SellerBrandsPage() {
               style={{ background: 'var(--border)' }}
             >
               {brands.map((brand) => {
-                const status = STATUS_COPY[brand.status];
+                // This shop's own proof is reviewed per shop; fall back to the brand's review.
+                const review = brand.authorizationStatus ?? brand.status;
+                const status = STATUS_COPY[review] ?? STATUS_COPY.PENDING;
                 return (
                   <li
                     key={brand.id}
@@ -224,9 +220,9 @@ export default function SellerBrandsPage() {
                         {' · '}
                         {brand._count.products} listing{brand._count.products === 1 ? '' : 's'}
                       </p>
-                      {brand.status === 'REJECTED' && brand.rejectionReason && (
+                      {review === 'REJECTED' && brand.authorizationRejectionReason && (
                         <p className="m-0 mt-1 text-meta" style={{ color: 'var(--sale)' }}>
-                          {brand.rejectionReason}
+                          {brand.authorizationRejectionReason}
                         </p>
                       )}
                     </div>
@@ -242,7 +238,7 @@ export default function SellerBrandsPage() {
                         View proof
                       </button>
                     )}
-                    {(brand.status === 'REJECTED' || !brand.hasDocument) && (
+                    {(review === 'REJECTED' || !brand.hasDocument) && (
                       <button
                         type="button"
                         className="btn btn-primary btn-sm"
@@ -307,7 +303,7 @@ export default function SellerBrandsPage() {
               set('authorizationType', event.target.value as BrandAuthorizationType)
             }
           >
-            <option value="TRADEMARK_OWNER">I own the trademark</option>
+            <option value="OWNER">I own the trademark</option>
             <option value="AUTHORISED_RESELLER">I am an authorised reseller</option>
           </Select>
           <div className="space-y-1">

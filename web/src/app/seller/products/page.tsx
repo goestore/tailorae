@@ -2,14 +2,13 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import { LoadingSpinner } from '@/components/common';
 import { ProductThumb } from '@/components/product';
+import { useSeller } from '@/components/seller/SellerContext';
+import { formatPaise } from '@/lib/money';
 import { getSellerProducts, updateSellerProduct, type SellerProduct } from '@/lib/seller-api';
-import { formatCurrency } from '@/utils/helpers';
-import { RootState } from '@/store';
+import { NoShopYet, NotForRole, Notice, sellingClosedText } from '../_components/ui';
 
 /**
  * A seller's own catalogue.
@@ -21,9 +20,9 @@ import { RootState } from '@/store';
  * Stock and visibility are changed from the table rather than by opening each
  * listing: restocking after a delivery and taking a run of things live are what
  * a seller does here most often, and neither is worth a page each. Both save
- * through the public `PUT /api/products/:id`, which admits a VENDOR and refuses
- * anything that is not their own; the links used to point into the admin
- * console, which is admin-only and answered 403.
+ * through `PUT /seller/products/:id`, which answers 404 for anything that is
+ * not this shop's own. Changes are refused until the shop is approved, so the
+ * controls are switched off with the reason shown instead.
  */
 
 /** What the quick action does next, given where a listing is now. */
@@ -35,8 +34,10 @@ const NEXT_VISIBILITY: Record<string, { status: 'ACTIVE' | 'INACTIVE'; label: st
 };
 
 export default function SellerProductsPage() {
-  const router = useRouter();
-  const { user, isInitialized } = useSelector((state: RootState) => state.auth);
+  const { me, can } = useSeller();
+  const shop = me?.shop ?? null;
+  const allowed = Boolean(shop) && can('CATALOG');
+  const canSell = shop?.status === 'APPROVED';
 
   const [products, setProducts] = useState<SellerProduct[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -49,16 +50,12 @@ export default function SellerProductsPage() {
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (isInitialized && !user) router.replace('/seller/login?redirect=/seller/products');
-  }, [isInitialized, user, router]);
-
   // Nothing is set synchronously here: the effect below only starts the fetch,
   // and every setState lands in a callback once it resolves.
   const load = useCallback(
     () =>
-      getSellerProducts()
-        .then((rows) => {
+      getSellerProducts({ limit: 100 })
+        .then(({ products: rows }) => {
           setProducts(rows);
           setDrafts({});
           setError(null);
@@ -69,8 +66,8 @@ export default function SellerProductsPage() {
   );
 
   useEffect(() => {
-    if (user) void load();
-  }, [user, load]);
+    if (allowed) void load();
+  }, [allowed, load]);
 
   const saveStock = async (product: SellerProduct) => {
     const raw = drafts[product.id] ?? '';
@@ -116,10 +113,9 @@ export default function SellerProductsPage() {
     }
   };
 
-  if (!isInitialized || (user && isLoading)) {
-    return <LoadingSpinner className="min-h-[50vh]" size="lg" />;
-  }
-  if (!user) return null;
+  if (!shop) return <NoShopYet />;
+  if (!can('CATALOG')) return <NotForRole what="the catalogue" />;
+  if (isLoading) return <LoadingSpinner className="min-h-[50vh]" size="lg" />;
 
   return (
     <main className="section-y">
@@ -141,14 +137,22 @@ export default function SellerProductsPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/seller/products/new" className="btn btn-primary btn-sm">
-              List a product
-            </Link>
+            {canSell && (
+              <Link href="/seller/products/new" className="btn btn-primary btn-sm">
+                List a product
+              </Link>
+            )}
             <Link href="/seller" className="btn btn-outline btn-sm">
-              Back to dashboard
+              Back to overview
             </Link>
           </div>
         </header>
+
+        {!canSell && (
+          <Notice title="Selling is not open yet" tone={shop.status === 'SUSPENDED' ? 'alert' : 'brand'}>
+            {sellingClosedText(shop)}
+          </Notice>
+        )}
 
         {error && <p className="alert alert-error mt-6 text-sm">{error}</p>}
 
@@ -158,9 +162,11 @@ export default function SellerProductsPage() {
             <p className="mx-auto mt-2 max-w-[46ch] text-[14px]" style={{ color: 'var(--ink-3)' }}>
               Add your first product and it will appear here.
             </p>
-            <Link href="/seller/products/new" className="btn btn-primary mt-6">
-              List a product
-            </Link>
+            {canSell && (
+              <Link href="/seller/products/new" className="btn btn-primary mt-6">
+                List a product
+              </Link>
+            )}
           </div>
         ) : (
           <div className="mt-8 overflow-x-auto">
@@ -216,7 +222,7 @@ export default function SellerProductsPage() {
                         {product.sku}
                       </td>
                       <td className="py-3 pr-4 text-[13.5px] text-ink">
-                        {formatCurrency(product.price)}
+                        {formatPaise(product.pricePaise)}
                       </td>
                       <td className="py-3 pr-4">
                         <input
@@ -226,6 +232,7 @@ export default function SellerProductsPage() {
                           inputMode="numeric"
                           aria-label={`Stock for ${product.name}`}
                           value={draft ?? String(product.quantity)}
+                          disabled={!canSell}
                           onChange={(event) =>
                             setDrafts((current) => ({
                               ...current,
@@ -274,7 +281,7 @@ export default function SellerProductsPage() {
                               >
                                 Edit
                               </Link>
-                              {next && (
+                              {next && canSell && (
                                 <button
                                   type="button"
                                   onClick={() => setVisibility(product)}

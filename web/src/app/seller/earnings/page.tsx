@@ -1,88 +1,61 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
-import { Button, LoadingSpinner } from '@/components/common';
+import { Button, Input, LoadingSpinner } from '@/components/common';
+import { useSeller } from '@/components/seller/SellerContext';
+import { formatPaise, rupeesToPaise } from '@/lib/money';
 import {
-  getMyShop,
-  getSellerEarnings,
+  downloadStatementCsv,
+  getEarnings,
+  getStatement,
+  getWithdrawals,
   requestWithdrawal,
-  type MyShop,
-  type SellerEarningRow,
-  type SellerLedgerEntry,
-  type SellerWithdrawal,
+  saveBlob,
+  type EarningsSummary,
+  type LedgerType,
+  type Statement,
+  type Withdrawal,
 } from '@/lib/seller-api';
-import { formatCurrency } from '@/utils/helpers';
-import { RootState } from '@/store';
+import { NoShopYet, NotForRole, Notice, PageHeader, SectionTitle, Stat, formatDate, prettyStatus } from '../_components/ui';
 
 /**
- * A seller's money, itemised.
- *
- * The dashboard shows two totals; this is what sits behind them. Every held
- * order carries the reason it is held, and every line its commission rate and
- * amount, because "your payout is lower than you expected" is otherwise a
- * support email rather than something a seller can answer for themselves.
- *
- * "Ready to pay" is the ledger balance: sales credited once they clear the
- * return window, less payouts, returns reversed after a payout, and any
- * adjustment. The statement at the bottom is that ledger, line by line.
+ * The shop's money (`GET /seller/earnings`): what is payable now, what is
+ * held and why, lifetime totals, the statement behind them (JSON on screen,
+ * CSV to download) and withdrawals. Every figure is the API's, in paise;
+ * nothing is recalculated here.
  */
 
-const day = (value: string | null) =>
-  value
-    ? new Date(value).toLocaleDateString('en-IN', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-      })
-    : '—';
-
-const ENTRY_LABEL: Record<SellerLedgerEntry['type'], string> = {
-  SALE: 'Sale credited',
-  PAYOUT: 'Paid to your bank',
-  RETURN_REVERSAL: 'Return deducted',
+const LEDGER_LABELS: Record<LedgerType, string> = {
+  SALE: 'Sale',
+  PAYOUT: 'Payout',
+  RETURN_REVERSAL: 'Return',
   ADJUSTMENT: 'Adjustment',
 };
 
-const STATUS_LABEL: Record<SellerWithdrawal['status'], string> = {
-  PENDING: 'Requested',
-  APPROVED: 'Approved',
-  REJECTED: 'Rejected',
-  COMPLETED: 'Paid',
-};
+/** `yyyy-mm-dd` from a date input → the instant that day starts (or ends) in local time. */
+const dayStart = (day: string) => (day ? new Date(`${day}T00:00:00`).toISOString() : undefined);
+const dayEnd = (day: string) => (day ? new Date(`${day}T23:59:59.999`).toISOString() : undefined);
 
 export default function SellerEarningsPage() {
-  const router = useRouter();
-  const { user, isInitialized } = useSelector((state: RootState) => state.auth);
+  const { me, can } = useSeller();
+  const shop = me?.shop ?? null;
+  const allowed = Boolean(shop) && can('FINANCE');
 
-  const [shop, setShop] = useState<MyShop | null>(null);
-  const [orders, setOrders] = useState<SellerEarningRow[]>([]);
-  const [withdrawals, setWithdrawals] = useState<SellerWithdrawal[]>([]);
-  const [ledger, setLedger] = useState<{ balance: number; entries: SellerLedgerEntry[] }>({
-    balance: 0,
-    entries: [],
-  });
-  const [returnWindowDays, setReturnWindowDays] = useState(7);
+  const [earnings, setEarnings] = useState<EarningsSummary | null>(null);
+  const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isRequesting, setIsRequesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (isInitialized && !user) router.replace('/seller/login?redirect=/seller/earnings');
-  }, [isInitialized, user, router]);
+  const [amount, setAmount] = useState('');
+  const [requesting, setRequesting] = useState(false);
 
   const load = useCallback(
     () =>
-      Promise.all([getMyShop(), getSellerEarnings()])
-        .then(([myShop, earnings]) => {
-          setShop(myShop);
-          setOrders(earnings.orders);
-          setWithdrawals(earnings.withdrawals);
-          setLedger(earnings.ledger);
-          setReturnWindowDays(earnings.returnWindowDays);
+      Promise.all([getEarnings(), getWithdrawals()])
+        .then(([e, w]) => {
+          setEarnings(e);
+          setWithdrawals(w.items);
           setError(null);
         })
         .catch((err: Error) => setError(err.message))
@@ -91,362 +64,159 @@ export default function SellerEarningsPage() {
   );
 
   useEffect(() => {
-    if (user) void load();
-  }, [user, load]);
+    if (allowed) void load();
+  }, [allowed, load]);
 
-  // Held is the absence of a clearance — the same rule the server applies. Due
-  // is the ledger balance, which a return after a payout can take below zero.
-  const { held, dueCount } = useMemo(() => {
-    let heldTotal = 0;
-    let count = 0;
-    for (const order of orders) {
-      if (order.hold === null) count += 1;
-      else heldTotal += order.payoutAmount;
+  if (!shop) return <NoShopYet />;
+  if (!can('FINANCE')) return <NotForRole what="earnings and payouts" />;
+  if (isLoading) return <LoadingSpinner className="min-h-[50vh]" size="lg" />;
+
+  const balance = earnings?.balancePaise ?? 0;
+
+  const request = async (event: React.FormEvent) => {
+    event.preventDefault();
+    let paise: number | undefined;
+    if (amount.trim()) {
+      const rupees = Number(amount);
+      if (!Number.isFinite(rupees) || rupees <= 0) {
+        toast.error('Enter an amount in rupees, or leave it empty to withdraw everything payable.');
+        return;
+      }
+      paise = rupeesToPaise(rupees);
+      if (paise > balance) {
+        toast.error(`You can withdraw up to ${formatPaise(balance)}.`);
+        return;
+      }
     }
-    return { held: heldTotal, dueCount: count };
-  }, [orders]);
-  const due = Math.max(0, ledger.balance);
-  const kycApproved = shop?.kycStatus === 'APPROVED';
-
-  const openRequest = withdrawals.find((row) => row.status === 'PENDING');
-
-  const request = async () => {
-    setIsRequesting(true);
+    setRequesting(true);
     try {
-      toast.success(await requestWithdrawal());
-      load();
+      const w = await requestWithdrawal(paise);
+      toast.success(`Withdrawal of ${formatPaise(w.amountPaise)} requested.`);
+      setAmount('');
+      await load();
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
-      setIsRequesting(false);
+      setRequesting(false);
     }
   };
-
-  if (!isInitialized || (user && isLoading)) {
-    return <LoadingSpinner className="min-h-[50vh]" size="lg" />;
-  }
-  if (!user) return null;
-
-  if (!shop) {
-    return (
-      <main className="section-y">
-        <div className="container-max">
-          <p className="text-[15px]" style={{ color: 'var(--ink-2)' }}>
-            You do not have a seller account yet.{' '}
-            <Link href="/seller" className="underline underline-offset-2">
-              Set one up
-            </Link>
-            .
-          </p>
-        </div>
-      </main>
-    );
-  }
 
   return (
     <main className="section-y">
       <div className="container-max">
-        <header className="border-b border-line pb-6">
-          <h1
-            className="m-0 text-ink"
-            style={{
-              fontSize: 'clamp(24px, 3.2vw, 34px)',
-              lineHeight: 1.05,
-              letterSpacing: '-0.03em',
-            }}
-          >
-            Earnings &amp; payouts
-          </h1>
-          <p className="mt-2 text-[14px]" style={{ color: 'var(--ink-3)' }}>
-            Money is released {returnWindowDays} days after delivery, once the buyer&rsquo;s return
-            window has closed.
-          </p>
-        </header>
-
+        <PageHeader
+          title="Earnings"
+          lead="What you have earned, what is held and why, and what has been paid out."
+          actions={
+            <Link href="/seller" className="btn btn-outline btn-sm">
+              Back to overview
+            </Link>
+          }
+        />
         {error && <p className="alert alert-error mt-6 text-sm">{error}</p>}
 
-        <div className="mt-8 grid gap-4 sm:grid-cols-2">
-          <div className="border border-line p-5" style={{ background: 'var(--surface-2)' }}>
-            <p
-              className="m-0 text-caption font-bold uppercase tracking-[0.12em]"
-              style={{ color: 'var(--ink-3)' }}
-            >
-              Ready to pay
-            </p>
-            <p className="m-0 mt-2 text-[30px] font-semibold leading-none text-ink">
-              {formatCurrency(due)}
-            </p>
-            <p className="m-0 mt-1.5 text-meta" style={{ color: 'var(--ink-3)' }}>
-              {ledger.balance < 0
-                ? `${formatCurrency(-ledger.balance)} of returns will come off your next sales`
-                : dueCount > 0
-                  ? `${dueCount} order${dueCount === 1 ? '' : 's'} cleared`
-                  : due > 0
-                    ? 'Your account balance'
-                    : 'Nothing has cleared the return window yet'}
-            </p>
-
-            <div className="mt-4">
-              {openRequest ? (
-                <p className="m-0 text-meta" style={{ color: 'var(--ink-2)' }}>
-                  Payout of {formatCurrency(openRequest.amount)} requested on{' '}
-                  {day(openRequest.createdAt)} — we are processing it.
-                </p>
-              ) : !kycApproved ? (
-                <div>
-                  <p className="m-0 text-meta" style={{ color: 'var(--ink-2)' }}>
-                    Payouts start once your identity check (KYC) is approved.
-                  </p>
-                  <Link href="/seller/verification" className="btn btn-primary btn-sm mt-3">
-                    Complete verification
-                  </Link>
-                </div>
-              ) : !shop.hasBankDetails ? (
-                <div>
-                  <p className="m-0 text-meta" style={{ color: 'var(--ink-2)' }}>
-                    We have nowhere to send this yet — add the account you want to be paid into.
-                  </p>
-                  <Link href="/seller/settings" className="btn btn-primary btn-sm mt-3">
-                    Add bank details
-                  </Link>
-                </div>
-              ) : (
-                <Button onClick={request} loading={isRequesting} disabled={due <= 0}>
-                  Request payout
-                </Button>
-              )}
-            </div>
+        {earnings && (
+          <div className="mt-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <Stat label="Ready to pay" value={formatPaise(earnings.balancePaise)} note="Past the return window" />
+            <Stat
+              label="Held"
+              value={formatPaise(earnings.heldPaise)}
+              note={
+                earnings.held.length
+                  ? `${earnings.held.length} order${earnings.held.length === 1 ? '' : 's'} not payable yet`
+                  : 'Nothing in the pipeline'
+              }
+            />
+            <Stat label="Lifetime sales" value={formatPaise(earnings.lifetimeSalesPaise)} note="Your share, after commission" />
+            <Stat label="Paid out" value={formatPaise(earnings.lifetimePayoutsPaise)} note="Settled to date" />
           </div>
+        )}
 
-          <div className="border border-line p-5">
-            <p
-              className="m-0 text-caption font-bold uppercase tracking-[0.12em]"
-              style={{ color: 'var(--ink-3)' }}
-            >
-              Held
-            </p>
-            <p className="m-0 mt-2 text-[30px] font-semibold leading-none text-ink">
-              {formatCurrency(held)}
-            </p>
-            <p className="m-0 mt-1.5 text-meta" style={{ color: 'var(--ink-3)' }}>
-              Earned, but still in transit or inside a buyer&rsquo;s return window. It moves across
-              on its own.
-            </p>
-          </div>
-        </div>
-
-        <section className="mt-10">
-          <h2
-            className="m-0 text-ink"
-            style={{ fontSize: '17px', fontWeight: 600, letterSpacing: '-0.01em' }}
-          >
-            Unsettled orders
-          </h2>
-          {orders.length === 0 ? (
+        <section className="mt-10 max-w-[860px]">
+          <SectionTitle>Withdraw</SectionTitle>
+          {earnings?.openWithdrawal ? (
+            <Notice title={`Withdrawal of ${formatPaise(earnings.openWithdrawal.amountPaise)} is ${earnings.openWithdrawal.status.toLowerCase()}`} className="mt-4">
+              Requested {formatDate(earnings.openWithdrawal.createdAt)}. You can ask again once it is paid or decided.
+            </Notice>
+          ) : balance <= 0 ? (
             <p className="mt-3 text-[14px]" style={{ color: 'var(--ink-3)' }}>
-              Nothing outstanding. Orders appear here until they have been paid out.
+              Nothing is payable yet. Money becomes payable once an order is delivered and its return window has
+              passed.
             </p>
           ) : (
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full min-w-[620px] border-collapse text-left">
-                <thead>
-                  <tr>
-                    {['Order', 'Delivered', 'Sale', 'Commission', 'Your payout', 'Status'].map(
-                      (heading) => (
-                        <th
-                          key={heading}
-                          className="border-b border-line pb-2 pr-4 text-caption font-bold uppercase tracking-[0.1em]"
-                          style={{ color: 'var(--ink-3)' }}
-                        >
-                          {heading}
-                        </th>
-                      )
-                    )}
-                  </tr>
-                </thead>
-                <tbody>
-                  {orders.map((order) => (
-                    <React.Fragment key={order.id}>
-                      <tr>
-                        <td className="border-b border-line py-3 pr-4 font-mono text-meta text-ink">
-                          {order.orderNumber}
-                        </td>
-                        <td
-                          className="border-b border-line py-3 pr-4 text-meta"
-                          style={{ color: 'var(--ink-3)' }}
-                        >
-                          {day(order.deliveredAt)}
-                        </td>
-                        <td
-                          className="border-b border-line py-3 pr-4 text-meta"
-                          style={{ color: 'var(--ink-2)' }}
-                        >
-                          {formatCurrency(order.total)}
-                        </td>
-                        <td
-                          className="border-b border-line py-3 pr-4 text-meta"
-                          style={{ color: 'var(--ink-3)' }}
-                        >
-                          −{formatCurrency(order.commissionAmount)}
-                          <span className="ml-1 text-small">({order.commissionRate}%)</span>
-                        </td>
-                        <td className="border-b border-line py-3 pr-4 text-meta font-semibold text-ink">
-                          {formatCurrency(order.payoutAmount)}
-                        </td>
-                        <td className="border-b border-line py-3 pr-4 text-meta">
-                          {order.hold === null ? (
-                            <span
-                              style={{ color: 'var(--brand-ink, var(--ink))', fontWeight: 600 }}
-                            >
-                              Ready to pay
-                            </span>
-                          ) : (
-                            <span style={{ color: 'var(--ink-3)' }}>{order.hold}</span>
-                          )}
-                        </td>
-                      </tr>
-                      {/* Commission per line: one order can span categories, each at its own rate. */}
-                      {order.items.length > 0 && (
-                        <tr>
-                          <td colSpan={6} className="border-b border-line pb-3 pr-4">
-                            <ul className="m-0 flex list-none flex-col gap-1 p-0">
-                              {order.items.map((item) => (
-                                <li
-                                  key={item.id}
-                                  className="flex flex-wrap justify-between gap-x-4 text-small"
-                                  style={{ color: 'var(--ink-3)' }}
-                                >
-                                  <span>
-                                    {item.name} × {item.quantity} ·{' '}
-                                    {formatCurrency(item.price * item.quantity)}
-                                  </span>
-                                  <span>
-                                    Commission {item.commissionRate}% · −
-                                    {formatCurrency(item.commissionAmount)}
-                                  </span>
-                                </li>
-                              ))}
-                            </ul>
-                          </td>
-                        </tr>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <form onSubmit={request} className="mt-4 flex flex-wrap items-end gap-3">
+              <div className="w-[220px]">
+                <Input
+                  id="withdraw-amount"
+                  label="Amount (₹)"
+                  type="number"
+                  min={1}
+                  step="0.01"
+                  inputMode="decimal"
+                  value={amount}
+                  onChange={(event) => setAmount(event.target.value)}
+                  placeholder={String(balance / 100)}
+                  helperText={`Up to ${formatPaise(balance)}. Empty withdraws it all.`}
+                />
+              </div>
+              <Button type="submit" loading={requesting}>
+                Request withdrawal
+              </Button>
+            </form>
           )}
+          <p className="m-0 mt-3 text-meta" style={{ color: 'var(--ink-3)' }}>
+            Paid to the bank account in{' '}
+            <Link href="/seller/settings#bank" className="underline underline-offset-2">
+              Shop settings
+            </Link>
+            .
+          </p>
         </section>
 
-        <section className="mt-10">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2
-              className="m-0 text-ink"
-              style={{ fontSize: '17px', fontWeight: 600, letterSpacing: '-0.01em' }}
-            >
-              Statement
-            </h2>
-            <span className="text-meta" style={{ color: 'var(--ink-2)' }}>
-              Balance{' '}
-              <strong className="text-ink">
-                {ledger.balance < 0 ? '−' : ''}
-                {formatCurrency(Math.abs(ledger.balance))}
-              </strong>
-            </span>
-          </div>
-          {ledger.entries.length === 0 ? (
-            <p className="mt-3 text-[14px]" style={{ color: 'var(--ink-3)' }}>
-              No entries yet. A sale is credited here once it clears the return window.
-            </p>
-          ) : (
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full min-w-[560px] border-collapse text-left">
-                <thead>
-                  <tr>
-                    {['Date', 'Entry', 'Order / reference', 'Amount', 'Balance'].map((heading) => (
-                      <th
-                        key={heading}
-                        className="border-b border-line pb-2 pr-4 text-caption font-bold uppercase tracking-[0.1em]"
-                        style={{ color: 'var(--ink-3)' }}
-                      >
-                        {heading}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {ledger.entries.map((entry) => (
-                    <tr key={entry.id}>
-                      <td
-                        className="border-b border-line py-2.5 pr-4 text-meta"
-                        style={{ color: 'var(--ink-3)' }}
-                      >
-                        {day(entry.createdAt)}
-                      </td>
-                      <td className="border-b border-line py-2.5 pr-4 text-meta text-ink">
-                        {ENTRY_LABEL[entry.type]}
-                        {entry.type === 'ADJUSTMENT' && entry.note && (
-                          <span className="block text-small" style={{ color: 'var(--ink-3)' }}>
-                            {entry.note}
-                          </span>
-                        )}
-                      </td>
-                      <td
-                        className="border-b border-line py-2.5 pr-4 font-mono text-small"
-                        style={{ color: 'var(--ink-2)' }}
-                      >
-                        {entry.orderNumber ?? entry.reference ?? '—'}
-                      </td>
-                      <td
-                        className="border-b border-line py-2.5 pr-4 text-meta font-semibold"
-                        style={{ color: entry.amount < 0 ? 'var(--ink-2)' : 'var(--ink)' }}
-                      >
-                        {entry.amount < 0 ? '−' : '+'}
-                        {formatCurrency(Math.abs(entry.amount))}
-                      </td>
-                      <td className="border-b border-line py-2.5 pr-4 text-meta text-ink">
-                        {entry.balanceAfter < 0 ? '−' : ''}
-                        {formatCurrency(Math.abs(entry.balanceAfter))}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </section>
-
-        <section className="mt-10">
-          <h2
-            className="m-0 text-ink"
-            style={{ fontSize: '17px', fontWeight: 600, letterSpacing: '-0.01em' }}
-          >
-            Payout history
-          </h2>
-          {withdrawals.length === 0 ? (
-            <p className="mt-3 text-[14px]" style={{ color: 'var(--ink-3)' }}>
-              No payouts yet.
-            </p>
-          ) : (
-            <ul
-              className="m-0 mt-4 flex list-none flex-col gap-px p-0"
-              style={{ background: 'var(--border)' }}
-            >
-              {withdrawals.map((row) => (
+        {earnings && earnings.held.length > 0 && (
+          <section className="mt-10 max-w-[860px]">
+            <SectionTitle>Held</SectionTitle>
+            <ul className="m-0 mt-4 flex list-none flex-col gap-px p-0" style={{ background: 'var(--border)' }}>
+              {earnings.held.map((row) => (
                 <li
-                  key={row.id}
+                  key={row.sellerOrderId}
                   className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 p-3.5"
                   style={{ background: 'var(--surface)' }}
                 >
-                  <span className="text-[14px] font-semibold text-ink">
-                    {formatCurrency(row.amount)}
+                  <span className="font-mono text-meta text-ink">{row.orderNumber}</span>
+                  <span className="min-w-0 flex-1 text-meta" style={{ color: 'var(--ink-2)' }}>
+                    {row.reason}
                   </span>
-                  <span className="text-meta" style={{ color: 'var(--ink-3)' }}>
-                    {STATUS_LABEL[row.status]} · {day(row.completedAt ?? row.createdAt)}
+                  <span className="text-meta font-semibold text-ink">{formatPaise(row.payoutPaise)}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <StatementSection />
+
+        <section className="mt-10 max-w-[860px]">
+          <SectionTitle>Withdrawals</SectionTitle>
+          {withdrawals.length === 0 ? (
+            <p className="mt-3 text-[14px]" style={{ color: 'var(--ink-3)' }}>
+              None yet.
+            </p>
+          ) : (
+            <ul className="m-0 mt-4 flex list-none flex-col gap-px p-0" style={{ background: 'var(--border)' }}>
+              {withdrawals.map((w) => (
+                <li
+                  key={w.id}
+                  className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 p-3.5"
+                  style={{ background: 'var(--surface)' }}
+                >
+                  <span className="text-meta text-ink">{formatDate(w.createdAt)}</span>
+                  <span className="text-meta" style={{ color: w.status === 'REJECTED' ? 'var(--sale)' : 'var(--ink-2)' }}>
+                    {prettyStatus(w.status)}
+                    {w.rejectionReason ? ` — ${w.rejectionReason}` : ''}
+                    {w.transactionRef ? ` · ref ${w.transactionRef}` : ''}
                   </span>
-                  <span className="text-meta" style={{ color: 'var(--ink-3)' }}>
-                    {row.rejectionReason ?? row.transactionId ?? ''}
-                  </span>
+                  <span className="text-meta font-semibold text-ink">{formatPaise(w.amountPaise)}</span>
                 </li>
               ))}
             </ul>
@@ -456,3 +226,116 @@ export default function SellerEarningsPage() {
     </main>
   );
 }
+
+const StatementSection: React.FC = () => {
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const [statement, setStatement] = useState<Statement | null>(null);
+  const [busy, setBusy] = useState<null | 'view' | 'csv'>(null);
+
+  const range = () => ({ from: dayStart(from), to: dayEnd(to) });
+
+  const view = async () => {
+    setBusy('view');
+    try {
+      setStatement(await getStatement(range()));
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const csv = async () => {
+    setBusy('csv');
+    try {
+      saveBlob(await downloadStatementCsv(range()), `tailorae-statement${from ? `-${from}` : ''}${to ? `-to-${to}` : ''}.csv`);
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <section className="mt-10 max-w-[860px]">
+      <SectionTitle>Statement</SectionTitle>
+      <p className="m-0 mt-1 text-meta" style={{ color: 'var(--ink-3)' }}>
+        Every sale, payout, return and adjustment, with the running balance. Leave the dates empty for everything.
+      </p>
+      <div className="mt-4 flex flex-wrap items-end gap-3">
+        <div className="w-[180px]">
+          <Input id="statement-from" label="From" type="date" value={from} onChange={(event) => setFrom(event.target.value)} />
+        </div>
+        <div className="w-[180px]">
+          <Input id="statement-to" label="To" type="date" value={to} onChange={(event) => setTo(event.target.value)} />
+        </div>
+        <Button variant="outline" loading={busy === 'view'} onClick={view}>
+          Show statement
+        </Button>
+        <Button variant="outline" loading={busy === 'csv'} onClick={csv}>
+          Download CSV
+        </Button>
+      </div>
+
+      {statement && (
+        <div className="mt-6 overflow-x-auto">
+          <table className="w-full min-w-[640px] border-collapse text-left text-[13.5px]">
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border-strong)' }}>
+                {['Date', 'Type', 'Order / reference', 'Amount', 'Balance'].map((head) => (
+                  <th
+                    key={head}
+                    scope="col"
+                    className="py-2.5 pr-4 text-caption font-bold uppercase tracking-[0.1em]"
+                    style={{ color: 'var(--ink-3)' }}
+                  >
+                    {head}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                <td className="py-2.5 pr-4" colSpan={4} style={{ color: 'var(--ink-3)' }}>
+                  Opening balance
+                </td>
+                <td className="py-2.5 pr-4 text-ink">{formatPaise(statement.openingPaise)}</td>
+              </tr>
+              {statement.lines.map((line) => (
+                <tr key={line.entry.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <td className="py-2.5 pr-4 text-ink">{formatDate(line.entry.createdAt)}</td>
+                  <td className="py-2.5 pr-4" style={{ color: 'var(--ink-2)' }}>
+                    {LEDGER_LABELS[line.entry.type] ?? line.entry.type}
+                  </td>
+                  <td className="py-2.5 pr-4" style={{ color: 'var(--ink-2)' }}>
+                    {[line.entry.orderNumber, line.entry.reference, line.entry.note].filter(Boolean).join(' · ') || '—'}
+                  </td>
+                  <td
+                    className="py-2.5 pr-4 font-semibold"
+                    style={{ color: line.entry.amountPaise < 0 ? 'var(--sale)' : 'var(--ink)' }}
+                  >
+                    {line.entry.amountPaise < 0 ? '−' : ''}
+                    {formatPaise(Math.abs(line.entry.amountPaise))}
+                  </td>
+                  <td className="py-2.5 pr-4 text-ink">{formatPaise(line.balanceAfterPaise)}</td>
+                </tr>
+              ))}
+              <tr>
+                <td className="py-2.5 pr-4 font-semibold text-ink" colSpan={4}>
+                  Closing balance
+                </td>
+                <td className="py-2.5 pr-4 font-semibold text-ink">{formatPaise(statement.closingPaise)}</td>
+              </tr>
+            </tbody>
+          </table>
+          {statement.lines.length === 0 && (
+            <p className="mt-3 text-[14px]" style={{ color: 'var(--ink-3)' }}>
+              No movements in this period.
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+};
