@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { countryName, labelText } from '@/lib/addresses-api';
 import { Address } from '@/types';
 
 export interface AddressPickerProps {
@@ -61,7 +62,7 @@ export const AddressPicker: React.FC<AddressPickerProps> = ({
                   className="text-caption font-bold uppercase tracking-[0.12em]"
                   style={{ color: 'var(--ink-3)' }}
                 >
-                  {address.type}
+                  {labelText(address.label)}
                 </span>
                 {address.isDefault && (
                   <span
@@ -76,12 +77,12 @@ export const AddressPicker: React.FC<AddressPickerProps> = ({
                 className="mt-1 block text-[13.5px]"
                 style={{ color: 'var(--ink-2)', lineHeight: 1.6 }}
               >
-                {address.addressLine1}
-                {address.addressLine2 ? `, ${address.addressLine2}` : ''}
+                {address.line1}
+                {address.line2 ? `, ${address.line2}` : ''}
                 <br />
-                {address.city}, {address.state} {address.postalCode}, {address.country}
+                {address.city}, {address.state} {address.postalCode}, {countryName(address.country)}
                 <br />
-                {address.phoneNumber}
+                {address.phone}
               </span>
             </span>
           </label>

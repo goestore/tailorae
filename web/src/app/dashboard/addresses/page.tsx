@@ -6,10 +6,21 @@ import { useRouter } from 'next/navigation';
 import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import { Breadcrumbs, Button, Card, Input, LoadingSpinner } from '@/components/common';
-import { apiClient } from '@/lib/api-client';
+import {
+  PHONE_PATTERN,
+  PIN_PATTERN,
+  countryCode,
+  countryName,
+  createAddress,
+  deleteAddress,
+  labelText,
+  listAddresses,
+  toAddressInput,
+  updateAddress,
+} from '@/lib/addresses-api';
 import { getApiErrorMessage } from '@/lib/api-utils';
 import { RootState } from '@/store';
-import { Address } from '@/types';
+import type { Address, AddressInput } from '@/types';
 
 interface AddressForm {
   type: string;
@@ -27,7 +38,7 @@ interface AddressForm {
 }
 
 const EMPTY_FORM: AddressForm = {
-  type: 'home',
+  type: 'HOME',
   fullName: '',
   phoneNumber: '',
   email: '',
@@ -41,7 +52,7 @@ const EMPTY_FORM: AddressForm = {
   isDefault: false,
 };
 
-// Mirrors the server-side required list in `parseAddressInput`, so the form
+// Mirrors the API's own required fields (AddressRequest), so the form
 // fails locally with a field-level message instead of a single joined string
 // coming back from the API.
 const REQUIRED: Array<{ key: keyof AddressForm; label: string }> = [
@@ -55,17 +66,17 @@ const REQUIRED: Array<{ key: keyof AddressForm; label: string }> = [
 ];
 
 const toForm = (address: Address): AddressForm => ({
-  type: address.type || 'home',
+  type: (address.label || 'HOME').toUpperCase(),
   fullName: address.fullName,
-  phoneNumber: address.phoneNumber,
+  phoneNumber: address.phone,
   email: address.email ?? '',
-  addressLine1: address.addressLine1,
-  addressLine2: address.addressLine2 ?? '',
+  addressLine1: address.line1,
+  addressLine2: address.line2 ?? '',
   city: address.city,
   state: address.state,
   postalCode: address.postalCode,
-  country: address.country,
-  gstNumber: '',
+  country: countryName(address.country),
+  gstNumber: address.gstin ?? '',
   isDefault: address.isDefault,
 });
 
@@ -91,9 +102,8 @@ export default function AddressBookPage() {
   // and every setState lands in a callback once it resolves.
   const load = useCallback(
     () =>
-      apiClient
-        .get('/users/addresses')
-        .then((res) => setAddresses(res.data?.data?.addresses ?? []))
+      listAddresses()
+        .then(setAddresses)
         .catch((err) => toast.error(getApiErrorMessage(err, 'Could not load your addresses.')))
         .finally(() => setIsLoading(false)),
     []
@@ -109,7 +119,7 @@ export default function AddressBookPage() {
   };
 
   const startAdd = () => {
-    setForm({ ...EMPTY_FORM, fullName: user ? `${user.firstName} ${user.lastName}`.trim() : '' });
+    setForm({ ...EMPTY_FORM, fullName: user ? [user.firstName, user.lastName].filter(Boolean).join(' ') : '' });
     setErrors({});
     setEditingId(null);
     setIsAdding(true);
@@ -136,8 +146,11 @@ export default function AddressBookPage() {
     if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
       next.email = 'Enter a valid email address';
     }
-    if (form.postalCode.trim() && !/^\d{6}$/.test(form.postalCode.trim())) {
+    if (form.postalCode.trim() && !PIN_PATTERN.test(form.postalCode.trim())) {
       next.postalCode = 'Enter a 6-digit PIN code';
+    }
+    if (form.phoneNumber.trim() && !PHONE_PATTERN.test(form.phoneNumber.trim())) {
+      next.phoneNumber = 'Enter a 10-digit phone number';
     }
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -148,27 +161,27 @@ export default function AddressBookPage() {
     if (!validate()) return;
 
     setIsSaving(true);
-    const payload = {
-      type: form.type,
+    const payload: AddressInput = {
+      label: form.type,
       fullName: form.fullName.trim(),
-      phoneNumber: form.phoneNumber.trim(),
-      ...(form.email.trim() ? { email: form.email.trim() } : {}),
-      addressLine1: form.addressLine1.trim(),
-      ...(form.addressLine2.trim() ? { addressLine2: form.addressLine2.trim() } : {}),
+      phone: form.phoneNumber.trim(),
+      email: form.email.trim() || null,
+      line1: form.addressLine1.trim(),
+      line2: form.addressLine2.trim() || null,
       city: form.city.trim(),
       state: form.state.trim(),
       postalCode: form.postalCode.trim(),
-      country: form.country.trim(),
-      ...(form.gstNumber.trim() ? { gstNumber: form.gstNumber.trim() } : {}),
+      country: countryCode(form.country),
+      gstin: form.gstNumber.trim() || null,
       isDefault: form.isDefault,
     };
 
     try {
       if (editingId) {
-        await apiClient.put(`/users/addresses/${editingId}`, payload);
+        await updateAddress(editingId, payload);
         toast.success('Address updated');
       } else {
-        await apiClient.post('/users/addresses', payload);
+        await createAddress(payload);
         toast.success('Address saved');
       }
       cancel();
@@ -182,7 +195,7 @@ export default function AddressBookPage() {
 
   const remove = async (address: Address) => {
     try {
-      await apiClient.delete(`/users/addresses/${address.id}`);
+      await deleteAddress(address.id);
       setAddresses((current) => current.filter((item) => item.id !== address.id));
       toast.success('Address removed');
     } catch (err) {
@@ -192,7 +205,7 @@ export default function AddressBookPage() {
 
   const makeDefault = async (address: Address) => {
     try {
-      await apiClient.put(`/users/addresses/${address.id}`, { ...toForm(address), isDefault: true });
+      await updateAddress(address.id, { ...toAddressInput(address), isDefault: true });
       load();
     } catch (err) {
       toast.error(getApiErrorMessage(err, 'Could not set that as your default.'));
@@ -274,9 +287,9 @@ export default function AddressBookPage() {
                     onChange={(event) => setField('type', event.target.value)}
                     className="block w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-black focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500"
                   >
-                    <option value="home">Home</option>
-                    <option value="office">Office</option>
-                    <option value="other">Other</option>
+                    <option value="HOME">Home</option>
+                    <option value="OFFICE">Office</option>
+                    <option value="OTHER">Other</option>
                   </select>
                 </div>
                 <div className="md:col-span-2">
@@ -371,7 +384,7 @@ export default function AddressBookPage() {
                       className="text-caption font-bold uppercase tracking-[0.12em]"
                       style={{ color: 'var(--ink-3)' }}
                     >
-                      {address.type}
+                      {labelText(address.label)}
                     </span>
                     {address.isDefault && (
                       <span
@@ -386,19 +399,19 @@ export default function AddressBookPage() {
                   <address className="m-0 mt-3 flex-1 text-[14px] not-italic" style={{ color: 'var(--ink-2)', lineHeight: 1.65 }}>
                     <span className="font-semibold text-ink">{address.fullName}</span>
                     <br />
-                    {address.addressLine1}
-                    {address.addressLine2 ? (
+                    {address.line1}
+                    {address.line2 ? (
                       <>
                         <br />
-                        {address.addressLine2}
+                        {address.line2}
                       </>
                     ) : null}
                     <br />
                     {address.city}, {address.state} {address.postalCode}
                     <br />
-                    {address.country}
+                    {countryName(address.country)}
                     <br />
-                    {address.phoneNumber}
+                    {address.phone}
                   </address>
 
                   <div className="mt-4 flex flex-wrap gap-3 text-meta">

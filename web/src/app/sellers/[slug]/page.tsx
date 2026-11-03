@@ -25,7 +25,7 @@ async function fetchSellerPage(
     if (!seller) return null;
 
     const listResponse = await fetch(
-      `${apiBase()}/products?vendor=${encodeURIComponent(seller.shopSlug)}&limit=24`,
+      `${apiBase()}/products?seller=${encodeURIComponent(seller.shopSlug)}&limit=24`,
       { headers: { accept: 'application/json' }, signal: AbortSignal.timeout(8000), next: { revalidate: 300 } }
     );
     const payload = listResponse.ok ? await listResponse.json() : null;
@@ -133,7 +133,7 @@ export default async function SellerPage({ params }: PageProps) {
             { label: 'Sellers', href: '/sellers' },
             { label: seller.shopName },
           ]}
-          baseQuery={{ vendor: seller.shopSlug }}
+          baseQuery={{ seller: seller.shopSlug }}
           initialProducts={products}
           initialTotal={total}
         />

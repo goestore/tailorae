@@ -1,27 +1,31 @@
 'use client';
 
 import React, { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
-import { apiClient } from '@/lib/api-client';
 import { getApiErrorMessage } from '@/lib/api-utils';
-import { formatCurrency } from '@/utils/helpers';
+import { applyCoupon } from '@/lib/cart-api';
+import { formatPaise } from '@/lib/money';
 
 const STORAGE_KEY = 'tl:coupon-code';
 
 export interface AppliedCoupon {
   code: string;
-  discount: number;
+  discountPaise: number;
 }
 
 export interface CouponFieldProps {
-  /** Cart subtotal the discount is calculated against. */
+  /**
+   * The bag's subtotal in paise. The API prices the code against the
+   * shopper's own bag; this only decides when a carried-over code is
+   * re-checked.
+   */
   subtotal: number;
   /** Fired with the applied coupon, or null when it is cleared or invalidated. */
   onChange: (applied: AppliedCoupon | null) => void;
   className?: string;
 }
 
-/** Only the code is persisted — the rupee value is re-derived from the live
- *  subtotal, so an edited cart can never carry a stale discount to checkout. */
+/** Only the code is persisted — the discount is re-priced against the live
+ *  bag, so an edited cart can never carry a stale discount to checkout. */
 const readStoredCode = (): string => {
   if (typeof window === 'undefined') return '';
   try {
@@ -80,9 +84,11 @@ export const CouponField: React.FC<CouponFieldProps> = ({ subtotal, onChange, cl
         setError(null);
       }
       try {
-        const res = await apiClient.post('/coupons/apply', { code: trimmed, subtotal });
-        const coupon = res.data?.data?.coupon;
-        const next = { code: coupon.code as string, discount: Number(coupon.discount) || 0 };
+        const coupon = await applyCoupon(trimmed);
+        const next = {
+          code: coupon.code ?? trimmed.toUpperCase(),
+          discountPaise: Number(coupon.discountPaise) || 0,
+        };
         setApplied(next);
         setTypedCode(next.code);
         setError(null);
@@ -100,7 +106,7 @@ export const CouponField: React.FC<CouponFieldProps> = ({ subtotal, onChange, cl
         if (!silent) setIsChecking(false);
       }
     },
-    [subtotal, onChange]
+    [onChange]
   );
 
   // Re-check a code carried over from the cart against this page's subtotal.
@@ -135,7 +141,7 @@ export const CouponField: React.FC<CouponFieldProps> = ({ subtotal, onChange, cl
           <div>
             <p className="m-0 text-meta font-semibold text-ink">{applied.code} applied</p>
             <p className="m-0 mt-0.5 text-meta" style={{ color: 'var(--ink-3)' }}>
-              You save {formatCurrency(applied.discount)}
+              You save {formatPaise(applied.discountPaise)}
             </p>
           </div>
           <button

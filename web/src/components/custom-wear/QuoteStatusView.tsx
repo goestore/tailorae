@@ -4,7 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Badge, Button, Input, SkeletonList } from '@/components/common';
-import { useHasToken } from '@/hooks/useHasToken';
+import { useSignedIn } from '@/hooks/useSignedIn';
 import { fetchMyQuotes, lookupQuote } from '@/lib/custom-wear/api';
 import { formatCurrency, formatDate } from '@/utils/helpers';
 import type { CustomWearQuoteStatus, CustomWearQuoteSummary } from '@/types/custom-wear';
@@ -193,7 +193,7 @@ const MyQuotes: React.FC = () => {
 
 /** `/custom-wear/quotes`: the signed-in list plus a guest lookup. */
 export const QuoteStatusView: React.FC = () => {
-  const hasToken = useHasToken();
+  const hasToken = useSignedIn();
 
   return (
     <main className="section-y">

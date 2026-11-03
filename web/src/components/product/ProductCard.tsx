@@ -1,6 +1,6 @@
 import React from 'react';
 import { Product, ProductColor } from '@/types';
-import { formatCurrency } from '@/utils/helpers';
+import { formatPaise } from '@/lib/money';
 import { BaseProductCard, type ProductCardModel } from './BaseProductCard';
 import { resolveSwatchStyle } from '@/lib/color-map';
 import { QuickAddButton } from './QuickAddButton';
@@ -20,13 +20,12 @@ export interface ProductCardProps {
 
 /** Adapts a catalog product onto the shared card model. */
 export function toProductCardModel(product: Product, color?: ProductColor): ProductCardModel {
-  const hasDiscount =
-    typeof product.originalPrice === 'number' && product.originalPrice > product.price;
+  const hasDiscount = typeof product.mrpPaise === 'number' && product.mrpPaise > product.pricePaise;
   // Worked out from the two prices when the stored percentage is missing, so
   // a grid card says "38% off" exactly as the Best Selling rail does.
   const off = Math.round(
     product.discountPercentage ||
-      (hasDiscount ? ((product.originalPrice! - product.price) / product.originalPrice!) * 100 : 0)
+      (hasDiscount ? ((product.mrpPaise! - product.pricePaise) / product.mrpPaise!) * 100 : 0)
   );
   const base = `/products/${product.slug || product.id}`;
 
@@ -38,9 +37,9 @@ export function toProductCardModel(product: Product, color?: ProductColor): Prod
     brand: product.brand?.name,
     // A colour's own photograph is the whole point of a per-colour tile; only
     // fall back to the product shot when that colour has none.
-    image: color?.image || product.thumbnail || product.images?.[0],
-    price: formatCurrency(product.price),
-    comparePrice: hasDiscount ? formatCurrency(product.originalPrice as number) : undefined,
+    image: color?.image || product.thumbnail || product.images?.[0] || undefined,
+    price: formatPaise(product.pricePaise),
+    comparePrice: hasDiscount ? formatPaise(product.mrpPaise) : undefined,
     discountLabel: hasDiscount && off > 0 ? `${off}% off` : undefined,
     // A colour tile is sold out only when that colour is; the product's
     // quantity is already the sum across its sizes.

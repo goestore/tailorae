@@ -2,7 +2,7 @@ import React from 'react';
 import Link from 'next/link';
 import { ProductThumb } from '@/components/product/ProductThumb';
 import type { SearchSuggestion } from '@/lib/products-api';
-import { formatCurrency } from '@/utils/helpers';
+import { formatPaise } from '@/lib/money';
 
 /**
  * What a search shows when it finds nothing.
@@ -98,7 +98,7 @@ export const SearchEmptyState: React.FC<SearchEmptyStateProps> = ({
                   )}
                 </span>
                 <span className="shrink-0 text-sm font-semibold text-ink">
-                  {formatCurrency(product.price)}
+                  {formatPaise(product.pricePaise)}
                 </span>
               </Link>
             </li>

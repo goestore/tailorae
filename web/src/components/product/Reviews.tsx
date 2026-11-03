@@ -9,14 +9,10 @@ import { useHydrated } from '@/hooks/useHydrated';
 import { apiClient } from '@/lib/api-client';
 import { getApiErrorMessage } from '@/lib/api-utils';
 import { RootState } from '@/store';
-import { Review } from '@/types';
-
-interface ReviewWithUser extends Review {
-  user?: { firstName?: string | null; lastName?: string | null } | null;
-}
+import type { Review, ReviewSummary } from '@/types';
 
 export interface ReviewsProps {
-  /** The id or slug the page was loaded with — the reviews route accepts both. */
+  /** The product's id — the reviews route takes the id, not the slug. */
   productRef: string;
   /** Denormalised on the product, used for the summary before reviews load. */
   rating: number;
@@ -32,12 +28,8 @@ const Stars: React.FC<{ value: number; className?: string }> = ({ value, classNa
   </span>
 );
 
-const reviewerName = (review: ReviewWithUser): string => {
-  const first = review.user?.firstName?.trim();
-  const lastInitial = review.user?.lastName?.trim()?.charAt(0);
-  if (first) return lastInitial ? `${first} ${lastInitial}.` : first;
-  return 'Verified shopper';
-};
+/** The API sends "Asha R" — first name and initial — and nothing more. */
+const reviewerName = (review: Review): string => review.authorName?.trim() || 'Verified shopper';
 
 const formatDate = (iso: string): string =>
   new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -65,7 +57,8 @@ export const Reviews: React.FC<ReviewsProps> = ({
   const hydrated = useHydrated();
   const canWrite = hydrated && user;
 
-  const [reviews, setReviews] = useState<ReviewWithUser[]>([]);
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [summary, setSummary] = useState<ReviewSummary | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isWriting, setIsWriting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -77,7 +70,10 @@ export const Reviews: React.FC<ReviewsProps> = ({
     () =>
       apiClient
         .get(`/products/${encodeURIComponent(productRef)}/reviews`)
-        .then((res) => setReviews(res.data?.data?.reviews ?? []))
+        .then((res) => {
+          setReviews(res.data?.data?.reviews ?? []);
+          setSummary(res.data?.data?.summary ?? null);
+        })
         .catch(() => setReviews([]))
         .finally(() => setIsLoading(false)),
     [productRef]
@@ -111,10 +107,13 @@ export const Reviews: React.FC<ReviewsProps> = ({
   // The denormalised count on the product only counts published reviews, which
   // is also all this list can see — so they agree, and the header is used
   // while the list is still loading.
-  const average = reviews.length
-    ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
-    : rating;
-  const total = reviews.length || reviewCount;
+  // The API's summary covers every published review, not only this page.
+  const average = summary?.count
+    ? summary.average
+    : reviews.length
+      ? reviews.reduce((sum, review) => sum + review.rating, 0) / reviews.length
+      : rating;
+  const total = summary?.count || reviews.length || reviewCount;
 
   return (
     <section

@@ -9,6 +9,7 @@ import { QuantityDiscounts, B2BPricingTier } from '@/components/b2b';
 import { Card, Button, Input, LoadingSpinner } from '@/components/common';
 import { apiClient } from '@/lib/api-client';
 import { getMyB2BProfile, submitRfq, type B2BProfile } from '@/lib/b2b-api';
+import { formatPaise, rupeesToPaise } from '@/lib/money';
 import { RootState } from '@/store';
 import { Product } from '@/types';
 
@@ -116,7 +117,8 @@ export default function B2BPage() {
   const listed = products.find((p) => p.id === productId) ?? null;
   const detail = loadedDetail && loadedDetail.id === productId ? loadedDetail : null;
   const selected = detail ?? listed;
-  const basePrice = selected?.price ?? null;
+  // The tier table speaks rupees per piece; the API sends paise.
+  const basePrice = selected ? selected.pricePaise / 100 : null;
   const selectedQuantity = Math.max(1, parseInt(quantity, 10) || 0);
 
   const tiers: B2BPricingTier[] = useMemo(() => {
@@ -132,8 +134,8 @@ export default function B2BPage() {
     return [...bulk]
       .map((bp) => ({
         quantity: bp.minQty,
-        discount: Math.round(bp.discount ?? 0),
-        pricePerUnit: bp.price ?? basePrice,
+        discount: Math.round((bp.discountBp ?? 0) / 100),
+        pricePerUnit: bp.pricePaise != null ? bp.pricePaise / 100 : basePrice,
       }))
       .sort((a, b) => a.quantity - b.quantity);
   }, [detail, basePrice]);
@@ -172,7 +174,7 @@ export default function B2BPage() {
         productId,
         quantity: qty,
         ...(companyName.trim() ? { companyName: companyName.trim() } : {}),
-        ...(price !== undefined ? { targetPrice: price } : {}),
+        ...(price !== undefined ? { targetPricePaise: rupeesToPaise(price) } : {}),
         ...(deadline ? { deadline } : {}),
         ...(requirements.trim() ? { description: requirements.trim() } : {}),
       });
@@ -280,7 +282,7 @@ export default function B2BPage() {
                         {products.length === 0 && <option value="">No products available</option>}
                         {products.map((p) => (
                           <option key={p.id} value={p.id}>
-                            {p.name} — ₹{p.price}
+                            {p.name} — {formatPaise(p.pricePaise)}
                           </option>
                         ))}
                       </select>

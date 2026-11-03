@@ -3,11 +3,12 @@
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { apiClient } from '@/lib/api-client';
-import { getApiErrorMessage } from '@/lib/api-utils';
+import { getApiErrorMessage, getApiErrorStatus } from '@/lib/api-utils';
+import { addToCart } from '@/lib/cart-api';
+import { useSignedIn } from '@/hooks/useSignedIn';
 import { useAppDispatch } from '@/store';
 import { loadCart } from '@/store/slices/cart';
-import { Cart, Product } from '@/types';
+import type { Product } from '@/types';
 
 export interface QuickAddButtonProps {
   product: Product;
@@ -27,10 +28,13 @@ export interface QuickAddButtonProps {
 export const QuickAddButton: React.FC<QuickAddButtonProps> = ({ product, href }) => {
   const router = useRouter();
   const dispatch = useAppDispatch();
+  const signedIn = useSignedIn();
   const [isAdding, setIsAdding] = useState(false);
 
-  const needsOptions = product.isCustomizable;
-  const label = needsOptions ? 'Customize' : 'Add to Cart';
+  // A listing row carries no sizes, but its colour cards say it has variants;
+  // the bag needs a size chosen, so those go to the product page too.
+  const needsOptions = product.isCustomizable || (product.colors?.length ?? 0) > 0;
+  const label = product.isCustomizable ? 'Customize' : 'Add to Cart';
 
   const handleClick = async (event: React.MouseEvent) => {
     event.preventDefault();
@@ -41,22 +45,25 @@ export const QuickAddButton: React.FC<QuickAddButtonProps> = ({ product, href })
       return;
     }
 
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    if (!token) {
+    if (signedIn === false) {
       router.push(`/auth/login?redirect=${encodeURIComponent(href)}`);
       return;
     }
 
     setIsAdding(true);
     try {
-      const res = await apiClient.post('/cart/items', {
+      const cart = await addToCart({
         productId: product.id,
         quantity: Math.max(1, product.minOrderQuantity || 1),
       });
-      const cart = res.data?.data?.cart;
-      if (cart) dispatch(loadCart(cart as unknown as Cart));
+      dispatch(loadCart(cart));
       toast.success('Added to cart');
     } catch (err) {
+      // Sizes the listing could not see: let the product page ask for one.
+      if (getApiErrorStatus(err) === 400 && /choose a size/i.test(getApiErrorMessage(err))) {
+        router.push(href);
+        return;
+      }
       toast.error(getApiErrorMessage(err, 'Could not add to cart.'));
     } finally {
       setIsAdding(false);

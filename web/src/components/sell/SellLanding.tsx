@@ -3,12 +3,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import { Icon, Logo } from '@/components/common';
 import { formatCurrency } from '@/utils/helpers';
 import { PENDING_SHOP_KEY, getApplicationsOpen } from '@/lib/seller-api';
-import { RootState } from '@/store';
 
 const HIGHLIGHT = { color: 'var(--brand)' } as const;
 
@@ -268,7 +266,6 @@ function EarningsCalculator() {
 
 export function SellLanding() {
   const router = useRouter();
-  const { user } = useSelector((state: RootState) => state.auth);
   const heroRef = useRef<HTMLElement>(null);
   const [showBar, setShowBar] = useState(false);
   const [closed, setClosed] = useState(false);
@@ -302,7 +299,9 @@ export function SellLanding() {
         /* storage blocked — the form just starts empty */
       }
     }
-    router.push(user ? '/seller' : '/seller/register');
+    // A seller account is its own sign-up, apart from any shopping account;
+    // the page has a sign-in tab for someone who already has one.
+    router.push('/seller/register');
   };
 
   const scrollToForm = () => {
