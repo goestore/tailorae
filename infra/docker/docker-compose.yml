@@ -1,4 +1,5 @@
 # Local development services. Start with `npm run db:up` from the repo root.
+# Build contexts are relative to this file (infra/docker/).
 name: tailorae
 
 services:
@@ -101,7 +102,7 @@ services:
   # Day-to-day development runs the API with ./gradlew bootRun and the web app with npm run dev.
   api:
     profiles: ["app"]
-    build: ../api
+    build: ../../apps/api
     container_name: tailorae-api
     depends_on:
       postgres:
@@ -133,7 +134,7 @@ services:
   web:
     profiles: ["app"]
     build:
-      context: ../web
+      context: ../../apps/web
       args:
         NEXT_PUBLIC_API_URL: http://localhost:8081/api
         NEXT_PUBLIC_APP_URL: http://localhost:3000

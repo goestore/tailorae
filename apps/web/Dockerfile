@@ -1,5 +1,5 @@
 # TAILORAE web — Next.js standalone server.
-# Build: docker build --build-arg NEXT_PUBLIC_API_URL=https://api.example.com/api -t tailorae-web web/
+# Build: docker build --build-arg NEXT_PUBLIC_API_URL=https://api.example.com/api -t tailorae-web apps/web/
 # NEXT_PUBLIC_* values are baked in at build time, so they are build args.
 
 FROM node:22-alpine AS deps

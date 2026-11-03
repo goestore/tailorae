@@ -2,9 +2,9 @@
 
 > Done (November 2026). Kept as the record of what changed for the web app.
 
-What changes for `web/` when it talks to the Kotlin API instead of the Express
+What changes for `apps/web/` when it talks to the Kotlin API instead of the Express
 one. The full machine-readable contract is `GET /v3/api-docs` on the running API;
-generate TypeScript types from it (`npm run api:types` in `web/`). This file lists
+generate TypeScript types from it (`npm run api:types` in `apps/web/`). This file lists
 the decisions and differences that the types alone do not explain.
 
 ## 1. Base URL, cookies and sessions
@@ -33,7 +33,7 @@ the decisions and differences that the types alone do not explain.
   in `data` — not `{user, token}`.
 - Customer profile stays at `GET/PUT /api/users/profile` → `data.user`.
 - Sellers are a separate account from shoppers: the seller sign-up and sign-in pages
-  must call the seller endpoints (`web/src/components/auth/AuthPage.tsx` `ENDPOINTS`).
+  must call the seller endpoints (`apps/web/src/components/auth/AuthPage.tsx` `ENDPOINTS`).
 
 ## 2. Money and ids
 

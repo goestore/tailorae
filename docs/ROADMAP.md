@@ -6,7 +6,7 @@ file the single list.
 ## Phase 1 — Clean slate and rebrand ✅
 
 - [x] Remove every reference to the previous brand (code, metadata, emails, docs, Docker, DB name)
-- [x] Repo layout: `web/`, `legacy-api/`, `api/`, `infra/`, `docs/`
+- [x] Repo layout: `apps/web/`, `legacy-api/`, `apps/api/`, `infra/`, `docs/`
 - [x] Delete stray files, stale docs, dead components, unused images and PNG originals
 - [x] Seed reduced to one env-driven admin; demo catalogue, users, coupon and data scripts removed
 - [x] Custom-wear sample catalogue moved to a test fixture; home category tiles come only from the DB
@@ -41,7 +41,7 @@ file the single list.
 - [x] [`ACCOUNTS.md`](ACCOUNTS.md): three realms, sign-up flows, seller state machine, team roles, staff permissions, five isolation layers
 - [x] [`ARCHITECTURE.md`](ARCHITECTURE.md): modules, Kafka topics, outbox, scheduled jobs
 
-## Phase 5 — Kotlin API (`api/`)
+## Phase 5 — Kotlin API (`apps/api/`)
 
 Foundation ✅
 - [x] Gradle KTS, Spring Boot 4.1, Kotlin 2.3, Spring Modulith with a boundary test
@@ -72,4 +72,4 @@ Remaining
 - [x] Web switched to the Kotlin API: storefront + auth, seller console (new onboarding, team, earnings), staff console (permissions, staff, audit)
 - [x] Dockerfiles (api, web), compose `app` profile, GitHub Actions CI
 - [x] JDK 21 + virtual threads
-- [x] Cutover: full E2E (`scripts/e2e-smoke.mjs`: seller sign-up → approval → listing → moderation → checkout → delivery → payout; Razorpay webhooks covered by API tests), web on `api/`, `legacy-api/` and Prisma deleted
+- [x] Cutover: full E2E (`tools/e2e-smoke.mjs`: seller sign-up → approval → listing → moderation → checkout → delivery → payout; Razorpay webhooks covered by API tests), web on `apps/api/`, `legacy-api/` and Prisma deleted

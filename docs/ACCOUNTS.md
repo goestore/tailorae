@@ -2,7 +2,7 @@
 
 How customers, sellers and platform staff get accounts on TAILORAE, and how one
 seller's data is kept away from every other seller and from customers who should
-not see it. This is the design the Kotlin API (`api/`) implements; the original Node API
+not see it. This is the design the Kotlin API (`apps/api/`) implements; the original Node API
 used the single-`User`-table model described at the end.
 
 ## 1. Three separate identity realms

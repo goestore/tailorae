@@ -1,6 +1,6 @@
 # Architecture — Kotlin API
 
-The TAILORAE backend is Spring Boot + Kotlin + Kafka (`api/`). It replaced the
+The TAILORAE backend is Spring Boot + Kotlin + Kafka (`apps/api/`). It replaced the
 original Express + Prisma API in a big-bang rewrite (November 2026); the old code
 is in git history only. The database started empty, so there was no data migration.
 
@@ -11,13 +11,13 @@ is in git history only. The database started empty, so there was no data migrati
 | Language / runtime | Kotlin 2.3, JDK 21 with virtual threads (Gradle downloads the JDK via the foojay toolchain resolver) |
 | Framework | Spring Boot 4.1 — Web MVC, Security, Data JPA (Hibernate 7), Validation, Actuator |
 | Module boundaries | Spring Modulith — each package below is a module; cross-module calls go through its public API or events, verified by a test |
-| Database | PostgreSQL 15+, schema owned by **Flyway** (`api/src/main/resources/db/migration`), never Hibernate DDL |
+| Database | PostgreSQL 15+, schema owned by **Flyway** (`apps/api/src/main/resources/db/migration`), never Hibernate DDL |
 | Messaging | Apache Kafka (KRaft, no ZooKeeper) via Spring Kafka |
 | Cache / rate limits | Redis — Bucket4j rate limits, short-lived caches |
 | Files | S3-compatible object storage (MinIO locally): `media` bucket public, `private` bucket for KYC via presigned URLs |
 | Images | imgproxy sidecar for resize + WebP/AVIF (replaces `sharp`) |
 | Excel | Apache POI for the Myntra listing templates |
-| API docs | springdoc OpenAPI → generated TypeScript client in `web/src/lib/api/` |
+| API docs | springdoc OpenAPI → generated TypeScript client in `apps/web/src/lib/api/` |
 | Tests | JUnit 5 + Testcontainers (Postgres, Kafka) |
 | IDs / money | UUIDv7 primary keys; money as `Long` paise |
 
@@ -70,7 +70,7 @@ processed event ids) and failures go to a `<topic>.DLT` dead-letter topic.
 
 ## Compatibility with the web app
 
-To keep the frontend change small at cutover, `api/` keeps the existing REST
+To keep the frontend change small at cutover, `apps/api/` keeps the existing REST
 paths, the `{ success, message, data }` envelope and the `X-Total-Count`
 header. The deliberate breaks are authentication (per-realm endpoints and
 `httpOnly` cookies instead of a Bearer token in `localStorage`) and the separate
@@ -78,7 +78,7 @@ seller sign-up/sign-in pages — see [ACCOUNTS.md](ACCOUNTS.md).
 
 ## Local services
 
-`infra/docker-compose.yml`: Postgres (5433), Redis (6379), Kafka (9092),
+`infra/docker/docker-compose.yml`: Postgres (5433), Redis (6379), Kafka (9092),
 Kafka UI (8085), Mailpit (1025 SMTP / 8025 UI), Adminer (8080). Object storage
 is added with the media module (MinIO no longer ships Docker Hub images; the
 choice between a MinIO build, SeaweedFS or RustFS is still open).

@@ -1,6 +1,6 @@
 // End-to-end smoke test of the whole marketplace against a running local stack.
 //
-//   ADMIN_PASSWORD=… API_LOG=path/to/api.log node scripts/e2e-smoke.mjs
+//   ADMIN_PASSWORD=… API_LOG=path/to/api.log node tools/e2e-smoke.mjs
 //
 // Seller signs up → confirms email (Mailpit) and phone (code from the API log)
 // → business, KYC, bank, submit → staff approve → seller lists a product with a

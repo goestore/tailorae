@@ -6,7 +6,7 @@ server:
 spring:
   application:
     name: tailorae-api
-  # Local secrets for `npm run dev:api` live in api/.env (see api/.env.example); absent in production.
+  # Local secrets for `npm run dev:api` live in apps/api/.env (see apps/api/.env.example); absent in production.
   config:
     import: optional:file:.env[.properties]
   threads:

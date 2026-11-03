@@ -3,7 +3,7 @@
 
 # Shell scripts must stay LF everywhere, or they fail inside Linux containers and CI.
 *.sh text eol=lf
-api/gradlew text eol=lf
+apps/api/gradlew text eol=lf
 *.bat text eol=crlf
 *.cmd text eol=crlf
 

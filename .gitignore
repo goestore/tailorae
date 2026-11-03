@@ -48,8 +48,7 @@ coverage/
 .cache/
 .turbo/
 
-# Docker
-.dockerignore
-
-# Agent worktrees
-.claude/worktrees/
+# AI coding assistants (local only)
+.claude/
+.codex/
+.cursor/

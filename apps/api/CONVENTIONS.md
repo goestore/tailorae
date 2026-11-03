@@ -1,4 +1,4 @@
-# api/ conventions
+# apps/api/ conventions
 
 How a module in the Kotlin API is built. `seller/` is the reference module —
 read it before writing a new one.
@@ -55,7 +55,7 @@ read it before writing a new one.
 - Validate request bodies with Jakarta annotations on Kotlin data classes
   (`@field:NotBlank` …) and `@Valid`.
 - Keep the legacy Node API's paths and response field names where the web app relies
-  on them (see `web/src/lib/*-api.ts`), so switching the web app over stays small.
+  on them (see `apps/web/src/lib/*-api.ts`), so switching the web app over stays small.
   Money fields in responses are paise and named `…Paise`.
 
 ## Events

@@ -1,10 +1,10 @@
 // Runs the API's Gradle wrapper from the repo root on any OS:
-//   node scripts/gradle.mjs bootRun   →  api/gradlew bootRun   (gradlew.bat on Windows)
+//   node tools/gradle.mjs bootRun   →  apps/api/gradlew bootRun   (gradlew.bat on Windows)
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
-const apiDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'api');
+const apiDir = join(dirname(fileURLToPath(import.meta.url)), '..', 'apps', 'api');
 const args = process.argv.slice(2);
 
 // A .bat file needs cmd.exe; it is named by its full path because some Windows

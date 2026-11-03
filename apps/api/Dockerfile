@@ -1,5 +1,5 @@
 # TAILORAE API — Spring Boot 4 on JDK 21.
-# Build: docker build -t tailorae-api api/
+# Build: docker build -t tailorae-api apps/api/
 # The image runs as a non-root user and splits the jar into layers, so a code
 # change re-pushes only the small application layer, not the dependencies.
 
