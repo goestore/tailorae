@@ -64,6 +64,10 @@ class AuthService(
         if (customers.findByEmailIgnoreCase(normalised) != null) {
             throw ConflictException("An account with this email already exists — sign in instead")
         }
+        val normalisedPhone = phone?.trim()?.ifEmpty { null }
+        if (normalisedPhone != null && customers.existsByPhone(normalisedPhone)) {
+            throw ConflictException("An account with this phone number already exists — sign in instead")
+        }
         // Flushed now: the confirmation token below is written with plain SQL.
         val customer = customers.saveAndFlush(
             Customer(

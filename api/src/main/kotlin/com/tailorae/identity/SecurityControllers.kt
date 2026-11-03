@@ -58,6 +58,7 @@ class IdentityModuleConfig {
                 PublicEndpoint(HttpMethod.POST, "${realm.authPath}/reset-password"),
                 PublicEndpoint(HttpMethod.GET, "${realm.authPath}/verify-email"),
                 PublicEndpoint(HttpMethod.POST, "${realm.authPath}/verify-email"),
+                PublicEndpoint(HttpMethod.GET, "${realm.authPath}/session"),
             )
         },
     )
@@ -80,6 +81,16 @@ abstract class RealmSecurityController(
     protected val security: AccountSecurity,
     private val webUrl: String,
 ) {
+    /**
+     * "Am I signed in?" without a 401: `signedIn` when the access cookie is valid,
+     * `refreshable` when it is not but a refresh cookie is present (call refresh, then me).
+     */
+    @GetMapping("/session")
+    fun session(@AuthenticationPrincipal jwt: Jwt?, request: HttpServletRequest): ApiResponse<Map<String, Boolean>> {
+        val refreshable = request.cookies?.any { it.name == realm.refreshCookie && it.value.isNotBlank() } == true
+        return ApiResponse.ok(mapOf("signedIn" to (jwt != null), "refreshable" to (jwt == null && refreshable)))
+    }
+
     @PostMapping("/forgot-password")
     fun forgot(@Valid @RequestBody body: EmailRequest, request: HttpServletRequest): ApiResponse<Unit> {
         security.requestPasswordReset(realm, body.email, request.remoteAddr)

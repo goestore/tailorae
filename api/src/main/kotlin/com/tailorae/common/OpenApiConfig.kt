@@ -1,5 +1,8 @@
 package com.tailorae.common
 
+import com.fasterxml.jackson.module.kotlin.KotlinModule
+import io.swagger.v3.core.jackson.ModelResolver
+import io.swagger.v3.core.util.Json
 import io.swagger.v3.oas.models.OpenAPI
 import io.swagger.v3.oas.models.info.Info
 import org.springframework.context.annotation.Bean
@@ -12,6 +15,11 @@ class OpenApiConfig {
     fun openApi(): OpenAPI = OpenAPI().info(
         Info().title("TAILORAE API").version("1").description("Storefront, seller and staff API. Money is integer paise; ids are UUIDv7."),
     )
+
+    /** Describe Kotlin classes as Jackson serialises them (`isDefault`, not `default`). */
+    @Bean
+    fun kotlinModelResolver(): ModelResolver =
+        ModelResolver(Json.mapper().copy().registerModule(KotlinModule.Builder().build()))
 
     @Bean
     fun openApiPublicEndpoints() = PublicEndpoints.get("/v3/api-docs", "/v3/api-docs/**")

@@ -42,7 +42,7 @@ class OrderModuleConfig {
     fun orderTopics() = TopicSet(OrderTopics.ALL)
 
     @Bean
-    fun orderPublicEndpoints() = PublicEndpoints.get("/api/track-order")
+    fun orderPublicEndpoints() = PublicEndpoints.get("/api/track-order", "/api/checkout/config")
 }
 
 /** A review is "verified" when the reviewer has a delivered line of that product. */
@@ -60,7 +60,29 @@ class DeliveredPurchases(private val jdbc: JdbcClient) : PurchaseVerifier {
 }
 
 @RestController
-class CustomerOrderController(private val orders: OrderService) {
+class CustomerOrderController(
+    private val orders: OrderService,
+    private val settings: com.tailorae.common.SystemSettings,
+    private val onlinePayments: org.springframework.beans.factory.ObjectProvider<OnlinePaymentStatus>,
+) {
+    /** What the bag and checkout show before an order exists: shipping rule and payment options. */
+    @GetMapping("/api/checkout/config")
+    fun checkoutConfig(): ApiResponse<Map<String, Any?>> {
+        val online = onlinePayments.ifAvailable?.unavailableReason()
+        return ApiResponse.ok(
+            mapOf(
+                "freeShippingAbovePaise" to settings.long(com.tailorae.common.SystemSettings.FREE_SHIPPING_ABOVE_PAISE, 99_900),
+                "flatShippingPaise" to settings.long(com.tailorae.common.SystemSettings.FLAT_SHIPPING_PAISE, 7_900),
+                "returnWindowDays" to settings.int(com.tailorae.common.SystemSettings.SETTLEMENT_HOLD_DAYS, 7),
+                "paymentMethods" to listOf(
+                    mapOf("method" to "COD", "available" to true, "reason" to null),
+                    mapOf("method" to "RAZORPAY", "available" to (onlinePayments.ifAvailable != null && online == null),
+                        "reason" to (if (onlinePayments.ifAvailable == null) "Online payment is not available right now" else online)),
+                ),
+            ),
+        )
+    }
+
     @PostMapping("/api/orders")
     fun place(@AuthenticationPrincipal jwt: Jwt, @Valid @RequestBody body: CheckoutRequest): ResponseEntity<ApiResponse<Map<String, Any>>> {
         val order = orders.checkout(jwt.accountId(), body)

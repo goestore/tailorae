@@ -73,6 +73,8 @@ class AdminUser(
 interface CustomerRepository : JpaRepository<Customer, UUID> {
     @Query("select c from Customer c where lower(c.email) = lower(:email)")
     fun findByEmailIgnoreCase(email: String): Customer?
+
+    fun existsByPhone(phone: String): Boolean
 }
 
 interface SellerAccountRepository : JpaRepository<SellerAccount, UUID> {

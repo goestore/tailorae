@@ -51,7 +51,12 @@ class PaymentService(
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
-    fun config() = mapOf("enabled" to props.configured, "keyId" to props.keyId.ifBlank { null }, "currency" to "INR")
+    fun config() = mapOf(
+        "enabled" to props.configured,
+        "keyId" to props.keyId.ifBlank { null },
+        "currency" to "INR",
+        "reason" to if (props.configured) null else "Online payment is not available right now — choose cash on delivery",
+    )
 
     /** A gateway order for the shopper's unpaid online order (reused if one exists). */
     @Transactional

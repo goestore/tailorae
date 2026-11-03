@@ -251,7 +251,7 @@ class OrderService(
     }
 
     fun view(orderId: UUID): OrderView {
-        val items = items("where order_id = :o", mapOf("o" to orderId))
+        val items = items("where i.order_id = :o", mapOf("o" to orderId))
         val parts = jdbc.sql(
             """
             select so.id, so.order_number, so.seller_id, s.shop_name, so.status, so.total_paise, so.tracking_number, so.carrier, so.shipped_at, so.delivered_at
@@ -479,7 +479,7 @@ class OrderService(
 
     /** Reads only RLS-visible tables and the shipment view, so it is safe inside the seller scope. */
     fun sellerOrder(sellerId: UUID, sellerOrderId: UUID): SellerOrderView {
-        val items = items("where seller_order_id = :so and seller_id = :s", mapOf("so" to sellerOrderId, "s" to sellerId))
+        val items = items("where i.seller_order_id = :so and i.seller_id = :s", mapOf("so" to sellerOrderId, "s" to sellerId))
         return jdbc.sql(
             """
             select so.*, sh.ship_name, sh.ship_line1, sh.ship_line2, sh.ship_city, sh.ship_state, sh.ship_postal_code, sh.payment_method, sh.notes
@@ -573,21 +573,22 @@ class OrderService(
             """
             select o.*, (select sum(quantity) from order_item i where i.order_id = o.id) as item_count,
                    (select name from order_item i where i.order_id = o.id order by i.created_at limit 1) as first_name,
-                   (select thumbnail from order_item i where i.order_id = o.id order by i.created_at limit 1) as first_thumb
+                   (select thumbnail from order_item i where i.order_id = o.id order by i.created_at limit 1) as first_thumb,
+                   (select r.status from return_request r where r.order_id = o.id) as return_status
             from customer_order o $where order by o.created_at desc limit :lim offset :off
             """.trimIndent(),
         ).params(params).param("lim", page.safeLimit).param("off", page.offset).query { rs, _ ->
             OrderSummaryView(rs.getObject("id", UUID::class.java), rs.getString("order_number"), OrderStatus.valueOf(rs.getString("status")),
                 PaymentStatus.valueOf(rs.getString("payment_status")), PaymentMethod.valueOf(rs.getString("payment_method")), rs.getLong("total_paise"),
                 rs.getInt("item_count"), rs.getString("first_name"), rs.getString("first_thumb"), rs.getString("contact_email"),
-                rs.getTimestamp("created_at").toInstant())
+                rs.getTimestamp("created_at").toInstant(), rs.getString("return_status"))
         }.list()
         return Page(rows, total, page.safePage, page.safeLimit)
     }
 
     private fun items(where: String, params: Map<String, Any>): List<OrderItemView> =
-        jdbc.sql("select * from order_item $where order by created_at").params(params).query { rs, _ ->
-            OrderItemView(rs.getObject("id", UUID::class.java), rs.getObject("product_id", UUID::class.java), rs.getObject("variant_id", UUID::class.java),
+        jdbc.sql("select i.*, p.slug as product_slug from order_item i left join product p on p.id = i.product_id $where order by i.created_at").params(params).query { rs, _ ->
+            OrderItemView(rs.getObject("id", UUID::class.java), rs.getObject("product_id", UUID::class.java), rs.getString("product_slug"), rs.getObject("variant_id", UUID::class.java),
                 rs.getObject("seller_id", UUID::class.java), rs.getString("name"), rs.getString("sku"), rs.getString("size"), rs.getString("color"),
                 rs.getString("thumbnail"), rs.getInt("quantity"), rs.getLong("unit_paise"), rs.getLong("discount_paise"),
                 rs.getString("customization")?.let { json.readValue(it, Any::class.java) }, rs.getString("mockup_image"))

@@ -51,7 +51,7 @@ data class ReturnDecision(
 )
 
 data class OrderItemView(
-    val id: UUID, val productId: UUID, val variantId: UUID?, val sellerId: UUID, val name: String, val sku: String,
+    val id: UUID, val productId: UUID, val productSlug: String?, val variantId: UUID?, val sellerId: UUID, val name: String, val sku: String,
     val size: String?, val color: String?, val thumbnail: String?, val quantity: Int, val unitPaise: Long,
     val discountPaise: Long, val customization: Any?, val mockupImage: String?,
 )
@@ -102,6 +102,8 @@ data class OrderSummaryView(
     val id: UUID, val orderNumber: String, val status: OrderStatus, val paymentStatus: PaymentStatus,
     val paymentMethod: PaymentMethod, val totalPaise: Long, val itemCount: Int, val firstItemName: String?,
     val firstItemThumbnail: String?, val customerEmail: String?, val createdAt: Instant,
+    /** PENDING / APPROVED / REJECTED / COMPLETED when a return was requested; null otherwise. */
+    val returnStatus: String? = null,
 )
 
 /** What a seller sees of an order: their lines, the shipping label, never the customer's contact details. */
