@@ -30,6 +30,9 @@ dependencies {
     implementation("org.springframework.modulith:spring-modulith-starter-core")
     // OpenAPI description at /v3/api-docs, from which the web app generates its TypeScript types.
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-api:3.0.0")
+    // S3-compatible object storage for production (AWS S3, Cloudflare R2, SeaweedFS, RustFS).
+    implementation(platform("software.amazon.awssdk:bom:2.30.0"))
+    implementation("software.amazon.awssdk:s3")
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.flywaydb:flyway-database-postgresql")

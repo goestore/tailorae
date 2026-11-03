@@ -68,9 +68,19 @@ tailorae:
   outbox:
     poll-ms: 1000
   storage:
+    # local (disk, served by this API — dev) or s3 (any S3-compatible service — production).
+    type: ${STORAGE_TYPE:local}
     root: ${STORAGE_ROOT:./data/storage}
     public-base-url: ${API_PUBLIC_URL:http://localhost:8081}
     signing-key: ${STORAGE_SIGNING_KEY:dev-only-signing-key-change-me}
+    s3:
+      endpoint: ${S3_ENDPOINT:}
+      region: ${S3_REGION:ap-south-1}
+      access-key: ${S3_ACCESS_KEY:}
+      secret-key: ${S3_SECRET_KEY:}
+      public-bucket: ${S3_PUBLIC_BUCKET:tailorae-public}
+      private-bucket: ${S3_PRIVATE_BUCKET:tailorae-private}
+      public-base-url: ${S3_PUBLIC_BASE_URL:}
   razorpay:
     key-id: ${RAZORPAY_KEY_ID:}
     key-secret: ${RAZORPAY_KEY_SECRET:}

@@ -123,7 +123,11 @@ data class CreditView(val creditLimitPaise: Long, val creditUsedPaise: Long, val
  * verify the profile.
  */
 @Service
-class B2bService(private val jdbc: JdbcClient, private val reads: B2bReads) {
+class B2bService(
+    private val jdbc: JdbcClient,
+    private val reads: B2bReads,
+    private val profiles: com.tailorae.identity.CustomerProfileService,
+) {
 
     @Transactional(readOnly = true)
     fun profile(customerId: UUID): B2bProfileView? = reads.profile(customerId)
@@ -329,14 +333,8 @@ class B2bService(private val jdbc: JdbcClient, private val reads: B2bReads) {
     @Transactional(readOnly = true)
     fun myCredit(customerId: UUID): CreditView? = reads.profile(customerId)?.let { reads.credit(it) }
 
-    /**
-     * A business profile makes the account a business account. This writes
-     * identity's `customer` row directly (one column) — identity has no service
-     * method for it yet.
-     */
-    private fun markBusiness(customerId: UUID) {
-        jdbc.sql("update customer set type = 'BUSINESS', updated_at = now() where id = :id and type <> 'BUSINESS'").param("id", customerId).update()
-    }
+    /** A business profile makes the account a business account; identity owns that column. */
+    private fun markBusiness(customerId: UUID) = profiles.markBusiness(customerId)
 
     private fun ownerOf(rfqId: UUID): UUID? =
         jdbc.sql("select customer_id from rfq where id = :id").param("id", rfqId).query(UUID::class.java).optional().orElse(null)

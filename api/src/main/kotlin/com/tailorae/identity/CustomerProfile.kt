@@ -55,6 +55,17 @@ class CustomerProfileService(private val customers: CustomerRepository) {
         return view(customers.saveAndFlush(c))
     }
 
+    /** A business profile makes the account a business account (docs/ACCOUNTS.md); called by the B2B module. */
+    @Transactional
+    fun markBusiness(id: UUID) {
+        val c = find(id)
+        if (c.type != "BUSINESS") {
+            c.type = "BUSINESS"
+            c.updatedAt = Instant.now()
+            customers.saveAndFlush(c)
+        }
+    }
+
     private fun find(id: UUID) = customers.findById(id).orElseThrow { NotFoundException("Account not found") }
 
     private fun view(c: Customer) = CustomerProfileView(

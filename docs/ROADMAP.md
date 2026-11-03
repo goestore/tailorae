@@ -29,10 +29,10 @@ file the single list.
 - [x] Brand storefront hero; seller cards with shop imagery
 - [x] Account status pills on tokens; cart rows on the card system
 - [x] Inter via `next/font`
-- [ ] Product page: move the ~70 inline styles into classes, drop the 1240px cap
+- [x] Product page: inline styles moved into `pdp-*` classes, standard container
 - [x] Seller console shell with its own sidebar and top bar, outside the storefront chrome; `/seller/login` and `/seller/register` pages
-- [ ] Replace remaining hard-coded 10–13px sizes with the type scale
-- [ ] Admin image pickers: use `MediaPlaceholder` for empty tiles
+- [x] Type scale (`text-micro/caption/small/meta`) replaces hard-coded 10–13px sizes
+- [x] Admin image pickers use `MediaPlaceholder` for empty tiles
 - [x] Hero banner layout per page: one full-width banner or two side by side (`heroBannerFields` + `HeroBanner`)
 - [ ] Replace the home hero banner images (current artwork shows "Customize polo t-shirts / Your logo") — upload new ones in the admin
 
@@ -51,23 +51,25 @@ Foundation ✅
 - [x] Identity: register/login/refresh/logout/me for customer and seller realms, login/refresh/logout/me for admin; httpOnly cookies per realm; audience-checked JWTs; refresh rotation with reuse detection; lockout; bootstrap SUPER_ADMIN
 - [x] Welcome emails via Kafka → Mailpit
 - [x] Infra: Kafka (KRaft), Kafka UI, Mailpit in compose
-- [x] 14 tests incl. Testcontainers end-to-end
+- [x] 324 tests incl. Testcontainers end-to-end
 
 Remaining
-- [ ] identity: email/phone OTP verification, password reset, session list & revoke, staff management, permission checks
-- [ ] seller: business onboarding state machine, members & invites, KYC to private storage, encrypted bank details, admin review; RLS + `SET LOCAL app.seller_id`
-- [ ] object storage choice (MinIO build / SeaweedFS / RustFS) + imgproxy; media library
-- [ ] catalog: categories & fields, Myntra templates, products, variants, colour families, brands & approval, moderation, Excel import/export (port `legacy-api/src/utils/*` specs)
-- [ ] search: FTS + trigram, facets, autocomplete, indexer on `catalog.product.changed`
-- [ ] cart, wishlist, coupons, bulk pricing, pincode / delivery estimate
-- [ ] order: checkout, seller split (port `order-split`), stock reservation, status machine, cancel, returns
-- [ ] payment: Razorpay create / verify / webhook / refund (port `payment-*` specs)
-- [ ] finance: commission, ledger with advisory lock, settlement, withdrawals, payouts, CSV statements (port specs)
-- [ ] content/CMS, banners, custom-wear products & quotes, B2B RFQ, contact, newsletter, stock alerts
-- [ ] admin: dashboard, reports, users, orders, returns, reviews, settings, audit views
-- [ ] scheduled jobs: unpaid-order stock release, settlement sweep, token cleanup (ShedLock)
-- [ ] cross-seller isolation tests for every seller endpoint
-- [ ] OpenAPI → generated TS client; web auth switched to per-realm cookies (seller pages exist; repoint `ENDPOINTS.seller` in `AuthPage.tsx` to `/seller/auth/*`)
-- [ ] Dockerfiles (api, web) and GitHub Actions CI
+- [x] identity: email confirmation, seller phone codes, password reset/change, session list & revoke, staff management, live permission checks
+- [x] seller: onboarding state machine, members & invites, KYC to private storage, encrypted bank details, staff review; RLS via `SellerScope`
+- [x] media library on `ObjectStorage` (local disk, public + private buckets, signed links)
+- [x] S3-compatible storage for production (`STORAGE_TYPE=s3`; tested against SeaweedFS). Resizing/WebP is done by the web app's Next.js image optimizer, so no imgproxy
+- [x] catalog: categories & fields, Myntra templates, products, variants, colour families, brands & approval, moderation, Excel import/export
+- [x] search: weighted full-text + trigram, facets, typeahead
+- [x] cart, wishlist, addresses, coupons, bulk pricing, reviews, pincode / delivery estimate
+- [x] order: checkout, seller split, guarded stock, status machine, cancel, returns
+- [x] payment: Razorpay create / verify / webhook / refund
+- [x] finance: commission, ledger with advisory lock, settlement, withdrawals, payouts, CSV statements
+- [x] content/CMS, banners, custom-wear products & quotes, B2B RFQ, contact, newsletter, stock alerts, emails
+- [x] admin: dashboard, queues, reports, customers, staff, orders, returns, reviews, settings, audit
+- [x] scheduled jobs: unpaid-order stock release, settlement sweep, session cleanup (advisory-lock single runner)
+- [x] cross-seller isolation tests (404 on another shop's ids, RLS proven against Postgres)
+- [x] OpenAPI at `/v3/api-docs`; contract changes in [`API_MIGRATION.md`](API_MIGRATION.md)
+- [ ] Web switched to the Kotlin API: storefront + auth (in progress), seller console, admin console
+- [x] Dockerfiles (api, web), compose `app` profile, GitHub Actions CI
 - [x] JDK 21 + virtual threads
 - [ ] Cutover: full E2E (seller sign-up → approval → listing → moderation → checkout → Razorpay test webhook → delivery → payout), point web at `api/`, delete `legacy-api/` and Prisma

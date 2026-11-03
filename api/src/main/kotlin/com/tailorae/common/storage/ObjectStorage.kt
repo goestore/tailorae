@@ -5,6 +5,7 @@ import com.tailorae.common.NotFoundException
 import com.tailorae.common.PublicEndpoint
 import com.tailorae.common.PublicEndpoints
 import com.tailorae.common.UnauthorizedException
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
@@ -57,6 +58,8 @@ interface ObjectStorage {
 
 @ConfigurationProperties("tailorae.storage")
 data class StorageProperties(
+    /** `local` (disk, served by this API) or `s3` (any S3-compatible service; see S3Storage). */
+    val type: String = "local",
     val root: String = "./data/storage",
     /** Absolute origin the API is reached at, so stored URLs work from the web app. */
     val publicBaseUrl: String = "http://localhost:8081",
@@ -65,6 +68,7 @@ data class StorageProperties(
 )
 
 @Component
+@ConditionalOnProperty(name = ["tailorae.storage.type"], havingValue = "local", matchIfMissing = true)
 class LocalDiskStorage(private val props: StorageProperties) : ObjectStorage {
     private val root: Path = Path.of(props.root).toAbsolutePath().normalize()
     private val safeName = Regex("[^a-zA-Z0-9._-]")
@@ -113,6 +117,7 @@ class LocalDiskStorage(private val props: StorageProperties) : ObjectStorage {
 
 /** Serves both buckets: public files directly, private ones only with a valid signature. */
 @RestController
+@ConditionalOnProperty(name = ["tailorae.storage.type"], havingValue = "local", matchIfMissing = true)
 class StoredFileController(private val storage: LocalDiskStorage) {
 
     @GetMapping("/media/**")
