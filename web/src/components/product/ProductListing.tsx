@@ -153,7 +153,7 @@ export const ProductListing: React.FC<ProductListingProps> = ({
     q: values.q || undefined,
     color: values.color || undefined,
     brand: baseQuery?.brand || values.brand || undefined,
-    vendor: baseQuery?.vendor || undefined,
+    seller: baseQuery?.seller || undefined,
     minPrice: values.minPrice ? Number(values.minPrice) : undefined,
     maxPrice: values.maxPrice ? Number(values.maxPrice) : undefined,
     sale: values.onSale === '1' || baseQuery?.onSale === 'true',

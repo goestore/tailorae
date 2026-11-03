@@ -101,7 +101,7 @@ export default async function ProductLayout({ children, params }: LayoutProps) {
       '@type': 'Offer',
       url: absoluteUrl(`/products/${product.slug || product.id}`),
       priceCurrency: 'INR',
-      price: product.price,
+      price: (product.pricePaise / 100).toFixed(2),
       availability:
         product.quantity > 0
           ? 'https://schema.org/InStock'

@@ -6,11 +6,27 @@ import { useRouter } from 'next/navigation';
 import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import { Breadcrumbs, Button, SkeletonList } from '@/components/common';
-import { ProductCard, RecentlyViewed } from '@/components/product';
+import { BaseProductCard, RecentlyViewed, type ProductCardModel } from '@/components/product';
 import { apiClient } from '@/lib/api-client';
 import { getApiErrorMessage } from '@/lib/api-utils';
+import { formatPaise } from '@/lib/money';
 import { RootState } from '@/store';
 import { WishlistItem } from '@/types';
+
+/** A saved entry carries its own name, photo and current price — enough for a card. */
+function toCardModel(item: WishlistItem): ProductCardModel {
+  const onSale = typeof item.mrpPaise === 'number' && item.mrpPaise > item.pricePaise;
+  const off = onSale ? Math.round(((item.mrpPaise! - item.pricePaise) / item.mrpPaise!) * 100) : 0;
+  return {
+    href: `/products/${item.slug || item.productId}`,
+    name: item.name,
+    image: item.thumbnail || undefined,
+    price: formatPaise(item.pricePaise),
+    comparePrice: onSale ? formatPaise(item.mrpPaise) : undefined,
+    discountLabel: off > 0 ? `${off}% off` : undefined,
+    outOfStock: !item.available || !item.inStock,
+  };
+}
 
 export default function WishlistPage() {
   const router = useRouter();
@@ -34,7 +50,7 @@ export default function WishlistPage() {
     () =>
       apiClient
         .get('/users/wishlist')
-        .then((res) => setItems(res.data?.data?.wishlist ?? []))
+        .then((res) => setItems(res.data?.data?.items ?? []))
         .catch((err) => toast.error(getApiErrorMessage(err, 'Could not load your wishlist.')))
         .finally(() => setIsLoading(false)),
     []
@@ -99,13 +115,13 @@ export default function WishlistPage() {
         {items.length > 0 ? (
           <div className="mt-8 grid grid-cols-2 gap-x-[var(--card-gap)] gap-y-[var(--card-row-gap)] md:grid-cols-3 lg:grid-cols-4">
             {items.map((item) => (
-              <div key={item.id} className="relative">
-                <ProductCard product={item.product} />
+              <div key={item.productId} className="relative">
+                <BaseProductCard model={toCardModel(item)} />
                 <button
                   type="button"
                   onClick={() => remove(item.productId)}
                   disabled={removingId === item.productId}
-                  aria-label={`Remove ${item.product.name} from wishlist`}
+                  aria-label={`Remove ${item.name} from wishlist`}
                   className="absolute right-2 top-2 z-10 flex h-8 w-8 items-center justify-center border border-line bg-white/95 text-lg leading-none text-ink transition-colors hover:border-[var(--ink-3)] disabled:opacity-40"
                 >
                   &times;

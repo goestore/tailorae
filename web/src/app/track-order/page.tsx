@@ -6,32 +6,38 @@ import { useSearchParams } from 'next/navigation';
 import { Breadcrumbs, Button, Input, LoadingSpinner } from '@/components/common';
 import { apiClient } from '@/lib/api-client';
 import { getApiErrorMessage } from '@/lib/api-utils';
-import { formatCurrency } from '@/utils/helpers';
+import { formatPaise } from '@/lib/money';
+import { fetchOrderByReference } from '@/lib/orders-api';
+import { useSignedIn } from '@/hooks/useSignedIn';
 import { OrderStatus } from '@/types';
 
 interface TrackedItem {
-  id: string;
   name: string;
-  slug: string | null;
   quantity: number;
-  price: number;
-  sku: string | null;
+  thumbnail?: string | null;
 }
 
+/** One shop's parcel: each seller ships and tracks its own part of the order. */
+interface Shipment {
+  status: OrderStatus;
+  trackingNumber?: string | null;
+  carrier?: string | null;
+  shippedAt?: string | null;
+  deliveredAt?: string | null;
+}
+
+/** What `GET /track-order?orderNumber=&email=` answers. */
 interface TrackedOrder {
   orderNumber: string;
   status: OrderStatus;
   paymentStatus: string;
   createdAt: string;
-  verified: boolean;
-  total?: number;
-  trackingNumber?: string | null;
-  carrier?: string | null;
-  estimatedDelivery?: string | null;
-  actualDelivery?: string | null;
-  destination?: string | null;
+  deliveredAt?: string | null;
+  shipments?: Shipment[];
   items?: TrackedItem[];
   timeline?: Array<{ status: string; message: string | null; createdAt: string }>;
+  /** Only when read from the signed-in shopper's own order. */
+  totalPaise?: number;
 }
 
 /**
@@ -60,6 +66,8 @@ function TrackOrderForm() {
   const [orderNumber, setOrderNumber] = useState(searchParams.get('order') ?? '');
   const [email, setEmail] = useState('');
   const [order, setOrder] = useState<TrackedOrder | null>(null);
+  // A signed-in shopper can track their own orders by number alone.
+  const signedIn = useSignedIn();
   const [error, setError] = useState<string | null>(null);
   const [isSearching, setIsSearching] = useState(false);
 
@@ -71,14 +79,39 @@ function TrackOrderForm() {
       return;
     }
 
+    if (!email.trim() && !signedIn) {
+      setError('Enter the email address you checked out with.');
+      return;
+    }
+
     setIsSearching(true);
     setError(null);
     setOrder(null);
     try {
-      const res = await apiClient.get('/track-order', {
-        params: { orderNumber: reference, email: email.trim() || undefined },
-      });
-      setOrder(res.data?.data?.order ?? null);
+      if (!email.trim()) {
+        const own = await fetchOrderByReference(reference);
+        if (!own) throw new Error('We could not find that order on your account.');
+        setOrder({
+          orderNumber: own.orderNumber,
+          status: own.status,
+          paymentStatus: own.paymentStatus,
+          createdAt: own.createdAt,
+          deliveredAt: own.deliveredAt,
+          shipments: own.sellerOrders ?? [],
+          items: own.items.map((item) => ({
+            name: item.name,
+            quantity: item.quantity,
+            thumbnail: item.thumbnail,
+          })),
+          timeline: (own.timeline ?? []).map((t) => ({ ...t, message: t.message ?? null })),
+          totalPaise: own.totalPaise,
+        });
+      } else {
+        const res = await apiClient.get('/track-order', {
+          params: { orderNumber: reference, email: email.trim() },
+        });
+        setOrder((res.data?.data as TrackedOrder | undefined) ?? null);
+      }
     } catch (err) {
       setError(getApiErrorMessage(err, 'Could not find that order.'));
     } finally {
@@ -108,8 +141,7 @@ function TrackOrderForm() {
               Track your order
             </h1>
             <p className="mt-3 text-[15px]" style={{ color: 'var(--ink-2)', lineHeight: 1.65 }}>
-              No account needed. Add the email you checked out with to see the items and the total
-              as well as the status.
+              No account needed: the order number and the email you checked out with are enough.
             </p>
           </header>
 
@@ -122,12 +154,12 @@ function TrackOrderForm() {
               autoComplete="off"
             />
             <Input
-              label="Email (optional)"
+              label={signedIn ? 'Email (optional when signed in)' : 'Email'}
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               placeholder="The address on the order"
-              helperText="Without it we can only show the status, never your items or address."
+              helperText="The address the order confirmation was sent to."
               autoComplete="email"
             />
             <Button type="submit" size="lg" loading={isSearching}>
@@ -230,29 +262,25 @@ function TrackOrderForm() {
                   </ol>
                 )}
 
-                {order.trackingNumber && (
-                  <p className="m-0 mt-6 text-[14px]" style={{ color: 'var(--ink-2)' }}>
-                    <span className="font-semibold text-ink">
-                      {order.carrier ? `${order.carrier} · ` : ''}
-                      {order.trackingNumber}
-                    </span>
-                    {order.destination ? ` · to ${order.destination}` : ''}
-                  </p>
-                )}
+                {(order.shipments ?? [])
+                  .filter((shipment) => shipment.trackingNumber)
+                  .map((shipment, index) => (
+                    <p key={index} className="m-0 mt-6 text-[14px]" style={{ color: 'var(--ink-2)' }}>
+                      <span className="font-semibold text-ink">
+                        {shipment.carrier ? `${shipment.carrier} · ` : ''}
+                        {shipment.trackingNumber}
+                      </span>
+                    </p>
+                  ))}
 
-                {order.estimatedDelivery && !order.actualDelivery && (
+                {order.deliveredAt && (
                   <p className="m-0 mt-2 text-[14px]" style={{ color: 'var(--ink-3)' }}>
-                    Estimated delivery {formatDate(order.estimatedDelivery)}
-                  </p>
-                )}
-                {order.actualDelivery && (
-                  <p className="m-0 mt-2 text-[14px]" style={{ color: 'var(--ink-3)' }}>
-                    Delivered {formatDate(order.actualDelivery)}
+                    Delivered {formatDate(order.deliveredAt)}
                   </p>
                 )}
               </div>
 
-              {order.verified && order.items && order.items.length > 0 && (
+              {order.items && order.items.length > 0 && (
                 <div className="border-t border-line p-5">
                   <p
                     className="m-0 text-caption font-bold uppercase tracking-[0.12em]"
@@ -261,28 +289,19 @@ function TrackOrderForm() {
                     Items
                   </p>
                   <ul className="m-0 mt-3 flex list-none flex-col gap-2 p-0">
-                    {order.items.map((item) => (
+                    {order.items.map((item, index) => (
                       <li
-                        key={item.id}
+                        key={index}
                         className="flex items-baseline justify-between gap-4 text-[14px]"
                       >
                         <span style={{ color: 'var(--ink-2)' }}>
-                          {item.slug ? (
-                            <Link href={`/products/${item.slug}`} className="hover:text-ink">
-                              {item.name}
-                            </Link>
-                          ) : (
-                            item.name
-                          )}
+                          {item.name}
                           {item.quantity > 1 ? ` × ${item.quantity}` : ''}
-                        </span>
-                        <span className="font-semibold text-ink">
-                          {formatCurrency(item.price * item.quantity)}
                         </span>
                       </li>
                     ))}
                   </ul>
-                  {typeof order.total === 'number' && (
+                  {typeof order.totalPaise === 'number' && (
                     <div className="mt-4 flex items-baseline justify-between border-t border-line pt-3">
                       <span
                         className="text-caption font-bold uppercase tracking-[0.1em]"
@@ -291,21 +310,13 @@ function TrackOrderForm() {
                         Total
                       </span>
                       <span className="text-[17px] font-bold text-ink">
-                        {formatCurrency(order.total)}
+                        {formatPaise(order.totalPaise)}
                       </span>
                     </div>
                   )}
                 </div>
               )}
 
-              {!order.verified && (
-                <p
-                  className="m-0 border-t border-line px-5 py-4 text-meta"
-                  style={{ color: 'var(--ink-3)' }}
-                >
-                  Add the email used at checkout above to see the items, the address and the total.
-                </p>
-              )}
             </section>
           )}
 

@@ -63,7 +63,7 @@ export interface ListingQuery {
   q?: string;
   color?: string;
   brand?: string;
-  vendor?: string;
+  seller?: string;
   sortBy?: string;
   minPrice?: number;
   maxPrice?: number;
@@ -87,7 +87,7 @@ export function listingParams(query: ListingQuery): URLSearchParams {
   set('q', query.q);
   set('color', query.color);
   set('brand', query.brand);
-  set('vendor', query.vendor);
+  set('seller', query.seller);
   set('sortBy', query.sortBy);
   set('minPrice', query.minPrice);
   set('maxPrice', query.maxPrice);

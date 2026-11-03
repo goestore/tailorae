@@ -1,20 +1,20 @@
 /**
  * Custom Wear data access.
  *
- * THE ONLY SEAM BETWEEN THE UI AND THE DATA SOURCE. Components never import
- * the dataset directly.
+ * THE ONLY SEAM BETWEEN THE UI AND THE DATA SOURCE. Components never call the
+ * API for Custom Wear directly.
  *
- * The store launches with no Custom Wear products: they become admin-managed
- * rows once the API serves them. Until then the catalogue below is empty and
- * every page renders its empty state. When the product API is implemented, set
- * `NEXT_PUBLIC_CUSTOM_WEAR_API` and replace the marked bodies below with the
- * fetch — nothing else in the module changes.
+ * The catalogue is admin-managed rows served by `GET /api/custom-wear/products`.
+ * The API speaks paise (`basePricePaise`, `pricePerUnitPaise`…); the studio's
+ * pricing engine (`pricing.ts`) and its cards speak rupees, so products are
+ * converted here, once, on the way in. Nothing past this file sees paise.
  */
 
 import { PAGE_SIZE } from '@/config/custom-wear/taxonomy';
 import { apiClient } from '@/lib/api-client';
 import { getApiErrorMessage, getApiErrorStatus } from '@/lib/api-utils';
-import { findRelatedProducts, queryProducts } from './filters';
+import type { CustomWearProductView, ProductQueryResult as ApiQueryResult } from '@/lib/api/types';
+import { apiBase } from '@/lib/site-url';
 import type {
   CustomWearFilterState,
   CustomWearProduct,
@@ -25,15 +25,6 @@ import type {
   QuoteRequestPayload,
   QuoteRequestResult,
 } from '@/types/custom-wear';
-
-/** `'api'` once a product endpoint is configured, otherwise `'sample-data'`. */
-export const CUSTOM_WEAR_DATA_SOURCE: 'api' | 'sample-data' = process.env
-  .NEXT_PUBLIC_CUSTOM_WEAR_API
-  ? 'api'
-  : 'sample-data';
-
-/** No products until the API serves them — see the header. */
-const CUSTOM_WEAR_PRODUCTS: CustomWearProduct[] = [];
 
 export class CustomWearApiError extends Error {
   readonly status: number;
@@ -46,52 +37,173 @@ export class CustomWearApiError extends Error {
 }
 
 // ============================================
+// PAISE → RUPEES
+// ============================================
+
+const rupees = (paise: number | null | undefined): number | undefined =>
+  typeof paise === 'number' ? paise / 100 : undefined;
+
+/** One API product in the shape the storefront's Custom Wear code reads. */
+export function fromApiProduct(p: CustomWearProductView): CustomWearProduct {
+  return {
+    ...(p as unknown as CustomWearProduct),
+    id: p.id ?? '',
+    slug: p.slug ?? '',
+    sku: p.sku ?? '',
+    name: p.name ?? '',
+    shortDescription: p.shortDescription ?? '',
+    description: p.description ?? '',
+    gender: (p.gender ?? 'unisex') as CustomWearProduct['gender'],
+    category: p.category ?? '',
+    productType: (p.productType ?? '') as CustomWearProduct['productType'],
+    fabric: (p.fabric ?? undefined) as CustomWearProduct['fabric'],
+    basePrice: rupees(p.basePricePaise) ?? 0,
+    maxPrice: rupees(p.maxPricePaise),
+    currency: p.currency ?? 'INR',
+    priceTiers: (p.priceTiers ?? []).map((tier) => ({
+      minQty: tier.minQty ?? 1,
+      maxQty: tier.maxQty ?? null,
+      pricePerUnit: rupees(tier.pricePerUnitPaise) ?? 0,
+    })),
+    colors: (p.colors ?? []) as CustomWearProduct['colors'],
+    sizes: (p.sizes ?? []) as CustomWearProduct['sizes'],
+    images: (p.images ?? []) as CustomWearProduct['images'],
+    customizationMethods: (p.customizationMethods ?? []).map((method) => ({
+      id: method.id as CustomWearProduct['customizationMethods'][number]['id'],
+      supported: Boolean(method.supported),
+      setupFee: rupees(method.setupFeePaise),
+      pricePerUnit: rupees(method.pricePerUnitPaise),
+      note: method.note,
+    })),
+    customizationLocations: (p.customizationLocations ?? []).map((location) => ({
+      id: location.id as CustomWearProduct['customizationLocations'][number]['id'],
+      supported: Boolean(location.supported),
+      maxWidthMm: location.maxWidthMm,
+      maxHeightMm: location.maxHeightMm,
+      pricePerUnit: rupees(location.pricePerUnitPaise),
+    })),
+    badges: (p.badges ?? []) as CustomWearProduct['badges'],
+    accordions: p.accordions as CustomWearProduct['accordions'],
+    descriptionBlock: p.descriptionBlock as CustomWearProduct['descriptionBlock'],
+    sizeChart: p.sizeChart as CustomWearProduct['sizeChart'],
+  };
+}
+
+// ============================================
 // CATALOGUE
 // ============================================
 
 /**
- * Filtered, sorted, paginated listing.
- *
- * BACKEND SWAP: replace the body with
- * `GET ${API}/custom-wear/products?<serializeFilters(filters)>` and return the
- * `ProductQueryResult` the endpoint sends back. The filter engine in
- * `filters.ts` then becomes server-side only.
+ * Server-side reads, cached for a minute: the catalogue changes when staff
+ * edit it, not per request. Returns null on any failure so a page renders its
+ * empty state instead of an error when the API is restarting.
  */
+async function read<T>(path: string): Promise<T | null> {
+  try {
+    const response = await fetch(`${apiBase()}${path}`, {
+      headers: { accept: 'application/json' },
+      signal: AbortSignal.timeout(8000),
+      next: { revalidate: 60, tags: ['custom-wear'] },
+    });
+    if (!response.ok) return null;
+    const payload = await response.json();
+    return (payload?.data as T) ?? null;
+  } catch (error) {
+    console.warn(`[custom-wear] ${path} unavailable:`, (error as Error).message);
+    return null;
+  }
+}
+
+/** The API's query string for a filter state: lists comma-joined, prices in paise. */
+function toQuery(filters: CustomWearFilterState, pageSize: number): string {
+  const params = new URLSearchParams();
+  const list = (key: string, values: string[]) => {
+    if (values.length) params.set(key, values.join(','));
+  };
+  if (filters.category) params.set('category', filters.category);
+  list('gender', filters.gender);
+  list('type', filters.productType);
+  list('color', filters.color);
+  list('size', filters.size);
+  list('fabric', filters.fabric);
+  list('gsm', filters.gsm);
+  list('method', filters.method);
+  list('location', filters.location);
+  list('moq', filters.moq);
+  if (filters.minPrice !== null) params.set('minPricePaise', String(Math.round(filters.minPrice * 100)));
+  if (filters.maxPrice !== null) params.set('maxPricePaise', String(Math.round(filters.maxPrice * 100)));
+  if (filters.search.trim()) params.set('q', filters.search.trim());
+  params.set('sort', filters.sort);
+  params.set('page', String(filters.page));
+  params.set('pageSize', String(pageSize));
+  return params.toString();
+}
+
+const EMPTY_RESULT = (pageSize: number): ProductQueryResult => ({
+  products: [],
+  total: 0,
+  page: 1,
+  pageSize,
+  pageCount: 1,
+  priceBounds: { min: 0, max: 0 },
+});
+
+/** Filtered, sorted, paginated listing — filtering runs in the API. */
 export async function fetchCustomWearProducts(
   filters: CustomWearFilterState,
   pageSize: number = PAGE_SIZE
 ): Promise<ProductQueryResult> {
-  return queryProducts(CUSTOM_WEAR_PRODUCTS, filters, pageSize);
+  const data = await read<ApiQueryResult>(`/custom-wear/products?${toQuery(filters, pageSize)}`);
+  if (!data) return EMPTY_RESULT(pageSize);
+  return {
+    products: (data.products ?? []).map(fromApiProduct),
+    total: data.total ?? 0,
+    page: data.page ?? 1,
+    pageSize: data.pageSize ?? pageSize,
+    pageCount: data.pageCount ?? 1,
+    priceBounds: {
+      min: rupees(data.priceBounds?.minPaise) ?? 0,
+      max: rupees(data.priceBounds?.maxPaise) ?? 0,
+    },
+  };
 }
 
-/** BACKEND SWAP: `GET ${API}/custom-wear/products/${slug}`. */
 export async function fetchCustomWearProductBySlug(
   slug: string
 ): Promise<CustomWearProduct | null> {
-  return CUSTOM_WEAR_PRODUCTS.find((product) => product.slug === slug) ?? null;
+  const data = await read<{ product?: CustomWearProductView }>(
+    `/custom-wear/products/${encodeURIComponent(slug)}`
+  );
+  return data?.product ? fromApiProduct(data.product) : null;
 }
 
+/** Products by id, in the order asked for (the cart's quote lines, recently viewed). */
 export async function fetchCustomWearProductsByIds(
   ids: string[]
 ): Promise<CustomWearProduct[]> {
   if (ids.length === 0) return [];
-  const index = new Map(CUSTOM_WEAR_PRODUCTS.map((product) => [product.id, product]));
+  const data = await read<ApiQueryResult>(
+    `/custom-wear/products?ids=${ids.map(encodeURIComponent).join(',')}&pageSize=${ids.length}`
+  );
+  const index = new Map((data?.products ?? []).map((p) => [p.id, fromApiProduct(p)]));
   return ids
     .map((id) => index.get(id))
     .filter((product): product is CustomWearProduct => Boolean(product));
 }
 
-/** BACKEND SWAP: `GET ${API}/custom-wear/products/${product.id}/related`. */
 export async function fetchRelatedProducts(
   product: CustomWearProduct,
   limit = 6
 ): Promise<CustomWearProduct[]> {
-  return findRelatedProducts(product, CUSTOM_WEAR_PRODUCTS, limit);
+  const data = await read<{ products?: CustomWearProductView[] }>(
+    `/custom-wear/products/${encodeURIComponent(product.slug || product.id)}/related?limit=${limit}`
+  );
+  return (data?.products ?? []).map(fromApiProduct);
 }
 
 /**
- * Recommendation slot. Until behavioural data exists this returns popular
- * products from the same gender, excluding the ones already shown as related.
+ * Recommendation slot. Until behavioural data exists this is the most popular
+ * products of the same gender, excluding the ones already shown as related.
  */
 export async function fetchAlsoViewedProducts(
   product: CustomWearProduct,
@@ -99,26 +211,28 @@ export async function fetchAlsoViewedProducts(
   limit = 6
 ): Promise<CustomWearProduct[]> {
   const exclude = new Set([product.id, ...excludeIds]);
-  return CUSTOM_WEAR_PRODUCTS.filter(
-    (candidate) => !exclude.has(candidate.id) && candidate.gender === product.gender
-  )
-    .sort((a, b) => (b.popularity ?? 0) - (a.popularity ?? 0))
+  const data = await read<ApiQueryResult>(
+    `/custom-wear/products?gender=${encodeURIComponent(product.gender)}&sort=popular&pageSize=${limit + exclude.size}`
+  );
+  return (data?.products ?? [])
+    .map(fromApiProduct)
+    .filter((candidate) => !exclude.has(candidate.id))
     .slice(0, limit);
 }
 
 /** Every slug, for `generateStaticParams` and the sitemap. */
 export async function fetchAllCustomWearSlugs(): Promise<string[]> {
-  return CUSTOM_WEAR_PRODUCTS.map((product) => product.slug);
+  const data = await read<{ slugs?: string[] }>('/custom-wear/products/slugs');
+  return data?.slugs ?? [];
 }
 
 // ============================================
 // QUOTES
 // ============================================
 //
-// Quotes go straight to the Express API (`/api/custom-wear`), which stores
-// them as `CustomWearQuote` rows and issues the reference. A result is only
-// ever returned once the backend has stored the request — there is no
-// provisional path that could tell a customer "received" when nothing was kept.
+// A result is only ever returned once the API has stored the request — there
+// is no provisional path that could tell a customer "received" when nothing
+// was kept. Validation failures come back as 422 with `errors[]`.
 
 interface QuoteResponseData {
   reference: string;
@@ -141,6 +255,14 @@ const toQuoteResult = (data: QuoteResponseData | undefined): QuoteRequestResult 
 
 const toApiError = (error: unknown, fallback: string): CustomWearApiError =>
   new CustomWearApiError(getApiErrorMessage(error, fallback), getApiErrorStatus(error) ?? 500);
+
+/** A stored quote as the API sends it: the quoted price in paise. */
+type ApiQuote = Omit<CustomWearQuoteSummary, 'quotedPrice'> & { quotedPricePaise?: number | null };
+
+const fromApiQuote = (quote: ApiQuote): CustomWearQuoteSummary => ({
+  ...quote,
+  quotedPrice: rupees(quote.quotedPricePaise) ?? null,
+});
 
 /** Submit one configured garment for a quote. */
 export async function submitQuoteRequest(
@@ -172,8 +294,8 @@ export async function submitQuoteBatch(
 /** The signed-in customer's quotes. */
 export async function fetchMyQuotes(): Promise<CustomWearQuoteSummary[]> {
   try {
-    const response = await apiClient.get('/custom-wear/quotes/mine');
-    return (response.data?.data?.quotes ?? []) as CustomWearQuoteSummary[];
+    const response = await apiClient.get('/custom-wear/quotes/mine', { silent: true });
+    return ((response.data?.data?.quotes ?? []) as ApiQuote[]).map(fromApiQuote);
   } catch (error) {
     throw toApiError(error, 'Could not load your quotes.');
   }
@@ -189,13 +311,17 @@ export async function lookupQuote(
       `/custom-wear/quotes/${encodeURIComponent(reference.trim().toUpperCase())}`,
       { params: { email: email.trim() } }
     );
-    return response.data?.data?.quote as CustomWearQuoteSummary;
+    return fromApiQuote(response.data?.data?.quote as ApiQuote);
   } catch (error) {
     throw toApiError(error, 'Could not look up that quote.');
   }
 }
 
 export interface UploadedArtwork {
+  /**
+   * What a quote's `designFiles` carries: the API's `artwork/<uuid>.<ext>`
+   * reference. Artwork is private, so this is an identifier, not a link.
+   */
   url: string;
   name: string;
   format: 'png' | 'jpg' | 'webp' | 'pdf';
@@ -203,7 +329,7 @@ export interface UploadedArtwork {
   rasterised: boolean;
 }
 
-/** Store one artwork file; returns its `/uploads/artwork/...` path. */
+/** Store one artwork file; returns its reference for the quote. */
 export async function uploadArtwork(file: File): Promise<UploadedArtwork> {
   const form = new FormData();
   form.append('file', file);
@@ -213,9 +339,17 @@ export async function uploadArtwork(file: File): Promise<UploadedArtwork> {
       headers: { 'Content-Type': undefined },
       timeout: 120000,
     });
-    const artwork = response.data?.data?.artwork as UploadedArtwork | undefined;
-    if (!artwork?.url) throw new CustomWearApiError('The upload returned no file.', 502);
-    return artwork;
+    const artwork = response.data?.data?.artwork as
+      | { reference?: string; name?: string; format?: string; bytes?: number; rasterised?: boolean }
+      | undefined;
+    if (!artwork?.reference) throw new CustomWearApiError('The upload returned no file.', 502);
+    return {
+      url: artwork.reference,
+      name: artwork.name ?? file.name,
+      format: (artwork.format ?? 'png') as UploadedArtwork['format'],
+      bytes: artwork.bytes ?? file.size,
+      rasterised: Boolean(artwork.rasterised),
+    };
   } catch (error) {
     if (error instanceof CustomWearApiError) throw error;
     throw toApiError(error, 'Could not upload that file. Please try again.');

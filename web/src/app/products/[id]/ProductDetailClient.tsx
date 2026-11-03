@@ -21,12 +21,14 @@ import {
 import { legalDisclosure, listingSpecRows } from '@/components/product/listing-specs';
 import { apiClient } from '@/lib/api-client';
 import { getApiErrorMessage, getApiErrorStatus } from '@/lib/api-utils';
+import { addToCart } from '@/lib/cart-api';
+import { formatPaise } from '@/lib/money';
+import { useSignedIn } from '@/hooks/useSignedIn';
 import { recordRecentlyViewed } from '@/lib/recently-viewed';
 import { storeHref } from '@/lib/category-tree';
-import { formatCurrency } from '@/utils/helpers';
 import { AppDispatch } from '@/store';
 import { loadCart } from '@/store/slices/cart';
-import { Cart, ProductCustomization, ProductDetail, ProductVariant } from '@/types';
+import { ProductCustomization, ProductDetail, ProductVariant } from '@/types';
 
 /**
  * Which variant the page opens on.
@@ -84,10 +86,12 @@ const parseOptions = (options: ProductCustomization['options']): string[] => {
   return [];
 };
 
+// The API names option types in upper case (TEXT, EMBROIDERY…).
+const customizationType = (c: ProductCustomization) => (c.type ?? '').toLowerCase();
 const isTextCustomization = (c: ProductCustomization) =>
-  c.type === 'text' || c.type === 'embroidery';
+  ['text', 'embroidery'].includes(customizationType(c));
 const isUploadCustomization = (c: ProductCustomization) =>
-  c.type === 'image' || c.type === 'file' || c.type === 'upload' || c.type === 'logo';
+  ['image', 'file', 'upload', 'logo'].includes(customizationType(c));
 
 const variantLabel = (variant: ProductVariant): string =>
   [variant.size, variant.color, variant.material].filter(Boolean).join(' / ') || variant.name;
@@ -181,6 +185,7 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
   // The shop grid links to a single colourway; this is which one.
   const requestedColor = useSearchParams().get('color');
   const dispatch = useDispatch<AppDispatch>();
+  const signedIn = useSignedIn();
 
   const [product, setProduct] = useState<ProductDetail | null>(initialProduct ?? null);
   const [isLoading, setIsLoading] = useState(!initialProduct);
@@ -355,11 +360,12 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
     return product.customizations.reduce((sum, c) => {
       if (isUploadCustomization(c)) return sum; // upload not available yet
       const value = customValues[c.name];
-      return value ? sum + (c.additionalCost || 0) : sum;
+      return value ? sum + (c.additionalPaise || 0) : sum;
     }, 0);
   }, [product, customValues]);
 
-  const unitPrice = (selectedVariant?.price ?? product?.price ?? 0) + customizationCost;
+  /** Paise, like every amount on the page. */
+  const unitPrice = (selectedVariant?.pricePaise ?? product?.pricePaise ?? 0) + customizationCost;
   const minQty = Math.max(1, product?.minOrderQuantity || 1);
   const maxQty = Math.max(minQty, selectedVariant?.quantity ?? product?.quantity ?? minQty);
 
@@ -406,8 +412,7 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
   const variantOptions = Object.entries(selectedVariant?.options ?? {}).filter(([, value]) =>
     Boolean(value)
   );
-  const hasDiscount =
-    typeof product.originalPrice === 'number' && product.originalPrice > product.price;
+  const hasDiscount = typeof product.mrpPaise === 'number' && product.mrpPaise > product.pricePaise;
   const bulkTiers = (product.bulkPricings ?? [])
     .slice()
     .sort((a, b) => a.minQty - b.minQty);
@@ -425,8 +430,7 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
       document.getElementById('size-picker')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-    if (!token) {
+    if (signedIn === false) {
       router.push(`/auth/login?redirect=${encodeURIComponent(`/products/${idOrSlug}`)}`);
       return;
     }
@@ -447,14 +451,13 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
 
     setIsAdding(true);
     try {
-      const res = await apiClient.post('/cart/items', {
+      const cart = await addToCart({
         productId: product.id,
         quantity,
         ...(selectedVariantId ? { variantId: selectedVariantId } : {}),
         ...(Object.keys(customization).length > 0 ? { customization } : {}),
       });
-      const cart = res.data?.data?.cart;
-      if (cart) dispatch(loadCart(cart as unknown as Cart));
+      dispatch(loadCart(cart));
       toast.success('Added to cart');
     } catch (err) {
       toast.error(getApiErrorMessage(err, 'Could not add to cart.'));
@@ -604,15 +607,15 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
 
             {/* Price */}
             <div className="mt-6 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <span className="pdp-price">{formatCurrency(unitPrice)}</span>
+              <span className="pdp-price">{formatPaise(unitPrice)}</span>
               {hasDiscount && (
                 <span className="text-base text-ink-3 line-through">
-                  {formatCurrency(product.originalPrice as number)}
+                  {formatPaise(product.mrpPaise)}
                 </span>
               )}
               {customizationCost > 0 && (
                 <span className="text-small text-ink-3">
-                  incl. {formatCurrency(customizationCost)} customization
+                  incl. {formatPaise(customizationCost)} customization
                 </span>
               )}
             </div>
@@ -767,8 +770,8 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                           soldOut={variant.quantity <= 0}
                           onSelect={() => pickSize(variant.id)}
                           extra={
-                            typeof variant.price === 'number' && variant.price !== product.price ? (
-                              <span className="ml-1.5 opacity-60">{formatCurrency(variant.price)}</span>
+                            typeof variant.pricePaise === 'number' && variant.pricePaise !== product.pricePaise ? (
+                              <span className="ml-1.5 opacity-60">{formatPaise(variant.pricePaise)}</span>
                             ) : undefined
                           }
                         />
@@ -806,9 +809,9 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                       >
                         {c.name}
                         {c.isRequired && <span className="pdp-sale">*</span>}
-                        {c.additionalCost > 0 && (
+                        {c.additionalPaise > 0 && (
                           <span className="font-normal text-ink-3">
-                            +{formatCurrency(c.additionalCost)}
+                            +{formatPaise(c.additionalPaise)}
                           </span>
                         )}
                       </label>
@@ -903,8 +906,11 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                 <dl className="mt-3 flex flex-col">
                   {bulkTiers.map((tier) => {
                     const tierPrice =
-                      tier.price ??
-                      (tier.discount ? product.price * (1 - tier.discount / 100) : undefined);
+                      tier.pricePaise ??
+                      (tier.discountBp
+                        ? Math.round((product.pricePaise * (10000 - tier.discountBp)) / 10000)
+                        : undefined);
+                    const tierOff = (tier.discountBp ?? 0) / 100;
                     const isActive =
                       quantity >= tier.minQty && (!tier.maxQty || quantity <= tier.maxQty);
                     return (
@@ -916,12 +922,12 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                       >
                         <dt className="text-ink-2">{tierRange(tier)}</dt>
                         <dd className="m-0 flex items-baseline gap-2 font-bold text-ink">
-                          {tier.discount > 0 && (
+                          {tierOff > 0 && (
                             <span className="text-caption font-bold uppercase tracking-[0.06em] text-ink-3">
-                              {Math.round(tier.discount)}% off
+                              {Math.round(tierOff)}% off
                             </span>
                           )}
-                          {tierPrice !== undefined && `${formatCurrency(tierPrice)} each`}
+                          {tierPrice !== undefined && `${formatPaise(tierPrice)} each`}
                         </dd>
                       </div>
                     );
@@ -992,7 +998,7 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                   onClick={handleAddToCart}
                   loading={isAdding}
                 >
-                  {`Add to Cart • ${formatCurrency(unitPrice * quantity)}`}
+                  {`Add to Cart • ${formatPaise(unitPrice * quantity)}`}
                 </Button>
               )}
 
@@ -1011,7 +1017,7 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
                 </Link>
               )}
 
-              {product.vendor && <SellerLine seller={product.vendor} className="mt-4" />}
+              {product.seller && !product.seller.isPlatform && <SellerLine seller={product.seller} className="mt-4" />}
 
               <div className="mt-7 border-t border-line pt-6">
                 <PincodeChecker />
@@ -1115,7 +1121,7 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
         )}
 
         <Reviews
-          productRef={idOrSlug}
+          productRef={product.id}
           rating={product.rating}
           reviewCount={product.reviewCount}
           onSaved={refreshProduct}
@@ -1146,7 +1152,7 @@ function ProductDetailContent({ idOrSlug, initialProduct }: ProductDetailClientP
               {selectedVariant ? variantLabel(selectedVariant) : product.name}
             </p>
             <p className="m-0 text-[16px] font-semibold text-ink">
-              {formatCurrency(unitPrice * quantity)}
+              {formatPaise(unitPrice * quantity)}
             </p>
           </div>
           <Button

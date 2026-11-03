@@ -9,40 +9,13 @@ import { Button, Card, SkeletonList, SkeletonPanel } from '@/components/common';
 import { ProductThumb } from '@/components/product';
 import { RecentlyViewed } from '@/components/product';
 import { CustomWearQuoteBasket } from '@/components/custom-wear/CustomWearQuoteBasket';
-import { apiClient } from '@/lib/api-client';
-import { useHasToken } from '@/hooks/useHasToken';
+import { useSignedIn } from '@/hooks/useSignedIn';
 import { calculateShipping, getApiErrorMessage } from '@/lib/api-utils';
-import { formatCurrency } from '@/utils/helpers';
+import { getCart, removeCartLine, updateCartLine } from '@/lib/cart-api';
+import { formatPaise } from '@/lib/money';
 import { AppDispatch, useAppSelector } from '@/store';
 import { loadCart } from '@/store/slices/cart';
-import { Cart } from '@/types';
-
-/** Cart item shape returned by GET /cart. */
-interface ApiCartItem {
-  id: string;
-  productId: string;
-  variantId?: string | null;
-  /** The size and colour picked on the product page. */
-  variant?: { id: string; size: string | null; color: string | null; sku: string } | null;
-  quantity: number;
-  price: number;
-  customization?: Record<string, string> | null;
-  product: {
-    id: string;
-    name: string;
-    slug: string;
-    thumbnail?: string;
-    price: number;
-    quantity: number;
-  };
-}
-
-interface ApiCart {
-  id: string;
-  items: ApiCartItem[];
-  subtotal: number;
-  itemCount: number;
-}
+import type { Cart, CartItem } from '@/types';
 
 /**
  * One customisation answer, as a line of text.
@@ -63,12 +36,12 @@ const describeCustomization = (value: unknown): string => {
 
 export default function CartPage() {
   const dispatch = useDispatch<AppDispatch>();
-  const [cart, setCart] = useState<ApiCart | null>(null);
+  const [cart, setCart] = useState<Cart | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busyItemId, setBusyItemId] = useState<string | null>(null);
-  // null until the browser takes over — see the hook.
-  const hasToken = useHasToken();
+  // null until the session check answers — see the hook.
+  const hasToken = useSignedIn();
   const [coupon, setCoupon] = useState<AppliedCoupon | null>(null);
   // Custom-wear lines live in their own slice (they become quote requests, not
   // payable lines), so loading the server cart below never touches them.
@@ -80,26 +53,22 @@ export default function CartPage() {
   }, []);
 
   const syncCart = useCallback(
-    (nextCart: ApiCart) => {
+    (nextCart: Cart) => {
       setCart(nextCart);
-      dispatch(loadCart(nextCart as unknown as Cart));
+      dispatch(loadCart(nextCart));
     },
     [dispatch]
   );
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
-    // No token means no fetch. `isLoading` is not cleared here — the render
-    // guards below key off `hasToken`, which is already known by this point.
-    if (!token) return;
+    // No session means no fetch. `isLoading` is not cleared here — the
+    // render guards below key off `hasToken`, which says why.
+    if (!hasToken) return;
 
     let cancelled = false;
-    apiClient
-      .get('/cart')
-      .then((res) => {
-        if (cancelled) return;
-        const loaded = res.data?.data?.cart;
-        if (loaded) syncCart(loaded);
+    getCart()
+      .then((loaded) => {
+        if (!cancelled) syncCart(loaded);
       })
       .catch((err) => {
         if (!cancelled) setError(getApiErrorMessage(err, 'Failed to load your cart.'));
@@ -110,15 +79,13 @@ export default function CartPage() {
     return () => {
       cancelled = true;
     };
-  }, [syncCart]);
+  }, [hasToken, syncCart]);
 
-  const updateQuantity = async (item: ApiCartItem, nextQuantity: number) => {
+  const updateQuantity = async (item: CartItem, nextQuantity: number) => {
     if (nextQuantity < 1) return;
     setBusyItemId(item.id);
     try {
-      const res = await apiClient.patch(`/cart/items/${item.id}`, { quantity: nextQuantity });
-      const updated = res.data?.data?.cart;
-      if (updated) syncCart(updated);
+      syncCart(await updateCartLine(item.id, nextQuantity));
     } catch (err) {
       toast.error(getApiErrorMessage(err, 'Could not update quantity.'));
     } finally {
@@ -126,12 +93,10 @@ export default function CartPage() {
     }
   };
 
-  const removeItem = async (item: ApiCartItem) => {
+  const removeItem = async (item: CartItem) => {
     setBusyItemId(item.id);
     try {
-      const res = await apiClient.delete(`/cart/items/${item.id}`);
-      const updated = res.data?.data?.cart;
-      if (updated) syncCart(updated);
+      syncCart(await removeCartLine(item.id));
       toast.success('Removed from cart');
     } catch (err) {
       toast.error(getApiErrorMessage(err, 'Could not remove this item.'));
@@ -185,11 +150,12 @@ export default function CartPage() {
     );
   }
 
+  // All paise. Lines are repriced by the API on every read.
   const items = cart?.items ?? [];
-  const subtotal =
-    cart?.subtotal ?? items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const discount = coupon?.discount ?? 0;
+  const subtotal = cart?.subtotalPaise ?? items.reduce((sum, item) => sum + item.lineTotalPaise, 0);
+  const discount = coupon?.discountPaise ?? 0;
   const shipping = items.length > 0 ? calculateShipping(subtotal, discount) : 0;
+  const problems = cart?.problems ?? [];
 
   return (
     <main className="section-y">
@@ -197,6 +163,11 @@ export default function CartPage() {
         <header className="page-intro page-intro--compact"><p>Order review</p><h1>Your cart</h1></header>
 
         {error && <div className="alert alert-error mb-6">{error}</div>}
+        {problems.length > 0 && (
+          <div className="alert alert-error mb-6" role="status">
+            {problems.join('. ')}.
+          </div>
+        )}
 
         <CustomWearQuoteBasket className="mb-6" />
 
@@ -301,10 +272,10 @@ export default function CartPage() {
                         </button>
                       </div>
                       <p className="mt-2 text-lg font-bold text-neutral-900">
-                        {formatCurrency(item.price * item.quantity)}
+                        {formatPaise(item.lineTotalPaise)}
                         {item.quantity > 1 && (
                           <span className="ml-2 text-xs font-normal text-neutral-500">
-                            ({formatCurrency(item.price)} each)
+                            ({formatPaise(item.unitPaise)} each)
                           </span>
                         )}
                       </p>
@@ -334,13 +305,14 @@ export default function CartPage() {
                 items={items.map((item) => ({
                   id: item.id,
                   name: item.product.name,
-                  price: item.price,
+                  lineTotalPaise: item.lineTotalPaise,
                   quantity: item.quantity,
                 }))}
-                subtotal={subtotal}
-                shipping={shipping}
-                discount={discount}
-                total={subtotal - discount + shipping}
+                subtotalPaise={subtotal}
+                shippingPaise={shipping}
+                discountPaise={discount}
+                totalPaise={subtotal - discount + shipping}
+                checkoutDisabled={items.some((item) => !item.available)}
               />
             </div>
           </div>

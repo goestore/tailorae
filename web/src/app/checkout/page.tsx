@@ -8,28 +8,28 @@ import toast from 'react-hot-toast';
 import { CouponField, type AppliedCoupon } from '@/components/cart';
 import { AddressPicker, CheckoutSteps } from '@/components/checkout';
 import { Card, Button, Input, LoadingSpinner } from '@/components/common';
-import { apiClient } from '@/lib/api-client';
-import { useHasToken } from '@/hooks/useHasToken';
+import { useSignedIn } from '@/hooks/useSignedIn';
+import {
+  PHONE_PATTERN,
+  PIN_PATTERN,
+  countryCode,
+  countryName,
+  listAddresses,
+} from '@/lib/addresses-api';
 import { calculateShipping, getApiErrorMessage } from '@/lib/api-utils';
-import { orderConfirmationPath } from '@/lib/orders-api';
+import { getCart } from '@/lib/cart-api';
+import { formatPaise } from '@/lib/money';
+import { orderConfirmationPath, placeOrder as submitOrder } from '@/lib/orders-api';
 import { fetchPaymentConfig, payForOrder, type PaymentConfig } from '@/lib/payments';
-import { formatCurrency } from '@/utils/helpers';
 import { AppDispatch } from '@/store';
 import { clearCart } from '@/store/slices/cart';
-import { Address } from '@/types';
+import type { Address, CartItem } from '@/types';
 
 const CHECKOUT_STEPS = [
   { id: 'shipping', name: 'Shipping', label: 'Shipping' },
   { id: 'payment', name: 'Payment', label: 'Payment' },
   { id: 'review', name: 'Review', label: 'Review' },
 ];
-
-interface CheckoutCartItem {
-  id: string;
-  quantity: number;
-  price: number;
-  product: { id: string; name: string };
-}
 
 interface ShippingForm {
   fullName: string;
@@ -91,15 +91,15 @@ const dedupe = (addresses: Address[]): Address[] => {
   return addresses.filter((address) => {
     const key = [
       address.fullName,
-      address.phoneNumber,
-      address.addressLine1,
-      address.addressLine2 ?? '',
+      address.phone,
+      address.line1,
+      address.line2 ?? '',
       address.city,
       address.state,
       address.postalCode,
       address.country,
     ]
-      .map((part) => part.trim().toLowerCase())
+      .map((part) => (part ?? '').trim().toLowerCase())
       .join('|');
     if (seen.has(key)) return false;
     seen.add(key);
@@ -114,14 +114,14 @@ const dedupe = (addresses: Address[]): Address[] => {
  */
 const toForm = (address: Address): ShippingForm => ({
   fullName: address.fullName,
-  phoneNumber: address.phoneNumber,
+  phoneNumber: address.phone,
   email: address.email ?? '',
-  addressLine1: address.addressLine1,
-  addressLine2: address.addressLine2 ?? '',
+  addressLine1: address.line1,
+  addressLine2: address.line2 ?? '',
   city: address.city,
   state: address.state,
   postalCode: address.postalCode,
-  country: address.country,
+  country: countryName(address.country),
 });
 
 export default function CheckoutPage() {
@@ -129,20 +129,22 @@ export default function CheckoutPage() {
   const router = useRouter();
 
   const [currentStep, setCurrentStep] = useState('shipping');
-  // null until the browser takes over — see the hook.
-  const hasToken = useHasToken();
-  const [cartItems, setCartItems] = useState<CheckoutCartItem[]>([]);
+  // null until the session check answers — see the hook.
+  const hasToken = useSignedIn();
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  /** Paise, like every amount on this page. */
   const [subtotal, setSubtotal] = useState(0);
+  const [cartProblems, setCartProblems] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const [addresses, setAddresses] = useState<Address[]>([]);
   // The id of the saved address being shipped to; `null` means the shopper is
   // typing a new one, which is also the only state a first-time customer sees.
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(null);
-  // Placing an order already writes the address into the book (the API creates
-  // the row), so the only thing left to choose is whether it becomes the one
-  // offered first next time. Ticked by default for a first-time customer,
-  // whose only address should obviously be their default.
+  // A new address is saved to the book with the order (`saveAddress`), so the
+  // only thing left to choose is whether it becomes the one offered first next
+  // time. Ticked by default for a first-time customer, whose only address
+  // should obviously be their default.
   const [makeDefaultAddress, setMakeDefaultAddress] = useState(true);
 
   const [form, setForm] = useState<ShippingForm>(EMPTY_FORM);
@@ -170,18 +172,11 @@ export default function CheckoutPage() {
   // Nothing is set synchronously here: the effect below only starts the two
   // requests, and every setState lands in a callback once they resolve.
   const load = useCallback(() => {
-    const cart = apiClient
-      .get('/cart')
-      .then((res) => {
-        const data = res.data?.data?.cart;
-        setCartItems(data?.items ?? []);
-        setSubtotal(
-          data?.subtotal ??
-            (data?.items ?? []).reduce(
-              (sum: number, item: CheckoutCartItem) => sum + item.price * item.quantity,
-              0
-            )
-        );
+    const cart = getCart()
+      .then((data) => {
+        setCartItems(data.items ?? []);
+        setSubtotal(data.subtotalPaise ?? 0);
+        setCartProblems(data.problems ?? []);
       })
       .catch(() => {
         /* an empty cart view is shown below */
@@ -190,10 +185,9 @@ export default function CheckoutPage() {
     // The address book, so a returning customer picks rather than retypes. A
     // failure here is not worth a toast: the blank form is still a full path
     // through checkout.
-    const savedAddresses = apiClient
-      .get('/users/addresses')
-      .then((res) => {
-        const saved = dedupe((res.data?.data?.addresses ?? []) as Address[]);
+    const savedAddresses = listAddresses()
+      .then((list) => {
+        const saved = dedupe(list);
         setAddresses(saved);
         if (saved.length > 0) setMakeDefaultAddress(false);
         const preferred = saved.find((address) => address.isDefault) ?? saved[0];
@@ -221,7 +215,7 @@ export default function CheckoutPage() {
 
   // Quoted by the same server-side resolver that order placement uses, so the
   // figure shown here is the one actually charged.
-  const discount = coupon?.discount ?? 0;
+  const discount = coupon?.discountPaise ?? 0;
   const shipping = cartItems.length > 0 ? calculateShipping(subtotal, discount) : 0;
   const total = subtotal - discount + shipping;
 
@@ -257,8 +251,11 @@ export default function CheckoutPage() {
     REQUIRED_FIELDS.forEach(({ key, label }) => {
       if (!form[key].trim()) errors[key] = `${label} is required`;
     });
-    if (form.phoneNumber.trim() && !/^[0-9+\-\s]{7,15}$/.test(form.phoneNumber.trim())) {
-      errors.phoneNumber = 'Enter a valid phone number';
+    if (form.phoneNumber.trim() && !PHONE_PATTERN.test(form.phoneNumber.trim())) {
+      errors.phoneNumber = 'Enter a valid 10-digit phone number';
+    }
+    if (form.postalCode.trim() && !PIN_PATTERN.test(form.postalCode.trim())) {
+      errors.postalCode = 'Enter a 6-digit PIN code';
     }
     if (form.email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) {
       errors.email = 'Enter a valid email address';
@@ -335,48 +332,36 @@ export default function CheckoutPage() {
   const placeOrder = async () => {
     setIsPlacing(true);
     setOrderError(null);
-    const shippingAddress = {
-      fullName: form.fullName.trim(),
-      phoneNumber: form.phoneNumber.trim(),
-      ...(form.email.trim() ? { email: form.email.trim() } : {}),
-      addressLine1: form.addressLine1.trim(),
-      ...(form.addressLine2.trim() ? { addressLine2: form.addressLine2.trim() } : {}),
-      city: form.city.trim(),
-      state: form.state.trim(),
-      postalCode: form.postalCode.trim(),
-      country: form.country.trim(),
-    };
     try {
-      const payload: Record<string, unknown> = {
-        shippingAddress,
+      // A saved address is sent by id; a new one in full, and kept in the
+      // address book with the order (`saveAddress`) so it can be picked next time.
+      const { order, payment } = await submitOrder({
+        ...(selectedAddressId
+          ? { addressId: selectedAddressId }
+          : {
+              shippingAddress: {
+                label: 'HOME',
+                fullName: form.fullName.trim(),
+                phone: form.phoneNumber.trim(),
+                email: form.email.trim() || undefined,
+                line1: form.addressLine1.trim(),
+                line2: form.addressLine2.trim() || undefined,
+                city: form.city.trim(),
+                state: form.state.trim(),
+                postalCode: form.postalCode.trim(),
+                country: countryCode(form.country),
+                isDefault: makeDefaultAddress,
+              },
+              saveAddress: true,
+            }),
         paymentMethod,
         ...(coupon ? { couponCode: coupon.code } : {}),
         ...(notes.trim() ? { notes: notes.trim() } : {}),
-      };
-      const res = await apiClient.post('/orders', payload);
-      const order = res.data?.data?.order;
+      });
       // The server says whether money is still owed, rather than the page
       // re-deriving it from the payment method — so the two cannot disagree.
-      const paymentRequired = Boolean(res.data?.data?.payment?.required);
+      const paymentRequired = Boolean(payment?.required);
       dispatch(clearCart());
-
-      // Promote the row the order just created rather than posting a second
-      // copy of the same address — the API already saved it, and a duplicate
-      // would show up twice in the picker above. A convenience either way, so
-      // it happens after the order exists and a failure is swallowed: nothing
-      // about a placed order should hinge on it.
-      const savedAddressId = order?.shippingAddressId as string | undefined;
-      if (selectedAddressId === null && makeDefaultAddress && savedAddressId) {
-        try {
-          await apiClient.put(`/users/addresses/${savedAddressId}`, {
-            type: 'home',
-            ...shippingAddress,
-            isDefault: true,
-          });
-        } catch {
-          /* the order stands regardless */
-        }
-      }
 
       // A prepaid order exists but is not paid for yet, and the gateway is the
       // next step rather than the confirmation page. Nothing about the order
@@ -440,6 +425,8 @@ export default function CheckoutPage() {
   }
 
   const stepIndex = CHECKOUT_STEPS.findIndex((s) => s.id === currentStep);
+  // A line the bag cannot sell as it stands (sold out, fewer left, withdrawn).
+  const blocked = cartProblems.length > 0 || cartItems.some((item) => !item.available);
   const isNewAddress = selectedAddressId === null;
   // Unknown counts as unavailable: the option is never offered on an assumption.
   const onlinePaymentEnabled = paymentConfig?.enabled === true;
@@ -672,6 +659,17 @@ export default function CheckoutPage() {
               <h2 className="mb-6 text-2xl">Review your order</h2>
 
               {orderError && <div className="alert alert-error mb-6">{orderError}</div>}
+              {blocked && !unpaidOrder && (
+                <div className="alert alert-error mb-6" role="status">
+                  {cartProblems.length > 0
+                    ? `${cartProblems.join('. ')}. `
+                    : ''}
+                  <Link href="/cart" className="underline">
+                    Update your cart
+                  </Link>{' '}
+                  before placing the order.
+                </div>
+              )}
 
               <div className="border border-line p-4 rounded-control mb-6">
                 <h3 className="text-base font-semibold mb-3">Items</h3>
@@ -682,7 +680,7 @@ export default function CheckoutPage() {
                         {item.product.name} x {item.quantity}
                       </span>
                       <span className="flex-shrink-0">
-                        {formatCurrency(item.price * item.quantity)}
+                        {formatPaise(item.lineTotalPaise)}
                       </span>
                     </div>
                   ))}
@@ -690,21 +688,21 @@ export default function CheckoutPage() {
                 <div className="space-y-1 text-sm">
                   <div className="flex justify-between">
                     <span>Subtotal</span>
-                    <span>{formatCurrency(subtotal)}</span>
+                    <span>{formatPaise(subtotal)}</span>
                   </div>
                   {coupon && (
                     <div className="flex justify-between text-green-700">
                       <span>Coupon ({coupon.code})</span>
-                      <span>-{formatCurrency(coupon.discount)}</span>
+                      <span>-{formatPaise(coupon.discountPaise)}</span>
                     </div>
                   )}
                   <div className="flex justify-between">
                     <span>Shipping</span>
-                    <span>{shipping === 0 ? 'FREE' : formatCurrency(shipping)}</span>
+                    <span>{shipping === 0 ? 'FREE' : formatPaise(shipping)}</span>
                   </div>
                   <div className="flex justify-between border-t pt-2 text-base font-bold">
                     <span>Total</span>
-                    <span>{formatCurrency(total)}</span>
+                    <span>{formatPaise(total)}</span>
                   </div>
                 </div>
               </div>
@@ -740,12 +738,13 @@ export default function CheckoutPage() {
                 size="lg"
                 onClick={unpaidOrder ? retryPayment : placeOrder}
                 loading={isPlacing}
+                disabled={blocked && !unpaidOrder}
               >
                 {unpaidOrder
-                  ? `Pay Now (${formatCurrency(total)})`
+                  ? `Pay Now (${formatPaise(total)})`
                   : paymentMethod === 'RAZORPAY'
-                    ? `Place Order & Pay (${formatCurrency(total)})`
-                    : `Place Order (${formatCurrency(total)})`}
+                    ? `Place Order & Pay (${formatPaise(total)})`
+                    : `Place Order (${formatPaise(total)})`}
               </Button>
             </div>
           )}

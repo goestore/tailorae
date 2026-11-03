@@ -18,7 +18,8 @@ import {
   type RfqStatus,
 } from '@/lib/b2b-api';
 import { RootState } from '@/store';
-import { formatCurrency, formatDate } from '@/utils/helpers';
+import { formatPaise, rupeesToPaise } from '@/lib/money';
+import { formatDate } from '@/utils/helpers';
 
 /**
  * A business buyer's own area: company profile, quote requests with the
@@ -76,7 +77,7 @@ const valuesFrom = (p: B2BProfile): ProfileFormValues => ({
   businessCategory: p.businessCategory ?? '',
   website: p.website ?? '',
   employeeCount: p.employeeCount === null ? '' : String(p.employeeCount),
-  monthlyBudget: p.monthlyBudget === null ? '' : String(p.monthlyBudget),
+  monthlyBudget: p.monthlyBudgetPaise == null ? '' : String(p.monthlyBudgetPaise / 100),
   businessDescription: p.businessDescription ?? '',
 });
 
@@ -152,7 +153,7 @@ const RfqRow: React.FC<{
         <div>
           <dt style={{ color: 'var(--ink-3)' }}>Your target</dt>
           <dd className="m-0 text-ink">
-            {rfq.desiredPrice !== null ? `${formatCurrency(rfq.desiredPrice)}/pc` : '—'}
+            {rfq.desiredPricePaise != null ? `${formatPaise(rfq.desiredPricePaise)}/pc` : '—'}
           </dd>
         </div>
         <div>
@@ -162,7 +163,7 @@ const RfqRow: React.FC<{
         <div>
           <dt style={{ color: 'var(--ink-3)' }}>Our quote</dt>
           <dd className="m-0 font-semibold text-ink">
-            {rfq.quotedPrice !== null ? `${formatCurrency(rfq.quotedPrice)}/pc` : '—'}
+            {rfq.quotedPricePaise != null ? `${formatPaise(rfq.quotedPricePaise)}/pc` : '—'}
           </dd>
         </div>
       </dl>
@@ -173,7 +174,7 @@ const RfqRow: React.FC<{
         </p>
       )}
 
-      {(rfq.quotedPrice !== null || rfq.notes) && rfq.status !== 'PENDING' && (
+      {(rfq.quotedPricePaise != null || rfq.notes) && rfq.status !== 'PENDING' && (
         <div
           className="mt-4 border px-4 py-3 text-[14px]"
           style={{
@@ -181,9 +182,9 @@ const RfqRow: React.FC<{
             background: canRespond ? 'var(--brand-soft)' : 'transparent',
           }}
         >
-          {rfq.quotedPrice !== null && (
+          {rfq.quotedPricePaise != null && (
             <p className="m-0 text-ink">
-              <strong>{formatCurrency(rfq.quotedPrice * rfq.quantity)}</strong> total for{' '}
+              <strong>{formatPaise(rfq.quotedPricePaise * rfq.quantity)}</strong> total for{' '}
               {rfq.quantity.toLocaleString('en-IN')} pieces
               {rfq.expiryDate && rfq.status === 'QUOTED'
                 ? ` · valid until ${formatDate(rfq.expiryDate)}`
@@ -293,7 +294,7 @@ export default function B2BAccountPage() {
         website: values.website.trim() || null,
         businessDescription: values.businessDescription.trim() || null,
         employeeCount: employees ? Number(employees) : null,
-        monthlyBudget: budget ? Number(budget) : null,
+        monthlyBudgetPaise: budget ? rupeesToPaise(Number(budget)) : null,
       });
       setProfile(saved);
       setValues(valuesFrom(saved));
@@ -572,10 +573,10 @@ export default function B2BAccountPage() {
                           <td className="px-4 py-3">{order.product?.name ?? '—'}</td>
                           <td className="px-4 py-3 text-right">{order.quantity.toLocaleString('en-IN')}</td>
                           <td className="px-4 py-3 text-right">
-                            {formatCurrency(order.totalPrice)}
+                            {formatPaise(order.totalPricePaise)}
                             <br />
                             <span className="text-small" style={{ color: 'var(--ink-3)' }}>
-                              {formatCurrency(order.unitPrice)}/pc
+                              {formatPaise(order.unitPricePaise)}/pc
                             </span>
                           </td>
                           <td className="px-4 py-3">

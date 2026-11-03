@@ -24,10 +24,16 @@ export function getApiErrorStatus(error: unknown): number | undefined {
   return undefined;
 }
 
-/** Shipping is free at (subtotal - discount) >= 999, otherwise a flat 49. */
-export const FREE_SHIPPING_THRESHOLD = 999;
-export const FLAT_SHIPPING_COST = 49;
+/**
+ * Shipping, in paise: free once (subtotal − discount) reaches ₹999, otherwise a
+ * flat ₹79 — the API's defaults (`shipping.free_above_paise`,
+ * `shipping.flat_paise`). Only an estimate for the summary: staff can change
+ * both settings, there is no public endpoint to read them, and the order the
+ * API creates carries the real `shippingPaise`.
+ */
+export const FREE_SHIPPING_THRESHOLD_PAISE = 99_900;
+export const FLAT_SHIPPING_PAISE = 7_900;
 
-export function calculateShipping(subtotal: number, discount = 0): number {
-  return subtotal - discount >= FREE_SHIPPING_THRESHOLD ? 0 : FLAT_SHIPPING_COST;
+export function calculateShipping(subtotalPaise: number, discountPaise = 0): number {
+  return subtotalPaise - discountPaise >= FREE_SHIPPING_THRESHOLD_PAISE ? 0 : FLAT_SHIPPING_PAISE;
 }

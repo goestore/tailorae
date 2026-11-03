@@ -57,7 +57,7 @@ export interface LoadContentOptions {
 }
 
 const apiBase = (override?: string): string =>
-  (override ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:5000/api').replace(/\/+$/, '');
+  (override ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8082/api').replace(/\/+$/, '');
 
 const reasonFor = (error: unknown): string =>
   error instanceof Error ? `${error.name}: ${error.message}` : String(error);

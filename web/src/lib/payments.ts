@@ -1,5 +1,6 @@
 import { apiClient } from '@/lib/api-client';
 import { getApiErrorMessage } from '@/lib/api-utils';
+import type { CheckoutSession } from '@/lib/api/types';
 import { SITE_NAME } from '@/config/site';
 
 /**
@@ -30,8 +31,11 @@ export interface PaymentConfig {
   currency: string;
   /** Written to be shown to a customer when `enabled` is false. */
   reason: string | null;
-  webhookConfigured: boolean;
 }
+
+/** Shown when the API says the gateway is off without saying why. */
+const DISABLED_REASON =
+  'Online payment is not available right now. Cash on delivery is still available.';
 
 /**
  * What checkout renders when the config cannot be read at all.
@@ -45,15 +49,22 @@ export const UNAVAILABLE_CONFIG: PaymentConfig = {
   keyId: null,
   currency: 'INR',
   reason: 'Online payment is unavailable at the moment. Cash on delivery is still available.',
-  webhookConfigured: false,
 };
 
 /** Ask the server whether online payment can be offered. Never rejects. */
 export async function fetchPaymentConfig(): Promise<PaymentConfig> {
   try {
+    // `{enabled, keyId, currency}` — the API names no reason, so one is supplied.
     const res = await apiClient.get('/payments/config');
-    const config = res.data?.data?.razorpay as PaymentConfig | undefined;
-    return config ?? UNAVAILABLE_CONFIG;
+    const config = res.data?.data as Partial<PaymentConfig> | undefined;
+    if (!config) return UNAVAILABLE_CONFIG;
+    const enabled = config.enabled === true && Boolean(config.keyId);
+    return {
+      enabled,
+      keyId: config.keyId ?? null,
+      currency: config.currency ?? 'INR',
+      reason: enabled ? null : (config.reason ?? DISABLED_REASON),
+    };
   } catch {
     return UNAVAILABLE_CONFIG;
   }
@@ -141,15 +152,6 @@ export function loadRazorpayCheckout(): Promise<RazorpayConstructor> {
 // The payment itself
 // ---------------------------------------------------------------------------
 
-/** What the server hands back when a payment session is opened. */
-interface PaymentSession {
-  keyId: string;
-  gatewayOrderId: string;
-  amount: number;
-  currency: string;
-  orderNumber: string;
-  prefill?: { name?: string; email?: string; contact?: string };
-}
 
 /**
  * How a payment attempt ended.
@@ -180,7 +182,7 @@ export type PaymentOutcome =
  * and those want different words on screen.
  */
 export async function payForOrder(orderId: string): Promise<PaymentOutcome> {
-  let session: PaymentSession;
+  let session: CheckoutSession;
   let Razorpay: RazorpayConstructor;
 
   try {
@@ -190,7 +192,8 @@ export async function payForOrder(orderId: string): Promise<PaymentOutcome> {
       apiClient.post('/payments/razorpay/create-order', { orderId }),
       loadRazorpayCheckout(),
     ]);
-    session = sessionRes.data?.data as PaymentSession;
+    // `{keyId, gatewayOrderId, amountPaise, currency, orderId, orderNumber, email}`
+    session = sessionRes.data?.data as CheckoutSession;
     Razorpay = constructor;
     if (!session?.gatewayOrderId || !session?.keyId) {
       return { status: 'failed', message: 'Could not start the payment. Please try again.' };
@@ -213,14 +216,16 @@ export async function payForOrder(orderId: string): Promise<PaymentOutcome> {
       resolve(outcome);
     };
 
+    const orderNumber = session.orderNumber ?? '';
     const checkout = new Razorpay({
-      key: session.keyId,
-      amount: session.amount,
-      currency: session.currency,
+      key: session.keyId!,
+      // Razorpay takes the amount in the currency's smallest unit — paise.
+      amount: session.amountPaise ?? 0,
+      currency: session.currency ?? 'INR',
       name: SITE_NAME,
-      description: `Order ${session.orderNumber}`,
-      order_id: session.gatewayOrderId,
-      prefill: session.prefill,
+      description: `Order ${orderNumber}`,
+      order_id: session.gatewayOrderId!,
+      prefill: session.email ? { email: session.email } : undefined,
       theme: { color: BRAND_COLOUR },
       handler: (response) => {
         /**
@@ -229,11 +234,12 @@ export async function payForOrder(orderId: string): Promise<PaymentOutcome> {
          * account whatever our server says next. The webhook is the backstop
          * for every one of these paths.
          */
+        // 200 = confirmed; 202 = received, the webhook will settle it.
         apiClient
-          .post('/payments/razorpay/verify', response)
+          .post('/payments/razorpay/verify', { orderId, ...response })
           .then((res) => {
-            if (res.data?.data?.confirmed) {
-              settle({ status: 'paid', orderNumber: session.orderNumber });
+            if (res.status === 200 && res.data?.data?.confirmed) {
+              settle({ status: 'paid', orderNumber });
             } else {
               settle({
                 status: 'pending',

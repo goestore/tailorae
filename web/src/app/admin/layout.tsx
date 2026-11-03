@@ -7,7 +7,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useDispatch } from 'react-redux';
-import { apiClient } from '@/lib/api-client';
+import { signOut as endSession } from '@/lib/auth-api';
 import {
   ADMIN_QUEUES_CHANGED,
   getQueueCounts,
@@ -169,7 +169,14 @@ function subPageLabel(pathname: string, itemHref: string): string | null {
     .replace(/^./, (c) => c.toUpperCase());
 }
 
+/** The staff sign-in page renders on its own, outside the console chrome. */
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  if (pathname === '/admin/login') return <>{children}</>;
+  return <AdminConsole>{children}</AdminConsole>;
+}
+
+function AdminConsole({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
@@ -266,13 +273,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [isCompact, mobileNavOpen]);
 
   const signOut = async () => {
-    await apiClient.post('/auth/logout').catch(() => {});
-    localStorage.removeItem('token');
+    await endSession('admin');
     // Clear the client store explicitly rather than relying on a full page
     // load to drop it — same sequence the account page signs out with.
     dispatch(logout());
     dispatch(clearCart());
-    router.push('/auth/login');
+    router.push('/admin/login');
   };
 
   const sidebarWidth = isCompact ? 280 : collapsed ? 64 : 240;

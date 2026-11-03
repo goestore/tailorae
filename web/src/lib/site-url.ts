@@ -46,7 +46,7 @@ export function absoluteUrl(path: string): string {
  * Base URL of the backend API for server-side fetches.
  *
  * `API_URL_INTERNAL` is the loopback address of the API on the same box
- * (http://127.0.0.1:5000/api). A server render that used the public URL would
+ * (http://127.0.0.1:8082/api). A server render that used the public URL would
  * leave the machine, cross TLS and come back through nginx to reach a process
  * a few hundred microseconds away — paid on every uncached render. It is also
  * the only address that works before DNS points at the new server during a
@@ -57,6 +57,6 @@ export function absoluteUrl(path: string): string {
  */
 export function apiBase(): string {
   const internal = process.env.API_URL_INTERNAL?.trim();
-  const base = internal || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+  const base = internal || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8082/api';
   return base.replace(/\/+$/, '');
 }

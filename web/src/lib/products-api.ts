@@ -15,13 +15,14 @@ export interface ProductFilters {
   category?: string;
   /** popular | new | price-low | price-high */
   sortBy?: string;
+  /** Rupees, as the listing URL carries them; the API converts. */
   minPrice?: number;
   maxPrice?: number;
   color?: string;
   /** Brand slug or id. */
   brand?: string;
   /** Seller shop slug or id. */
-  vendor?: string;
+  seller?: string;
   q?: string;
   sale?: boolean;
   newest?: boolean;
@@ -57,7 +58,7 @@ function toParams(filters: ProductFilters): Record<string, string> {
   if (filters.maxPrice) params.maxPrice = String(filters.maxPrice);
   if (filters.color) params.color = filters.color;
   if (filters.brand) params.brand = filters.brand;
-  if (filters.vendor) params.vendor = filters.vendor;
+  if (filters.seller) params.seller = filters.seller;
   if (filters.q) params.q = filters.q;
   if (filters.sale) params.sale = '1';
   if (filters.newest) params.newest = '1';
@@ -210,8 +211,8 @@ export interface SearchSuggestion {
   id: string;
   name: string;
   slug: string;
-  price: number;
-  originalPrice: number | null;
+  pricePaise: number;
+  mrpPaise: number | null;
   thumbnail: string | null;
   category?: { name: string; slug: string } | null;
 }

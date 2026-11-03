@@ -4,7 +4,7 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ProductThumb } from '@/components/product/ProductThumb';
 import { searchProducts, type SearchSuggestion } from '@/lib/products-api';
-import { formatCurrency } from '@/utils/helpers';
+import { formatPaise } from '@/lib/money';
 import { clearRecentSearches, forgetSearch, rememberSearch, useRecentSearches } from './useRecentSearches';
 
 /**
@@ -482,11 +482,11 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
                   </span>
                   <span className="shrink-0 text-right">
                     <span className="block text-sm font-semibold text-ink">
-                      {formatCurrency(product.price)}
+                      {formatPaise(product.pricePaise)}
                     </span>
-                    {product.originalPrice != null && product.originalPrice > product.price && (
+                    {product.mrpPaise != null && product.mrpPaise > product.pricePaise && (
                       <span className="block text-caption line-through" style={{ color: 'var(--ink-3)' }}>
-                        {formatCurrency(product.originalPrice)}
+                        {formatPaise(product.mrpPaise)}
                       </span>
                     )}
                   </span>

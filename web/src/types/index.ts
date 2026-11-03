@@ -1,24 +1,36 @@
-// User & Authentication Types
-export type UserRole = 'ADMIN' | 'VENDOR' | 'B2B_BUYER' | 'RETAIL_CUSTOMER';
-export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING_VERIFICATION';
+/**
+ * Shapes the storefront reads from the TAILORAE API.
+ *
+ * Money is integer paise everywhere (`pricePaise`, `totalPaise`…) and is turned
+ * into rupees only for display (`formatPaise` in `lib/money.ts`). Where the API
+ * documents a schema, the generated types in `lib/api/types.ts` are the
+ * contract; the catalogue endpoints return the product row as a map, so its
+ * shape is written out here.
+ */
 
+// User & Authentication Types
+
+/**
+ * The signed-in account, as the session keeps it in redux (`state.auth.user`).
+ *
+ * Built from the API's account summary `{id, realm, email, name, emailVerified}`;
+ * for a customer the profile (`GET /users/profile`) adds names and phone. Seller
+ * and staff accounts carry one full name, split into first/last for display.
+ */
 export interface User {
   id: string;
+  realm: 'customer' | 'seller' | 'admin';
   email: string;
-  phone?: string;
+  /** Full display name. */
+  name: string;
+  emailVerified: boolean;
   firstName?: string;
   lastName?: string;
-  profileImage?: string;
-  role: UserRole;
-  status: UserStatus;
-  emailVerified: boolean;
-  phoneVerified: boolean;
-  twoFactorEnabled: boolean;
-  preferredLanguage: string;
-  isDarkMode: boolean;
-  subscribeToNewsletter: boolean;
-  createdAt: string;
-  updatedAt: string;
+  phone?: string;
+  /** Customer type: INDIVIDUAL or BUSINESS. */
+  type?: string;
+  marketingOptIn?: boolean;
+  createdAt?: string;
 }
 
 /**
@@ -43,10 +55,8 @@ export interface Brand {
 }
 
 /**
- * A shop selling on the marketplace.
- *
- * Only the public half of `VendorProfile` — bank details, tax id, commission
- * rate and earnings live on the same record and never leave the server.
+ * A shop selling on the marketplace — only its public face. Business, bank
+ * and KYC details never leave the seller and staff consoles.
  */
 export interface Seller {
   id: string;
@@ -56,6 +66,8 @@ export interface Seller {
   shopImage?: string | null;
   shopBanner?: string | null;
   isVerified?: boolean;
+  /** TAILORAE's own stock. */
+  isPlatform?: boolean;
   rating?: number;
   ratingCount?: number;
   createdAt?: string;
@@ -69,9 +81,11 @@ export interface Category {
   id: string;
   name: string;
   slug: string;
-  description?: string;
-  icon?: string;
-  image?: string;
+  description?: string | null;
+  icon?: string | null;
+  image?: string | null;
+  /** Slugs from the department down to this category. */
+  path?: string[];
   children?: Category[];
 }
 
@@ -79,35 +93,40 @@ export interface Product {
   id: string;
   name: string;
   slug: string;
-  description?: string;
-  shortDescription?: string;
+  description?: string | null;
+  shortDescription?: string | null;
   status: ProductStatus;
-  price: number;
-  originalPrice?: number;
+  pricePaise: number;
+  /** The MRP; above `pricePaise` when the product is on sale. */
+  mrpPaise?: number | null;
   discountPercentage: number;
   sku: string;
   quantity: number;
   minOrderQuantity: number;
+  maxOrderQuantity?: number | null;
   isFeatured: boolean;
   isCustomizable: boolean;
   allowBulkOrders: boolean;
-  thumbnail?: string;
+  thumbnail?: string | null;
   images: string[];
-  videoUrl?: string;
+  videoUrl?: string | null;
+  color?: string | null;
+  colorFamily?: string | null;
   /** Product-specific measurements, shown in place of the standard chart. */
   sizeGuide?: string | null;
   rating: number;
   ratingCount: number;
   reviewCount: number;
-  metaTitle?: string;
-  metaDescription?: string;
-  category?: Category;
+  metaTitle?: string | null;
+  metaDescription?: string | null;
+  categoryId?: string | null;
+  category?: Category | null;
   /** The label the product is sold under. Null when it carries none. */
   brandId?: string | null;
   brand?: Brand | null;
-  /** The shop that listed this product. Null for house stock. */
-  vendorId?: string | null;
-  vendor?: Seller | null;
+  /** The shop that listed this product (TAILORAE's own stock is a shop too). */
+  sellerId?: string | null;
+  seller?: Seller | null;
   variants?: ProductVariant[];
   customizations?: ProductCustomization[];
   bulkPricings?: BulkPricing[];
@@ -138,7 +157,7 @@ export interface ProductDetail extends Omit<Product, 'colors'> {
   /**
    * How to present the product, from its listing template: what the variant
    * option is called ("UK size", "Variant"), whether it is clothing (size
-   * guide), and readable names for its attributes. Null for legacy products.
+   * guide), and readable names for its attributes. Null for products without one.
    */
   listing?: {
     articleType: string;
@@ -207,10 +226,10 @@ export interface BulkPricing {
   minQty: number;
   /** `null` means "and above". */
   maxQty?: number | null;
-  /** Percentage off the base price. */
-  discount: number;
+  /** Discount off the base price in basis points (1000 = 10%). */
+  discountBp: number;
   /** Final per-unit price, already discounted. */
-  price: number;
+  pricePaise: number;
 }
 
 export interface ProductVariant {
@@ -218,10 +237,11 @@ export interface ProductVariant {
   productId: string;
   name: string;
   sku: string;
-  size?: string;
-  color?: string;
-  material?: string;
-  price?: number;
+  size?: string | null;
+  color?: string | null;
+  material?: string | null;
+  /** Null when the variant sells at the product's price. */
+  pricePaise?: number | null;
   quantity: number;
   images: string[];
   isDefault: boolean;
@@ -235,219 +255,239 @@ export interface ProductVariant {
 export interface ProductCustomization {
   id: string;
   name: string;
-  /** Backend values include e.g. 'select', 'text', 'file', 'color', 'image', 'embroidery'. */
+  /** Upper case: TEXT, SELECT, FILE, COLOR, IMAGE, EMBROIDERY… */
   type: string;
   isRequired: boolean;
   /** Select options — may arrive as an array or a JSON-encoded string. */
   options?: string[] | string | null;
-  additionalCost: number;
+  additionalPaise: number;
   maxCharacters?: number | null;
 }
 
 // Cart & Order Types
+
+/** The slice of the product a bag line carries, repriced on every read. */
+export interface CartLineProduct {
+  id: string;
+  name: string;
+  slug: string;
+  thumbnail?: string | null;
+  pricePaise: number;
+  mrpPaise?: number | null;
+  /** Units in stock for this line's product or size. */
+  quantity: number;
+}
+
 export interface CartItem {
   id: string;
   productId: string;
-  product: Product;
-  variantId?: string;
-  variant?: ProductVariant;
+  variantId?: string | null;
   quantity: number;
-  price: number;
+  /** Price of one unit today, add-ons and bulk tier included. */
+  unitPaise: number;
+  lineTotalPaise: number;
+  /** False when the product was withdrawn or the size has fewer units than the line. */
+  available: boolean;
   /**
    * What the shopper asked for, keyed by option. Values are heterogeneous by
    * design: the product page stores typed answers, while custom wear stores
    * placements, uploaded filenames and fees. `unknown` rather than `any` so a
    * reader has to decide how to render each one.
    */
-  customization?: Record<string, unknown>;
-  mockupImage?: string;
-  isBulkOrder: boolean;
+  customization?: Record<string, unknown> | null;
+  mockupImage?: string | null;
+  product: CartLineProduct;
+  variant?: { id: string; size?: string | null; color?: string | null; sku?: string | null } | null;
 }
 
 export interface Cart {
   id: string;
-  userId: string;
   items: CartItem[];
-  createdAt: string;
-  updatedAt: string;
+  subtotalPaise: number;
+  itemCount: number;
+  /** Plain-English reasons a line cannot be bought as it stands. */
+  problems: string[];
 }
 
-export type OrderStatus = 'PENDING' | 'CONFIRMED' | 'PROCESSING' | 'READY_FOR_SHIPMENT' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED' | 'RETURNED';
+export type OrderStatus =
+  | 'PENDING'
+  | 'CONFIRMED'
+  | 'PROCESSING'
+  | 'READY_FOR_SHIPMENT'
+  | 'SHIPPED'
+  | 'DELIVERED'
+  | 'CANCELLED'
+  | 'RETURNED';
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED' | 'REFUNDED' | 'CANCELLED';
-export type PaymentMethod = 'CREDIT_CARD' | 'DEBIT_CARD' | 'NETBANKING' | 'UPI' | 'WALLET' | 'RAZORPAY' | 'STRIPE' | 'PAYPAL' | 'COD';
+export type PaymentMethod = 'COD' | 'RAZORPAY';
+
+/** An address as an order snapshotted it. */
+export interface OrderAddress {
+  fullName: string;
+  phone: string;
+  email?: string | null;
+  line1: string;
+  line2?: string | null;
+  city: string;
+  state: string;
+  postalCode: string;
+  country?: string | null;
+  gstin?: string | null;
+}
 
 export interface Order {
   id: string;
   orderNumber: string;
-  userId: string;
+  customerId?: string;
   status: OrderStatus;
   paymentStatus: PaymentStatus;
-  paymentMethod?: PaymentMethod;
-  isBulkOrder: boolean;
-  isB2B: boolean;
-  subtotal: number;
-  discount: number;
-  tax: number;
-  shippingCost: number;
-  total: number;
-  discountCode?: string | null;
-  gstNumber?: string | null;
+  paymentMethod?: PaymentMethod | null;
+  contactEmail?: string | null;
+  subtotalPaise: number;
+  discountPaise: number;
+  couponCode?: string | null;
+  taxPaise: number;
+  shippingPaise: number;
+  totalPaise: number;
+  refundedPaise?: number;
   notes?: string | null;
-  trackingNumber?: string;
+  trackingNumber?: string | null;
   carrier?: string | null;
-  estimatedDelivery?: string;
-  actualDelivery?: string;
+  deliveredAt?: string | null;
+  /** An unpaid online order is cancelled after this moment. */
+  paymentDueBy?: string | null;
   items: OrderItem[];
-  shippingAddress?: Address | null;
-  billingAddress?: Address | null;
+  /** One part per shop, each shipped and tracked on its own. */
+  sellerOrders?: SellerOrderPart[];
+  shippingAddress?: OrderAddress | null;
+  billingAddress?: OrderAddress | null;
   timeline?: OrderTimelineEntry[];
   returnRequest?: ReturnRequest | null;
   createdAt: string;
-  updatedAt: string;
+}
+
+/** A row of the order list: enough for a summary line, not the whole order. */
+export interface OrderSummary {
+  id: string;
+  orderNumber: string;
+  status: OrderStatus;
+  paymentStatus: PaymentStatus;
+  paymentMethod?: PaymentMethod | null;
+  totalPaise: number;
+  itemCount: number;
+  firstItemName?: string | null;
+  firstItemThumbnail?: string | null;
+  createdAt: string;
+}
+
+export interface SellerOrderPart {
+  id: string;
+  orderNumber: string;
+  sellerId: string;
+  shopName?: string | null;
+  status: OrderStatus;
+  totalPaise: number;
+  trackingNumber?: string | null;
+  carrier?: string | null;
+  shippedAt?: string | null;
+  deliveredAt?: string | null;
 }
 
 /** One return raised against a delivered order. At most one per order. */
 export interface ReturnRequest {
   id: string;
-  orderId: string;
   reason: string;
   requestType: string;
   description?: string | null;
+  images?: string[];
   status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED';
-  refundAmount?: number | null;
+  refundPaise?: number | null;
+  refundedAt?: string | null;
+  notes?: string | null;
   createdAt: string;
 }
 
 /** One recorded status change on an order, oldest first. */
 export interface OrderTimelineEntry {
-  id: string;
-  orderId: string;
   status: string;
   message?: string | null;
   createdAt: string;
 }
 
+/** A line as the order snapshotted it — name, size and price at the time. */
 export interface OrderItem {
   id: string;
-  orderId: string;
   productId: string;
-  product: Product;
   variantId?: string | null;
-  /** Snapshotted at order time — the variant SKU where there was one. */
+  sellerId?: string | null;
+  name: string;
   sku?: string | null;
+  size?: string | null;
+  color?: string | null;
+  thumbnail?: string | null;
   quantity: number;
-  price: number;
-  /**
-   * What the shopper asked for, keyed by option. Values are heterogeneous by
-   * design: the product page stores typed answers, while custom wear stores
-   * placements, uploaded filenames and fees. `unknown` rather than `any` so a
-   * reader has to decide how to render each one.
-   */
-  customization?: Record<string, unknown>;
-  mockupImage?: string;
+  unitPaise: number;
+  discountPaise?: number;
+  /** See CartItem.customization. */
+  customization?: Record<string, unknown> | null;
+  mockupImage?: string | null;
 }
 
 // Address Types
+export type AddressLabel = 'HOME' | 'OFFICE' | 'OTHER';
+
 export interface Address {
   id: string;
-  userId: string;
-  type: string;
+  label: AddressLabel | string;
   fullName: string;
-  phoneNumber: string;
-  email?: string;
-  addressLine1: string;
-  addressLine2?: string;
+  phone: string;
+  email?: string | null;
+  line1: string;
+  line2?: string | null;
   city: string;
   state: string;
   postalCode: string;
   country: string;
+  gstin?: string | null;
   isDefault: boolean;
 }
 
-// B2B Types
-export interface B2BProfile {
-  id: string;
-  userId: string;
-  companyName: string;
-  gstNumber?: string;
-  minOrderQuantity: number;
-  discountTier: string;
-  isVerified: boolean;
-  creditLimit: number;
-  creditUsed: number;
-}
-
-export interface RFQ {
-  id: string;
-  rfqNumber: string;
-  b2bProfileId: string;
-  productId: string;
-  quantity: number;
-  status: string;
-  quotedPrice?: number;
-  expiryDate?: string;
-  createdAt: string;
-}
-
-export interface BulkOrder {
-  id: string;
-  orderNumber: string;
-  b2bProfileId: string;
-  productId: string;
-  quantity: number;
-  unitPrice: number;
-  totalPrice: number;
-  status: string;
-  expectedDelivery?: string;
-}
+/** What the address form sends. */
+export type AddressInput = Omit<Address, 'id' | 'country'> & { country?: string };
 
 // Wishlist & Reviews
 export interface WishlistItem {
-  id: string;
-  userId: string;
   productId: string;
-  product: Product;
-  createdAt: string;
+  name: string;
+  slug: string;
+  thumbnail?: string | null;
+  pricePaise: number;
+  mrpPaise?: number | null;
+  inStock: boolean;
+  /** False once the product is withdrawn from sale. */
+  available: boolean;
+  addedAt: string;
 }
 
 export interface Review {
   id: string;
-  userId: string;
   productId: string;
   rating: number;
-  title?: string;
-  comment?: string;
+  title?: string | null;
+  comment?: string | null;
   images: string[];
+  /** The reviewer bought the product. */
   isVerified: boolean;
-  helpful: number;
+  helpfulCount: number;
+  /** "Asha R" — first name and initial. */
+  authorName?: string | null;
   createdAt: string;
 }
 
-// Coupon Types
-export interface Coupon {
-  id: string;
-  code: string;
-  discountType: 'PERCENTAGE' | 'FIXED_AMOUNT';
-  discountValue: number;
-  minOrderAmount: number;
-  maxDiscount?: number;
-  usageLimit?: number;
-  startDate: string;
-  endDate: string;
-  isActive: boolean;
-}
-
-// Notification Types
-export interface Notification {
-  id: string;
-  userId: string;
-  title: string;
-  message: string;
-  type: 'ORDER' | 'PROMOTION' | 'ACCOUNT' | 'SYSTEM';
-  isRead: boolean;
-  readAt?: string;
-  link?: string;
-  createdAt: string;
+export interface ReviewSummary {
+  average: number;
+  count: number;
+  distribution: Record<string, number>;
 }
 
 // API Response Types
@@ -460,51 +500,4 @@ export interface ApiResponse<T = unknown> {
   success: boolean;
   data?: T;
   message?: string;
-  error?: string;
-}
-
-export interface PaginatedResponse<T> {
-  data: T[];
-  pagination: {
-    total: number;
-    page: number;
-    limit: number;
-    pages: number;
-  };
-}
-
-// Filter Types
-export interface ProductFilters {
-  search?: string;
-  categoryId?: string;
-  minPrice?: number;
-  maxPrice?: number;
-  rating?: number;
-  inStock?: boolean;
-  isCustomizable?: boolean;
-  sortBy?: 'newest' | 'price-asc' | 'price-desc' | 'rating' | 'trending';
-  page?: number;
-  limit?: number;
-}
-
-// Auth Types
-export interface LoginCredentials {
-  email: string;
-  password: string;
-  rememberMe?: boolean;
-}
-
-export interface RegisterCredentials {
-  email: string;
-  password: string;
-  confirmPassword: string;
-  firstName: string;
-  lastName: string;
-  role: UserRole;
-}
-
-export interface AuthResponse {
-  user: User;
-  token: string;
-  refreshToken?: string;
 }

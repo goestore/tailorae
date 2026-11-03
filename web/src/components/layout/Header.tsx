@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '@/store';
-import { apiClient } from '@/lib/api-client';
+import { signOut } from '@/lib/auth-api';
 import { logout } from '@/store/slices/auth';
 import { clearCart } from '@/store/slices/cart';
 import { SearchAutocomplete } from '@/components/search';
@@ -314,8 +314,7 @@ export const Header: React.FC<HeaderProps> = ({ announcement, categories }) => {
   const handleLogout = () => {
     setIsAccountMenuOpen(false);
     // Best-effort server-side logout; local state is cleared regardless.
-    apiClient.post('/auth/logout').catch(() => {});
-    localStorage.removeItem('token');
+    void signOut('customer');
     dispatch(logout());
     dispatch(clearCart());
     router.push('/');
@@ -566,15 +565,6 @@ export const Header: React.FC<HeaderProps> = ({ announcement, categories }) => {
                         >
                           My Account
                         </Link>
-                        {user.role === 'ADMIN' && (
-                          <Link
-                            href="/admin"
-                            className="nav-dropdown-item"
-                            onClick={() => setIsAccountMenuOpen(false)}
-                          >
-                            Admin
-                          </Link>
-                        )}
                         <button
                           onClick={handleLogout}
                           className="nav-dropdown-item w-full text-left"
@@ -699,15 +689,6 @@ export const Header: React.FC<HeaderProps> = ({ announcement, categories }) => {
                   >
                     My Account
                   </Link>
-                  {user.role === 'ADMIN' && (
-                    <Link
-                      href="/admin"
-                      className="mobile-drawer-link"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    >
-                      Admin
-                    </Link>
-                  )}
                   <button
                     onClick={() => {
                       setIsMobileMenuOpen(false);

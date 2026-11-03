@@ -9,8 +9,9 @@ import { ProductThumb } from '@/components/product/ProductThumb';
 import { getApiErrorMessage } from '@/lib/api-utils';
 import { fetchOrderByReference } from '@/lib/orders-api';
 import { RootState } from '@/store';
+import { countryName } from '@/lib/addresses-api';
+import { formatPaise } from '@/lib/money';
 import { Order, OrderStatus } from '@/types';
-import { formatCurrency } from '@/utils/helpers';
 
 const formatDate = (iso: string): string =>
   new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -43,14 +44,7 @@ const statusTone = (status: OrderStatus): { color: string; background: string } 
 
 const PAYMENT_LABEL: Record<string, string> = {
   COD: 'Cash on delivery',
-  RAZORPAY: 'Razorpay',
-  STRIPE: 'Card (Stripe)',
-  UPI: 'UPI',
-  CREDIT_CARD: 'Credit card',
-  DEBIT_CARD: 'Debit card',
-  NETBANKING: 'Netbanking',
-  WALLET: 'Wallet',
-  PAYPAL: 'PayPal',
+  RAZORPAY: 'Paid online (Razorpay)',
 };
 
 function OrderConfirmation({ orderNumber }: { orderNumber: string }) {
@@ -130,6 +124,16 @@ function OrderConfirmation({ orderNumber }: { orderNumber: string }) {
   const payment = order.paymentMethod
     ? PAYMENT_LABEL[order.paymentMethod] ?? order.paymentMethod
     : 'Cash on delivery';
+  // Each shop ships its own part and has its own tracking number.
+  const shipments = (order.sellerOrders ?? []).filter((part) => part.trackingNumber);
+  const paymentNote =
+    order.paymentStatus === 'PAID'
+      ? 'Paid'
+      : order.paymentStatus === 'REFUNDED'
+        ? 'Refunded'
+        : order.paymentMethod === 'COD'
+          ? 'Due on delivery'
+          : 'Awaiting payment';
 
   return (
     <main className="section-y">
@@ -196,23 +200,25 @@ function OrderConfirmation({ orderNumber }: { orderNumber: string }) {
             </span>
           </header>
 
-          {(order.estimatedDelivery || order.actualDelivery || order.trackingNumber) && (
+          {(order.deliveredAt || order.trackingNumber || shipments.length > 0) && (
             <section className="mt-6 border border-line p-5">
-              {order.actualDelivery ? (
-                <p className="m-0 text-[14px] text-ink">
-                  Delivered {formatDate(order.actualDelivery)}
-                </p>
-              ) : order.estimatedDelivery ? (
-                <p className="m-0 text-[14px] text-ink">
-                  Estimated delivery {formatDate(order.estimatedDelivery)}
-                </p>
-              ) : null}
-              {order.trackingNumber && (
-                <p className="m-0 mt-1 text-[13.5px]" style={{ color: 'var(--ink-2)' }}>
-                  {order.carrier ? `${order.carrier} · ` : ''}
-                  {order.trackingNumber}
-                </p>
+              {order.deliveredAt && (
+                <p className="m-0 text-[14px] text-ink">Delivered {formatDate(order.deliveredAt)}</p>
               )}
+              {shipments.length > 0
+                ? shipments.map((part) => (
+                    <p key={part.id} className="m-0 mt-1 text-[13.5px]" style={{ color: 'var(--ink-2)' }}>
+                      {shipments.length > 1 && part.shopName ? `${part.shopName}: ` : ''}
+                      {part.carrier ? `${part.carrier} · ` : ''}
+                      {part.trackingNumber}
+                    </p>
+                  ))
+                : order.trackingNumber && (
+                    <p className="m-0 mt-1 text-[13.5px]" style={{ color: 'var(--ink-2)' }}>
+                      {order.carrier ? `${order.carrier} · ` : ''}
+                      {order.trackingNumber}
+                    </p>
+                  )}
             </section>
           )}
 
@@ -225,9 +231,9 @@ function OrderConfirmation({ orderNumber }: { orderNumber: string }) {
             </h2>
             <ul className="m-0 list-none p-0">
               {order.items.map((item) => {
-                const name = item.product?.name ?? 'Item';
-                const image =
-                  item.mockupImage ?? item.product?.thumbnail ?? item.product?.images?.[0];
+                const name = item.name || 'Item';
+                const image = item.mockupImage ?? item.thumbnail ?? undefined;
+                const options = [item.color, item.size && `Size ${item.size}`].filter(Boolean);
                 return (
                   <li
                     key={item.id}
@@ -243,9 +249,9 @@ function OrderConfirmation({ orderNumber }: { orderNumber: string }) {
                       />
                     </div>
                     <div className="min-w-0 flex-1">
-                      {item.product?.slug ? (
+                      {item.productId ? (
                         <Link
-                          href={`/products/${item.product.slug}`}
+                          href={`/products/${item.productId}`}
                           className="text-[14.5px] text-ink hover:text-[var(--brand-700)]"
                         >
                           {name}
@@ -254,12 +260,13 @@ function OrderConfirmation({ orderNumber }: { orderNumber: string }) {
                         <span className="text-[14.5px] text-ink">{name}</span>
                       )}
                       <p className="m-0 mt-1 text-meta" style={{ color: 'var(--ink-3)' }}>
+                        {options.length > 0 ? `${options.join(' · ')} · ` : ''}
                         Quantity {item.quantity}
                         {item.sku ? ` · SKU ${item.sku}` : ''}
                       </p>
                     </div>
                     <span className="flex-shrink-0 text-[14px] font-semibold text-ink">
-                      {formatCurrency(item.price * item.quantity)}
+                      {formatPaise(item.unitPaise * item.quantity)}
                     </span>
                   </li>
                 );
@@ -282,19 +289,19 @@ function OrderConfirmation({ orderNumber }: { orderNumber: string }) {
                 >
                   <span className="font-semibold text-ink">{address.fullName}</span>
                   <br />
-                  {address.addressLine1}
-                  {address.addressLine2 ? (
+                  {address.line1}
+                  {address.line2 ? (
                     <>
                       <br />
-                      {address.addressLine2}
+                      {address.line2}
                     </>
                   ) : null}
                   <br />
                   {address.city}, {address.state} {address.postalCode}
                   <br />
-                  {address.country}
+                  {countryName(address.country)}
                   <br />
-                  {address.phoneNumber}
+                  {address.phone}
                 </address>
               ) : (
                 <p className="m-0 mt-3 text-[14px]" style={{ color: 'var(--ink-3)' }}>
@@ -318,35 +325,35 @@ function OrderConfirmation({ orderNumber }: { orderNumber: string }) {
               <p className="m-0 mt-3 text-[14px] text-ink">
                 {payment}
                 <span className="ml-2 text-meta" style={{ color: 'var(--ink-3)' }}>
-                  {order.paymentStatus === 'PAID' ? 'Paid' : 'Due on delivery'}
+                  {paymentNote}
                 </span>
               </p>
 
               <dl className="m-0 mt-4 text-[14px]">
                 <div className="flex justify-between py-1">
                   <dt style={{ color: 'var(--ink-3)' }}>Subtotal</dt>
-                  <dd className="m-0 text-ink">{formatCurrency(order.subtotal)}</dd>
+                  <dd className="m-0 text-ink">{formatPaise(order.subtotalPaise)}</dd>
                 </div>
-                {order.discount > 0 && (
+                {order.discountPaise > 0 && (
                   <div className="flex justify-between py-1">
                     <dt style={{ color: 'var(--ink-3)' }}>
-                      Discount{order.discountCode ? ` (${order.discountCode})` : ''}
+                      Discount{order.couponCode ? ` (${order.couponCode})` : ''}
                     </dt>
                     <dd className="m-0" style={{ color: '#1b7f4b' }}>
-                      -{formatCurrency(order.discount)}
+                      -{formatPaise(order.discountPaise)}
                     </dd>
                   </div>
                 )}
                 <div className="flex justify-between py-1">
                   <dt style={{ color: 'var(--ink-3)' }}>Shipping</dt>
                   <dd className="m-0 text-ink">
-                    {order.shippingCost === 0 ? 'Free' : formatCurrency(order.shippingCost)}
+                    {order.shippingPaise === 0 ? 'Free' : formatPaise(order.shippingPaise)}
                   </dd>
                 </div>
-                {order.tax > 0 && (
+                {order.taxPaise > 0 && (
                   <div className="flex justify-between py-1">
                     <dt style={{ color: 'var(--ink-3)' }}>Tax</dt>
-                    <dd className="m-0 text-ink">{formatCurrency(order.tax)}</dd>
+                    <dd className="m-0 text-ink">{formatPaise(order.taxPaise)}</dd>
                   </div>
                 )}
                 <div
@@ -354,7 +361,7 @@ function OrderConfirmation({ orderNumber }: { orderNumber: string }) {
                   style={{ borderTop: '1px solid var(--border-strong)' }}
                 >
                   <dt>Total</dt>
-                  <dd className="m-0">{formatCurrency(order.total)}</dd>
+                  <dd className="m-0">{formatPaise(order.totalPaise)}</dd>
                 </div>
               </dl>
             </section>

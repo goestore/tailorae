@@ -10,7 +10,7 @@ import { useSyncExternalStore } from 'react';
  * here is sent anywhere.
  *
  * Read through `useSyncExternalStore` rather than an effect, the way
- * `useHasToken` reads the session token. Setting state from an effect to pull
+ * the recently-viewed list is read. Setting state from an effect to pull
  * something out of `localStorage` renders the empty list first and corrects it
  * a frame later — a visible flash — and this codebase forbids it outright
  * (`react-hooks/set-state-in-effect`). The store below gives React a server

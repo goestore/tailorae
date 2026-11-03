@@ -8,9 +8,11 @@ import { Card, Button, LoadingSpinner } from '@/components/common';
 import { ProductThumb } from '@/components/product';
 import { apiClient } from '@/lib/api-client';
 import { getApiErrorMessage } from '@/lib/api-utils';
-import { formatCurrency } from '@/utils/helpers';
+import { addToCart } from '@/lib/cart-api';
+import { formatPaise } from '@/lib/money';
+import { useSignedIn } from '@/hooks/useSignedIn';
 import { AppDispatch } from '@/store';
-import { addToCart } from '@/store/slices/cart';
+import { loadCart } from '@/store/slices/cart';
 import { Product, ProductCustomization } from '@/types';
 
 /** Options can arrive as a JSON-encoded string or a real array. */
@@ -30,6 +32,7 @@ function parseOptions(options: ProductCustomization['options']): string[] {
 export default function CustomizationPage() {
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
+  const signedIn = useSignedIn();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -107,7 +110,7 @@ export default function CustomizationPage() {
     return customizations.reduce((sum, c) => {
       const value = choices[c.id];
       // Charge the add-on cost when a value is supplied for a paid option.
-      if (value && value.trim() && c.additionalCost) return sum + c.additionalCost;
+      if (value && value.trim() && c.additionalPaise) return sum + c.additionalPaise;
       return sum;
     }, 0);
   }, [customizations, choices]);
@@ -116,14 +119,15 @@ export default function CustomizationPage() {
   // are per size, and the cart checks the size's stock, not the product's.
   const variants = useMemo(() => detail?.variants ?? [], [detail]);
   const chosenVariant = variants.find((v) => v.id === variantId) ?? null;
-  const unitPrice = (chosenVariant?.price ?? detail?.price ?? 0) + extraCost;
+  /** Paise. */
+  const unitPrice = (chosenVariant?.pricePaise ?? detail?.pricePaise ?? 0) + extraCost;
 
   const setChoice = (id: string, value: string) =>
     setChoices((prev) => ({ ...prev, [id]: value }));
 
   const addToCartHandler = async () => {
     if (!detail) return;
-    if (!localStorage.getItem('token')) {
+    if (signedIn === false) {
       router.push('/auth/login?redirect=/customization');
       return;
     }
@@ -147,30 +151,14 @@ export default function CustomizationPage() {
 
     setAdding(true);
     try {
-      const res = await apiClient.post('/cart/items', {
+      const cart = await addToCart({
         productId: detail.id,
         quantity,
         ...(chosenVariant ? { variantId: chosenVariant.id } : {}),
         // Left out when empty, so identical plain lines merge in the cart.
         ...(hasCustomization ? { customization } : {}),
       });
-      const cart = res.data?.data?.cart;
-      const added = cart?.items?.find(
-        (i: { productId: string }) => i.productId === detail.id
-      );
-      if (added) {
-        dispatch(
-          addToCart({
-            id: added.id,
-            productId: detail.id,
-            product: detail,
-            quantity,
-            price: added.price ?? unitPrice,
-            customization,
-            isBulkOrder: false,
-          })
-        );
-      }
+      dispatch(loadCart(cart));
       toast.success('Added to cart');
     } catch (err) {
       toast.error(getApiErrorMessage(err, 'Could not add to cart.'));
@@ -225,7 +213,7 @@ export default function CustomizationPage() {
                       className="h-24 w-full rounded"
                     />
                     <p className="mt-2 text-sm font-medium line-clamp-1">{p.name}</p>
-                    <p className="text-xs text-neutral-500">{formatCurrency(p.price)}</p>
+                    <p className="text-xs text-neutral-500">{formatPaise(p.pricePaise)}</p>
                   </button>
                 ))}
               </div>
@@ -243,15 +231,16 @@ export default function CustomizationPage() {
                 <div className="space-y-5">
                   {customizations.map((c) => {
                     const options = parseOptions(c.options);
-                    const isImage = c.type === 'image' || c.type === 'file';
+                    const kind = (c.type ?? '').toLowerCase();
+                    const isImage = kind === 'image' || kind === 'file';
                     return (
                       <div key={c.id}>
                         <label className="block text-sm font-medium text-neutral-700 mb-2">
                           {c.name}
                           {c.isRequired && <span className="text-red-500"> *</span>}
-                          {c.additionalCost > 0 && (
+                          {c.additionalPaise > 0 && (
                             <span className="ml-2 text-xs font-normal text-neutral-500">
-                              +{formatCurrency(c.additionalCost)}
+                              +{formatPaise(c.additionalPaise)}
                             </span>
                           )}
                         </label>
@@ -310,7 +299,7 @@ export default function CustomizationPage() {
                   />
                   <p>{detail.name}</p>
                   <p className="text-sm text-neutral-500 mb-4">
-                    Base {formatCurrency(chosenVariant?.price ?? detail.price)}
+                    Base {formatPaise(chosenVariant?.pricePaise ?? detail.pricePaise)}
                   </p>
 
                   {variants.length > 0 && (
@@ -361,12 +350,12 @@ export default function CustomizationPage() {
                   {extraCost > 0 && (
                     <div className="flex justify-between text-sm text-neutral-600 mb-1">
                       <span>Customization</span>
-                      <span>+{formatCurrency(extraCost)}</span>
+                      <span>+{formatPaise(extraCost)}</span>
                     </div>
                   )}
                   <div className="mb-4 mt-2 flex justify-between border-t pt-3 text-lg">
                     <span>Total</span>
-                    <span>{formatCurrency(unitPrice * quantity)}</span>
+                    <span>{formatPaise(unitPrice * quantity)}</span>
                   </div>
 
                   <Button

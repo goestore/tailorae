@@ -4,12 +4,12 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { Button, Modal } from '@/components/common';
-import { apiClient } from '@/lib/api-client';
 import { getApiErrorMessage } from '@/lib/api-utils';
-import { Order } from '@/types';
+import { requestReturn } from '@/lib/orders-api';
+import type { Order } from '@/types';
 
 export interface ReturnRequestModalProps {
-  order: Order;
+  order: Pick<Order, 'id' | 'orderNumber'>;
   /** Called after a return is raised so the list can refresh its state. */
   onRequested?: () => void;
 }
@@ -39,7 +39,7 @@ export const ReturnRequestModal: React.FC<ReturnRequestModalProps> = ({ order, o
     event.preventDefault();
     setIsSubmitting(true);
     try {
-      await apiClient.patch(`/orders/${order.id}/return`, {
+      await requestReturn(order.id, {
         reason,
         requestType,
         description: description.trim() || undefined,

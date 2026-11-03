@@ -1,6 +1,6 @@
 'use client';
 
-import React, { Suspense, useCallback, useEffect, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useDispatch, useSelector } from 'react-redux';
@@ -9,11 +9,24 @@ import { DashboardMenu, ReturnRequestModal } from '@/components/dashboard';
 import { Card, Button, Input, LoadingSpinner } from '@/components/common';
 import { apiClient } from '@/lib/api-client';
 import { getApiErrorMessage } from '@/lib/api-utils';
-import { formatCurrency } from '@/utils/helpers';
+import type { SessionView } from '@/lib/api/types';
+import {
+  PASSWORD_MIN_LENGTH,
+  changePassword,
+  getProfile,
+  listSessions,
+  resendVerification,
+  revokeOtherSessions,
+  revokeSession,
+  signOut,
+  toSessionUser,
+} from '@/lib/auth-api';
+import { formatPaise } from '@/lib/money';
+import { cancelOrder as cancelOrderRequest, listOrders } from '@/lib/orders-api';
 import { AppDispatch, RootState } from '@/store';
 import { logout, updateUser } from '@/store/slices/auth';
 import { clearCart } from '@/store/slices/cart';
-import { Order, User } from '@/types';
+import type { OrderSummary, User } from '@/types';
 
 /** Tone per status — see `.status-pill` in globals.css. In-progress states stay neutral. */
 const STATUS_STYLES: Record<string, string> = {
@@ -38,14 +51,18 @@ function DashboardContent() {
   const initialTab = searchParams.get('tab') || 'overview';
   const [activeSection, setActiveSection] = useState(initialTab);
 
-  const [orders, setOrders] = useState<Order[]>([]);
+  const [orders, setOrders] = useState<OrderSummary[]>([]);
+  const [orderTotal, setOrderTotal] = useState<number | null>(null);
   const [ordersLoaded, setOrdersLoaded] = useState(false);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [cancellingId, setCancellingId] = useState<string | null>(null);
+  // Signing out empties the session on purpose; that must not read as "you
+  // need to sign in" and send the shopper to the login page instead of home.
+  const signingOut = useRef(false);
 
   // Redirect to login once session-restore has resolved with no user.
   useEffect(() => {
-    if (isInitialized && !user) {
+    if (isInitialized && !user && !signingOut.current) {
       router.replace('/auth/login?redirect=/dashboard');
     }
   }, [isInitialized, user, router]);
@@ -54,9 +71,11 @@ function DashboardContent() {
   // and every setState lands in a callback once it resolves.
   const loadOrders = useCallback(
     () =>
-      apiClient
-        .get('/orders')
-        .then((res) => setOrders(res.data?.data?.orders ?? []))
+      listOrders(1, 50)
+        .then((page) => {
+          setOrders(page.orders);
+          setOrderTotal(page.total);
+        })
         .catch((err) => toast.error(getApiErrorMessage(err, 'Could not load your orders.')))
         .finally(() => {
           setOrdersLoading(false);
@@ -72,8 +91,8 @@ function DashboardContent() {
   }, [user, activeSection, ordersLoaded, loadOrders]);
 
   const handleLogout = useCallback(() => {
-    apiClient.post('/auth/logout').catch(() => {});
-    localStorage.removeItem('token');
+    signingOut.current = true;
+    void signOut('customer');
     dispatch(logout());
     dispatch(clearCart());
     router.push('/');
@@ -90,8 +109,7 @@ function DashboardContent() {
   const cancelOrder = async (orderId: string) => {
     setCancellingId(orderId);
     try {
-      const res = await apiClient.patch(`/orders/${orderId}/cancel`);
-      const updated = res.data?.data?.order as Order | undefined;
+      const updated = await cancelOrderRequest(orderId);
       setOrders((prev) =>
         prev.map((o) => (o.id === orderId ? { ...o, status: updated?.status ?? 'CANCELLED' } : o))
       );
@@ -124,7 +142,7 @@ function DashboardContent() {
             {activeSection === 'overview' && (
               <OverviewPanel
                 user={user}
-                orderCount={ordersLoaded ? orders.length : null}
+                orderCount={ordersLoaded ? (orderTotal ?? orders.length) : null}
                 onLoadOrders={() => {
                   if (!ordersLoaded) loadOrders();
                 }}
@@ -144,7 +162,13 @@ function DashboardContent() {
 
             {activeSection === 'profile' && <ProfilePanel user={user} />}
 
-            {activeSection === 'settings' && <SettingsPanel user={user} />}
+            {activeSection === 'settings' && (
+              <div className="space-y-6">
+                <SettingsPanel user={user} />
+                <PasswordPanel />
+                <SessionsPanel />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -181,7 +205,7 @@ function OverviewPanel({
         <Card className="p-4">
           <h3 className="text-ink-3 text-sm font-semibold mb-2">Account Type</h3>
           <p className="text-3xl font-bold capitalize">
-            {user.role.replace('_', ' ').toLowerCase()}
+            {user.type === 'BUSINESS' ? 'business' : 'personal'}
           </p>
         </Card>
       </div>
@@ -197,7 +221,7 @@ function OrdersPanel({
   onCancel,
   onReload,
 }: {
-  orders: Order[];
+  orders: OrderSummary[];
   loading: boolean;
   loaded: boolean;
   cancellingId: string | null;
@@ -224,11 +248,12 @@ function OrdersPanel({
   return (
     <div className="space-y-4">
       {orders.map((order) => {
-        const itemCount = order.items?.reduce((sum, i) => sum + i.quantity, 0) ?? 0;
+        const itemCount = order.itemCount ?? 0;
         const canCancel = order.status === 'PENDING' || order.status === 'CONFIRMED';
         // The API accepts a return on delivered orders only, and one per
-        // order — mirrored here so the button is not offered into a 409.
-        const canReturn = order.status === 'DELIVERED' && !order.returnRequest;
+        // order; the list row does not say whether one is open, so a second
+        // attempt is answered by the API.
+        const canReturn = order.status === 'DELIVERED';
         return (
           <Card key={order.id} className="p-5">
             <div className="flex flex-wrap items-start justify-between gap-4">
@@ -238,25 +263,27 @@ function OrdersPanel({
                   {new Date(order.createdAt).toLocaleDateString()} • {itemCount} item
                   {itemCount === 1 ? '' : 's'}
                 </p>
-                {order.items?.length > 0 && (
+                {order.firstItemName && (
                   <p className="mt-1 text-sm text-ink-2 line-clamp-1">
-                    {order.items.map((i) => i.product?.name).filter(Boolean).join(', ')}
+                    {order.firstItemName}
+                    {itemCount > 1 ? ` and ${itemCount - 1} more` : ''}
                   </p>
                 )}
               </div>
               <div className="text-right">
-                <p className="text-lg font-semibold text-ink">{formatCurrency(order.total)}</p>
+                <p className="text-lg font-semibold text-ink">{formatPaise(order.totalPaise)}</p>
                 <span className={`status-pill mt-2 ${STATUS_STYLES[order.status] ?? ''}`}>
                   {prettyStatus(order.status)}
                 </span>
               </div>
             </div>
             <div className="mt-4 flex flex-wrap items-center justify-end gap-3 border-t border-neutral-100 pt-3">
-              {order.returnRequest && (
-                <span className="mr-auto text-sm text-ink-3">
-                  Return {order.returnRequest.status.toLowerCase()}
-                </span>
-              )}
+              <Link
+                href={`/orders/${encodeURIComponent(order.orderNumber)}`}
+                className="mr-auto text-sm underline underline-offset-2 text-ink-3 hover:text-ink"
+              >
+                Details
+              </Link>
               <Link
                 href={`/track-order?order=${encodeURIComponent(order.orderNumber)}`}
                 className="text-sm underline underline-offset-2 text-ink-3 hover:text-ink"
@@ -298,8 +325,8 @@ function VerifyEmailBanner() {
   const resend = async () => {
     setState('sending');
     try {
-      const res = await apiClient.post('/auth/resend-verification');
-      toast.success(res.data?.message ?? 'Confirmation link sent.');
+      await resendVerification('customer');
+      toast.success('We have sent you a new confirmation link.');
       setState('sent');
     } catch (err) {
       toast.error(getApiErrorMessage(err, 'Could not send the confirmation email.'));
@@ -337,13 +364,12 @@ function ProfilePanel({ user }: { user: User }) {
   const save = async () => {
     setSaving(true);
     try {
-      const res = await apiClient.put('/users/profile', {
+      const updated = await saveProfile(user, {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
-        // null clears a saved number; undefined would leave it untouched.
-        phone: phone.trim() || null,
+        // An empty string clears a saved number; leaving it out keeps it.
+        phone: phone.trim(),
       });
-      const updated = res.data?.data?.user as User | undefined;
       if (updated) dispatch(updateUser(updated));
       toast.success('Profile updated');
     } catch (err) {
@@ -387,17 +413,33 @@ function ProfilePanel({ user }: { user: User }) {
   );
 }
 
+/**
+ * `PUT /users/profile` answers with the profile; the session user is rebuilt
+ * from it so the header and greeting pick up a new name at once.
+ */
+async function saveProfile(
+  user: User,
+  changes: { firstName?: string; lastName?: string; phone?: string; marketingOptIn?: boolean }
+): Promise<User | null> {
+  const res = await apiClient.put('/users/profile', changes);
+  const profile = res.data?.data?.user ?? (await getProfile());
+  if (!profile) return null;
+  return toSessionUser(
+    { id: user.id, realm: user.realm, email: user.email, name: user.name, emailVerified: user.emailVerified },
+    profile
+  );
+}
+
 function SettingsPanel({ user }: { user: User }) {
   const dispatch = useDispatch<AppDispatch>();
-  const [subscribe, setSubscribe] = useState(Boolean(user.subscribeToNewsletter));
+  const [subscribe, setSubscribe] = useState(Boolean(user.marketingOptIn));
   const [saving, setSaving] = useState(false);
 
   const toggle = async (next: boolean) => {
     setSubscribe(next);
     setSaving(true);
     try {
-      const res = await apiClient.put('/users/profile', { subscribeToNewsletter: next });
-      const updated = res.data?.data?.user as User | undefined;
+      const updated = await saveProfile(user, { marketingOptIn: next });
       if (updated) dispatch(updateUser(updated));
       toast.success('Preferences saved');
     } catch (err) {
@@ -421,6 +463,208 @@ function SettingsPanel({ user }: { user: User }) {
         />
         <span>Receive promotional emails and offers</span>
       </label>
+    </Card>
+  );
+}
+
+/** Change the password; the API signs every other device out when it does. */
+function PasswordPanel() {
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  const save = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (next.length < PASSWORD_MIN_LENGTH) {
+      setError(`Use at least ${PASSWORD_MIN_LENGTH} characters for the new password.`);
+      return;
+    }
+    if (next !== confirm) {
+      setError('The two new passwords do not match.');
+      return;
+    }
+    setError(null);
+    setSaving(true);
+    try {
+      await changePassword('customer', current, next);
+      setCurrent('');
+      setNext('');
+      setConfirm('');
+      toast.success('Password changed. Your other devices have been signed out.');
+    } catch (err) {
+      setError(getApiErrorMessage(err, 'Could not change your password.'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Card className="p-4">
+      <h2 className="text-2xl font-bold mb-6">Password</h2>
+      <form onSubmit={save} className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <div className="md:col-span-2">
+          <Input
+            label="Current password"
+            type="password"
+            autoComplete="current-password"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+          />
+        </div>
+        <Input
+          label="New password"
+          type="password"
+          autoComplete="new-password"
+          value={next}
+          onChange={(e) => setNext(e.target.value)}
+          helperText={`At least ${PASSWORD_MIN_LENGTH} characters.`}
+        />
+        <Input
+          label="Confirm new password"
+          type="password"
+          autoComplete="new-password"
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+        />
+        {error && (
+          <p className="m-0 text-sm md:col-span-2" style={{ color: 'var(--sale)' }}>
+            {error}
+          </p>
+        )}
+        <div className="md:col-span-2">
+          <Button type="submit" variant="primary" loading={saving} disabled={!current || !next}>
+            Change password
+          </Button>
+        </div>
+      </form>
+    </Card>
+  );
+}
+
+/** "Chrome on Windows"-ish, from a user-agent string; good enough to recognise a device. */
+const describeDevice = (userAgent?: string): string => {
+  const ua = userAgent ?? '';
+  const browser = /Edg\//.test(ua)
+    ? 'Edge'
+    : /Chrome\//.test(ua)
+      ? 'Chrome'
+      : /Firefox\//.test(ua)
+        ? 'Firefox'
+        : /Safari\//.test(ua)
+          ? 'Safari'
+          : null;
+  const os = /Windows/.test(ua)
+    ? 'Windows'
+    : /Android/.test(ua)
+      ? 'Android'
+      : /iPhone|iPad/.test(ua)
+        ? 'iOS'
+        : /Mac OS X/.test(ua)
+          ? 'macOS'
+          : /Linux/.test(ua)
+            ? 'Linux'
+            : null;
+  if (browser && os) return `${browser} on ${os}`;
+  return browser ?? os ?? (ua ? ua.slice(0, 60) : 'Unknown device');
+};
+
+/** Every device signed in to this account, with a way to sign each one out. */
+function SessionsPanel() {
+  const [sessions, setSessions] = useState<SessionView[] | null>(null);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const load = useCallback(
+    () =>
+      listSessions('customer')
+        .then(setSessions)
+        .catch((err) => {
+          setSessions([]);
+          toast.error(getApiErrorMessage(err, 'Could not load your signed-in devices.'));
+        }),
+    []
+  );
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const revoke = async (id: string) => {
+    setBusyId(id);
+    try {
+      await revokeSession('customer', id);
+      setSessions((prev) => (prev ?? []).filter((s) => s.id !== id));
+      toast.success('Device signed out');
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Could not sign that device out.'));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const revokeOthers = async () => {
+    setBusyId('others');
+    try {
+      const count = await revokeOtherSessions('customer');
+      toast.success(count === 1 ? 'Signed out 1 other device' : `Signed out ${count} other devices`);
+      await load();
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, 'Could not sign the other devices out.'));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const others = (sessions ?? []).filter((s) => !s.current).length;
+
+  return (
+    <Card className="p-4">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <h2 className="m-0 text-2xl font-bold">Signed-in devices</h2>
+        {others > 0 && (
+          <Button variant="outline" size="sm" loading={busyId === 'others'} onClick={revokeOthers}>
+            Sign out all other devices
+          </Button>
+        )}
+      </div>
+      {sessions === null ? (
+        <LoadingSpinner className="min-h-[10vh]" />
+      ) : sessions.length === 0 ? (
+        <p className="m-0 text-ink-3">No active sessions.</p>
+      ) : (
+        <ul className="m-0 list-none divide-y divide-line p-0">
+          {sessions.map((session) => (
+            <li key={session.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+              <div>
+                <p className="m-0 font-semibold text-ink">
+                  {describeDevice(session.userAgent)}
+                  {session.current && (
+                    <span className="ml-2 text-caption font-bold uppercase tracking-[0.1em] text-ink-3">
+                      This device
+                    </span>
+                  )}
+                </p>
+                <p className="m-0 mt-0.5 text-sm text-ink-3">
+                  Signed in{' '}
+                  {session.createdAt ? new Date(session.createdAt).toLocaleDateString() : '—'}
+                  {session.ip ? ` · ${session.ip}` : ''}
+                </p>
+              </div>
+              {!session.current && session.id && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  loading={busyId === session.id}
+                  onClick={() => revoke(session.id!)}
+                >
+                  Sign out
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </Card>
   );
 }

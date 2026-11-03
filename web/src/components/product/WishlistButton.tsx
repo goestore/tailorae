@@ -64,7 +64,7 @@ export const WishlistButton: React.FC<WishlistButtonProps> = ({
       .get('/users/wishlist')
       .then((res) => {
         if (cancelled) return;
-        const wishlist: WishlistItem[] = res.data?.data?.wishlist ?? [];
+        const wishlist: WishlistItem[] = res.data?.data?.items ?? [];
         setSavedForUser(wishlist.some((item) => item.productId === productId));
       })
       .catch(() => {

@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useSelector } from 'react-redux';
 import { Button, LoadingSpinner, Logo } from '@/components/common';
-import { apiClient } from '@/lib/api-client';
+import { countryName } from '@/lib/addresses-api';
 import { getApiErrorMessage } from '@/lib/api-utils';
-import { formatCurrency } from '@/utils/helpers';
+import { formatPaise } from '@/lib/money';
+import { fetchOrderByReference } from '@/lib/orders-api';
 import { RootState } from '@/store';
 import { Order } from '@/types';
 
@@ -40,10 +41,9 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
   useEffect(() => {
     if (!user) return;
     let cancelled = false;
-    apiClient
-      .get(`/orders/${encodeURIComponent(id)}`)
-      .then((res) => {
-        if (!cancelled) setOrder(res.data?.data?.order ?? null);
+    fetchOrderByReference(id)
+      .then((found) => {
+        if (!cancelled) setOrder(found);
       })
       .catch((err) => {
         if (!cancelled) setError(getApiErrorMessage(err, 'Could not load that invoice.'));
@@ -75,6 +75,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
   }
 
   const address = order.billingAddress ?? order.shippingAddress ?? null;
+  const gstin = order.billingAddress?.gstin ?? order.shippingAddress?.gstin ?? null;
 
   return (
     <main className="section-y">
@@ -134,23 +135,23 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
                 <address className="m-0 mt-2 text-[14px] not-italic" style={{ color: 'var(--ink-2)', lineHeight: 1.7 }}>
                   <span className="font-semibold text-ink">{address.fullName}</span>
                   <br />
-                  {address.addressLine1}
-                  {address.addressLine2 ? (
+                  {address.line1}
+                  {address.line2 ? (
                     <>
                       <br />
-                      {address.addressLine2}
+                      {address.line2}
                     </>
                   ) : null}
                   <br />
                   {address.city}, {address.state} {address.postalCode}
                   <br />
-                  {address.country}
+                  {countryName(address.country)}
                   <br />
-                  {address.phoneNumber}
-                  {order.gstNumber ? (
+                  {address.phone}
+                  {gstin ? (
                     <>
                       <br />
-                      GSTIN {order.gstNumber}
+                      GSTIN {gstin}
                     </>
                   ) : null}
                 </address>
@@ -195,7 +196,12 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
                   {order.items.map((item) => (
                     <tr key={item.id} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td className="py-3 pr-3 text-[14px] text-ink">
-                        {item.product?.name ?? 'Item'}
+                        {item.name || 'Item'}
+                        {(item.size || item.color) && (
+                          <span className="block text-[12px]" style={{ color: 'var(--ink-3)' }}>
+                            {[item.color, item.size && `Size ${item.size}`].filter(Boolean).join(' · ')}
+                          </span>
+                        )}
                         {item.sku && (
                           <span className="block text-[12px]" style={{ color: 'var(--ink-3)' }}>
                             SKU {item.sku}
@@ -206,10 +212,10 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
                         {item.quantity}
                       </td>
                       <td className="py-3 pr-3 text-right text-[14px]" style={{ color: 'var(--ink-2)' }}>
-                        {formatCurrency(item.price)}
+                        {formatPaise(item.unitPaise)}
                       </td>
                       <td className="py-3 text-right text-[14px] font-semibold text-ink">
-                        {formatCurrency(item.price * item.quantity)}
+                        {formatPaise(item.unitPaise * item.quantity)}
                       </td>
                     </tr>
                   ))}
@@ -219,28 +225,28 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
               <dl className="ml-auto mt-6 max-w-[320px] text-[14px]">
                 <div className="flex justify-between py-1">
                   <dt style={{ color: 'var(--ink-3)' }}>Subtotal</dt>
-                  <dd className="m-0 text-ink">{formatCurrency(order.subtotal)}</dd>
+                  <dd className="m-0 text-ink">{formatPaise(order.subtotalPaise)}</dd>
                 </div>
-                {order.discount > 0 && (
+                {order.discountPaise > 0 && (
                   <div className="flex justify-between py-1">
                     <dt style={{ color: 'var(--ink-3)' }}>
-                      Discount{order.discountCode ? ` (${order.discountCode})` : ''}
+                      Discount{order.couponCode ? ` (${order.couponCode})` : ''}
                     </dt>
                     <dd className="m-0" style={{ color: 'var(--success, #1B7F4B)' }}>
-                      -{formatCurrency(order.discount)}
+                      -{formatPaise(order.discountPaise)}
                     </dd>
                   </div>
                 )}
                 <div className="flex justify-between py-1">
                   <dt style={{ color: 'var(--ink-3)' }}>Shipping</dt>
                   <dd className="m-0 text-ink">
-                    {order.shippingCost === 0 ? 'Free' : formatCurrency(order.shippingCost)}
+                    {order.shippingPaise === 0 ? 'Free' : formatPaise(order.shippingPaise)}
                   </dd>
                 </div>
-                {order.tax > 0 && (
+                {order.taxPaise > 0 && (
                   <div className="flex justify-between py-1">
                     <dt style={{ color: 'var(--ink-3)' }}>Tax</dt>
-                    <dd className="m-0 text-ink">{formatCurrency(order.tax)}</dd>
+                    <dd className="m-0 text-ink">{formatPaise(order.taxPaise)}</dd>
                   </div>
                 )}
                 <div
@@ -248,7 +254,7 @@ export default function InvoicePage({ params }: { params: Promise<{ id: string }
                   style={{ borderTop: '1px solid var(--border-strong)' }}
                 >
                   <dt>Total</dt>
-                  <dd className="m-0">{formatCurrency(order.total)}</dd>
+                  <dd className="m-0">{formatPaise(order.totalPaise)}</dd>
                 </div>
               </dl>
             </section>
