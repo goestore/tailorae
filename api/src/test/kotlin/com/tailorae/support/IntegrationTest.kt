@@ -8,6 +8,7 @@ import org.springframework.mail.javamail.JavaMailSender
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.springframework.test.context.bean.override.mockito.MockitoBean
+import com.tailorae.payment.PaymentGateway
 import org.testcontainers.kafka.KafkaContainer
 import org.testcontainers.postgresql.PostgreSQLContainer
 import tools.jackson.databind.json.JsonMapper
@@ -30,6 +31,9 @@ import tools.jackson.databind.json.JsonMapper
         "tailorae.auth.bootstrap-admin-password=${IntegrationTest.ADMIN_PASSWORD}",
         "tailorae.outbox.poll-ms=200",
         "tailorae.storage.root=build/test-storage",
+        "tailorae.razorpay.key-id=rzp_test_key",
+        "tailorae.razorpay.key-secret=${IntegrationTest.RAZORPAY_SECRET}",
+        "tailorae.razorpay.webhook-secret=${IntegrationTest.WEBHOOK_SECRET}",
         // No calls to India Post from tests.
         "tailorae.delivery.pincode-lookup-url=",
         "tailorae.crypto.field-key=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
@@ -43,6 +47,8 @@ abstract class IntegrationTest {
         const val ADMIN_EMAIL = "root@tailorae.test"
         const val ADMIN_PASSWORD = "correct horse battery"
         const val PASSWORD = "linen kurta in saffron"
+        const val RAZORPAY_SECRET = "test-razorpay-secret"
+        const val WEBHOOK_SECRET = "test-webhook-secret"
 
         val postgres: PostgreSQLContainer = PostgreSQLContainer("postgres:15-alpine").apply { start() }
         val kafka: KafkaContainer = KafkaContainer("apache/kafka:4.3.2").apply { start() }
@@ -69,6 +75,10 @@ abstract class IntegrationTest {
     @MockitoBean
     protected lateinit var mail: JavaMailSender
 
+    /** No real payment gateway in tests; signatures are still checked for real. */
+    @MockitoBean
+    protected lateinit var gateway: PaymentGateway
+
     @Autowired
     protected lateinit var jdbc: JdbcClient
 
@@ -87,6 +97,25 @@ abstract class IntegrationTest {
     protected fun sellerAccount(name: String = unique("seller")): TestClient = anonymous().apply {
         val phone = "+91 9" + (100_000_000L + (System.nanoTime() % 899_999_999L)).toString().padStart(9, '0')
         post("/api/seller/auth/register", mapOf("email" to "$name@example.com", "password" to PASSWORD, "fullName" to name, "phone" to phone)).expect(201)
+    }
+
+    /**
+     * A seller business that staff have approved, with its owner signed in.
+     * Returns the owner's client and the seller id.
+     */
+    protected fun approvedSeller(name: String = unique("Loom House")): Pair<TestClient, java.util.UUID> {
+        val owner = sellerAccount()
+        val shop = owner.post("/api/seller/business", mapOf(
+            "shopName" to name, "legalName" to "$name Pvt Ltd", "businessType" to "PRIVATE_LIMITED", "pan" to "AAPFU0939F",
+            "registeredAddress" to mapOf("line1" to "12 Linen Lane", "city" to "Jaipur", "state" to "Rajasthan", "postalCode" to "302001"),
+            "contactPhone" to "+91 98290 12345",
+        )).expect(201).data
+        owner.upload("/api/seller/kyc/documents", mapOf("kind" to "PAN"), "file", "pan.pdf", "%PDF-1.4 test".toByteArray(), "application/pdf").expect(201)
+        owner.put("/api/seller/bank", mapOf("accountName" to name, "accountNumber" to "123456789012", "ifsc" to "HDFC0001234")).expect(200)
+        owner.post("/api/seller/business/submit").expect(200)
+        val id = shop.get("id").asString()
+        admin().post("/api/admin/sellers/$id/decision", mapOf("action" to "APPROVE")).expect(200)
+        return owner to java.util.UUID.fromString(id)
     }
 
     /** The bootstrap SUPER_ADMIN, signed in. */
