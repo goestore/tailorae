@@ -30,6 +30,8 @@ import tools.jackson.databind.json.JsonMapper
         "tailorae.auth.bootstrap-admin-password=${IntegrationTest.ADMIN_PASSWORD}",
         "tailorae.outbox.poll-ms=200",
         "tailorae.storage.root=build/test-storage",
+        // No calls to India Post from tests.
+        "tailorae.delivery.pincode-lookup-url=",
         "tailorae.crypto.field-key=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
         // The mail sender is a mock here, which the mail health check cannot inspect.
         "management.health.mail.enabled=false",
