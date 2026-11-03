@@ -56,9 +56,15 @@ tailorae:
     bootstrap-admin-password: ${BOOTSTRAP_ADMIN_PASSWORD:}
   web:
     origins: ${WEB_ORIGINS:http://localhost:3000}
+    # POSTed after content publishes and catalogue changes so the storefront drops its
+    # cache (web: /api/content/revalidate). Unset = no-op. Same secret as the web app's.
+    revalidate-url: ${WEB_REVALIDATE_URL:}
+    revalidate-secret: ${CONTENT_REVALIDATE_SECRET:}
   mail:
     from: ${MAIL_FROM:TAILORAE <no-reply@tailorae.com>}
     web-url: ${WEB_URL:http://localhost:3000}
+    # Staff alerts (new seller applications, custom-wear quotes). Blank sends none.
+    admin-email: ${ADMIN_EMAIL:admin@tailorae.com}
   outbox:
     poll-ms: 1000
   storage:

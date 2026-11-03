@@ -3,7 +3,6 @@ package com.tailorae.notification
 import com.tailorae.common.ProcessedEvents
 import com.tailorae.common.Topics
 import org.slf4j.LoggerFactory
-import org.springframework.boot.context.properties.ConfigurationProperties
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.mail.SimpleMailMessage
 import org.springframework.mail.javamail.JavaMailSender
@@ -12,9 +11,6 @@ import org.springframework.transaction.annotation.Transactional
 import tools.jackson.databind.JsonNode
 import tools.jackson.databind.json.JsonMapper
 import java.util.UUID
-
-@ConfigurationProperties("tailorae.mail")
-data class MailProperties(val from: String = "TAILORAE <no-reply@tailorae.com>", val webUrl: String = "http://localhost:3000")
 
 /**
  * Sends the welcome email when a customer or seller registers.
