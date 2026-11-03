@@ -2,7 +2,16 @@
 
 import { apiClient } from '@/lib/api-client';
 import { getApiErrorMessage } from '@/lib/api-utils';
-import type { B2BProductSummary, RfqStatus } from '@/lib/b2b-api';
+import type { RfqStatus } from '@/lib/b2b-api';
+
+/** Legacy shape (rupees), kept local until this console moves to the paise API. */
+interface B2BProductSummary {
+  id: string;
+  name: string;
+  slug: string;
+  thumbnail: string | null;
+  price: number;
+}
 
 /**
  * Admin wholesale desk: price quote requests, verify business profiles, move

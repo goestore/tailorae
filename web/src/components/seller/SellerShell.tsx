@@ -18,7 +18,7 @@ import {
   Wallet,
   type IconProps,
 } from '@/components/admin/icons';
-import { apiClient } from '@/lib/api-client';
+import { signOut as endSession } from '@/lib/auth-api';
 import { getMyShop, type MyShop } from '@/lib/seller-api';
 import type { AppDispatch, RootState } from '@/store';
 import { logout } from '@/store/slices/auth';
@@ -59,7 +59,12 @@ const NAV_GROUPS: Array<{ title: string; items: NavItem[] }> = [
 const NAV_ITEMS = NAV_GROUPS.flatMap((group) => group.items);
 
 /** The seller sign-in and sign-up pages: no console around them. */
-export const SELLER_AUTH_ROUTES = new Set(['/seller/login', '/seller/register']);
+export const SELLER_AUTH_ROUTES = new Set([
+  '/seller/login',
+  '/seller/register',
+  '/seller/forgot-password',
+  '/seller/reset-password',
+]);
 
 /**
  * Longest match wins, so `/seller` — a prefix of every route — only lights up
@@ -127,8 +132,7 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
   }
 
   const signOut = async () => {
-    await apiClient.post('/auth/logout').catch(() => {});
-    localStorage.removeItem('token');
+    await endSession('seller');
     dispatch(logout());
     dispatch(clearCart());
     router.push('/seller/login');

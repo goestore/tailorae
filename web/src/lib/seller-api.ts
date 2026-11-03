@@ -250,17 +250,8 @@ export async function applyToSell(
   } & Partial<CompanyDetails>
 ): Promise<MyShop> {
   try {
+    // Sessions are httpOnly cookies now; nothing to store from the response.
     const response = await apiClient.post('/seller/apply', input);
-
-    /**
-     * Becoming a seller changes the account's role, and the role lives in the
-     * token. The API hands back a reissued one; storing it is what lets the
-     * new seller list a product immediately rather than after their old token
-     * expires.
-     */
-    const token: string | undefined = response.data?.data?.token;
-    if (token) localStorage.setItem('token', token);
-
     return response.data?.data?.shop;
   } catch (error) {
     throw new Error(getApiErrorMessage(error, 'Could not create your seller account.'));

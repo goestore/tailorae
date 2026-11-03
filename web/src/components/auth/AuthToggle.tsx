@@ -4,9 +4,10 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { AuthForm, type AuthField } from './AuthForm';
 import { AuthShell } from './AuthShell';
+import { PASSWORD_MIN_LENGTH } from '@/lib/auth-api';
 
 type AuthMode = 'signin' | 'signup';
-export type AuthAudience = 'customer' | 'seller';
+export type AuthAudience = 'customer' | 'seller' | 'staff';
 
 interface AuthToggleProps {
   /** Which tab is open initially ('/auth/login' → signin, '/auth/register' → signup). */
@@ -17,9 +18,18 @@ interface AuthToggleProps {
   onSignUp?: (data: Record<string, string>) => Promise<void>;
   /** Called whenever the user switches tabs (e.g. to clear a stale error). */
   onModeChange?: (mode: AuthMode) => void;
-  /** Shoppers and sellers get their own wording and a link across to the other. */
+  /** Shoppers, sellers and staff each get their own wording; staff have no sign-up. */
   audience?: AuthAudience;
 }
+
+const CUSTOMER_LINK = (
+  <>
+    Shopping instead?{' '}
+    <Link href="/auth/login" className="text-ink underline underline-offset-2">
+      Customer sign in
+    </Link>
+  </>
+);
 
 const COPY: Record<
   AuthAudience,
@@ -29,10 +39,16 @@ const COPY: Record<
     title: Record<AuthMode, string>;
     description: Record<AuthMode, string>;
     footer: React.ReactNode;
+    /** Where "Forgotten your password?" leads — the realm's own reset. */
+    forgotHref: string;
+    /** Staff accounts are issued by a super admin, never signed up for. */
+    signUp: boolean;
   }
 > = {
   customer: {
     homeHref: '/',
+    forgotHref: '/auth/forgot-password',
+    signUp: true,
     title: { signin: 'Welcome back', signup: 'Create an account' },
     description: {
       signin: 'Sign in to manage your orders and saved details.',
@@ -50,31 +66,40 @@ const COPY: Record<
   seller: {
     eyebrow: 'Seller Central',
     homeHref: '/sell',
+    forgotHref: '/seller/forgot-password',
+    signUp: true,
     title: { signin: 'Sign in to your shop', signup: 'Start selling' },
     description: {
       signin: 'Manage your listings, orders and payouts.',
       signup: 'Create your seller account. You will add your business details next.',
     },
-    footer: (
-      <>
-        Shopping instead?{' '}
-        <Link href="/auth/login" className="text-ink underline underline-offset-2">
-          Customer sign in
-        </Link>
-      </>
-    ),
+    footer: CUSTOMER_LINK,
+  },
+  staff: {
+    eyebrow: 'Staff',
+    homeHref: '/',
+    forgotHref: '/auth/forgot-password?realm=admin',
+    signUp: false,
+    title: { signin: 'Sign in to the console', signup: 'Sign in to the console' },
+    description: {
+      signin: 'For the TAILORAE team. Accounts are issued by an administrator.',
+      signup: 'For the TAILORAE team. Accounts are issued by an administrator.',
+    },
+    footer: CUSTOMER_LINK,
   },
 };
 
+const EMAIL_FIELD: AuthField = {
+  name: 'email',
+  label: 'Email Address',
+  type: 'email',
+  placeholder: 'you@example.com',
+  required: true,
+  autoComplete: 'email',
+};
+
 const SIGN_IN_FIELDS: AuthField[] = [
-  {
-    name: 'email',
-    label: 'Email Address',
-    type: 'email',
-    placeholder: 'you@example.com',
-    required: true,
-    autoComplete: 'email',
-  },
+  EMAIL_FIELD,
   {
     name: 'password',
     label: 'Password',
@@ -85,9 +110,31 @@ const SIGN_IN_FIELDS: AuthField[] = [
   },
 ];
 
-// `minLength` mirrors the API's own rule, so an eight-character floor is
+// `minLength` mirrors the API's own rule, so its ten-character floor is
 // enforced before the request rather than reported back as a server error.
-const SIGN_UP_FIELDS: AuthField[] = [
+const NEW_PASSWORD_FIELDS: AuthField[] = [
+  {
+    name: 'password',
+    label: 'Password',
+    type: 'password',
+    placeholder: 'Create a strong password',
+    required: true,
+    autoComplete: 'new-password',
+    minLength: PASSWORD_MIN_LENGTH,
+    helpText: `At least ${PASSWORD_MIN_LENGTH} characters — a short phrase works well.`,
+  },
+  {
+    name: 'confirmPassword',
+    label: 'Confirm Password',
+    type: 'password',
+    placeholder: 'Type it once more',
+    required: true,
+    autoComplete: 'new-password',
+    matches: { field: 'password', message: 'The two passwords do not match' },
+  },
+];
+
+const CUSTOMER_SIGN_UP_FIELDS: AuthField[] = [
   {
     name: 'firstName',
     label: 'First Name',
@@ -104,33 +151,38 @@ const SIGN_UP_FIELDS: AuthField[] = [
     required: true,
     autoComplete: 'family-name',
   },
+  EMAIL_FIELD,
   {
-    name: 'email',
-    label: 'Email Address',
-    type: 'email',
-    placeholder: 'you@example.com',
-    required: true,
-    autoComplete: 'email',
+    name: 'phone',
+    label: 'Mobile Number (optional)',
+    type: 'tel',
+    placeholder: '10-digit mobile number',
+    autoComplete: 'tel',
   },
+  ...NEW_PASSWORD_FIELDS,
+];
+
+/** A seller account is a person: their full name, and a phone that gets a code to confirm. */
+const SELLER_SIGN_UP_FIELDS: AuthField[] = [
   {
-    name: 'password',
-    label: 'Password',
-    type: 'password',
-    placeholder: 'Create a strong password',
+    name: 'fullName',
+    label: 'Full Name',
+    type: 'text',
+    placeholder: 'Your full name',
     required: true,
-    autoComplete: 'new-password',
-    minLength: 8,
-    helpText: 'At least 8 characters.',
+    autoComplete: 'name',
   },
+  EMAIL_FIELD,
   {
-    name: 'confirmPassword',
-    label: 'Confirm Password',
-    type: 'password',
-    placeholder: 'Type it once more',
+    name: 'phone',
+    label: 'Mobile Number',
+    type: 'tel',
+    placeholder: '10-digit mobile number',
     required: true,
-    autoComplete: 'new-password',
-    matches: { field: 'password', message: 'The two passwords do not match' },
+    autoComplete: 'tel',
+    helpText: 'We send a code to this number to confirm it.',
   },
+  ...NEW_PASSWORD_FIELDS,
 ];
 
 export const AuthToggle: React.FC<AuthToggleProps> = ({
@@ -142,8 +194,9 @@ export const AuthToggle: React.FC<AuthToggleProps> = ({
   onModeChange,
   audience = 'customer',
 }) => {
-  const [mode, setMode] = useState<AuthMode>(defaultMode);
   const copy = COPY[audience];
+  const [mode, setMode] = useState<AuthMode>(copy.signUp ? defaultMode : 'signin');
+  const signUpFields = audience === 'seller' ? SELLER_SIGN_UP_FIELDS : CUSTOMER_SIGN_UP_FIELDS;
 
   const switchMode = (nextMode: AuthMode) => {
     setMode(nextMode);
@@ -178,7 +231,7 @@ export const AuthToggle: React.FC<AuthToggleProps> = ({
 
   return (
     <AuthShell
-      nav={tabs}
+      nav={copy.signUp ? tabs : undefined}
       eyebrow={copy.eyebrow}
       homeHref={copy.homeHref}
       title={copy.title[mode]}
@@ -189,7 +242,7 @@ export const AuthToggle: React.FC<AuthToggleProps> = ({
       <AuthForm
         key={mode}
         onSubmit={handleFormSubmit}
-        fields={mode === 'signin' ? SIGN_IN_FIELDS : SIGN_UP_FIELDS}
+        fields={mode === 'signin' ? SIGN_IN_FIELDS : signUpFields}
         submitButtonText={mode === 'signin' ? 'Sign In' : 'Create Account'}
         isLoading={isLoading}
         error={error}
@@ -197,7 +250,7 @@ export const AuthToggle: React.FC<AuthToggleProps> = ({
           mode === 'signin' ? (
             <div className="-mt-1 text-right">
               <Link
-                href="/auth/forgot-password"
+                href={copy.forgotHref}
                 className="text-meta underline underline-offset-2 hover:text-ink"
                 style={{ color: 'var(--ink-3)' }}
               >

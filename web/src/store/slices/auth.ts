@@ -1,19 +1,28 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { User, AuthResponse } from '@/types';
+import type { User } from '@/types';
 
+/**
+ * Who is signed in, for the area of the site being viewed.
+ *
+ * There is no token here: the session is an httpOnly cookie the browser
+ * attaches. `user` is what the realm's `GET …/auth/me` answered — a customer on
+ * the storefront, a seller under `/seller`, staff under `/admin` — and `realm`
+ * says which, so moving between areas re-checks the right one.
+ */
 interface AuthState {
   user: User | null;
-  token: string | null;
+  /** The realm the last session check asked about. */
+  realm: User['realm'] | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  /** true once the initial session-restore attempt (GET /auth/me) has finished. */
+  /** true once the session check for the current realm has finished. */
   isInitialized: boolean;
   error: string | null;
 }
 
 const initialState: AuthState = {
   user: null,
-  token: null,
+  realm: null,
   isLoading: false,
   isAuthenticated: false,
   isInitialized: false,
@@ -24,15 +33,15 @@ const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    // Login
     loginStart: (state) => {
       state.isLoading = true;
       state.error = null;
     },
-    loginSuccess: (state, action: PayloadAction<AuthResponse>) => {
-      state.user = action.payload.user;
-      state.token = action.payload.token;
+    loginSuccess: (state, action: PayloadAction<User>) => {
+      state.user = action.payload;
+      state.realm = action.payload.realm;
       state.isAuthenticated = true;
+      state.isInitialized = true;
       state.isLoading = false;
     },
     loginFailure: (state, action: PayloadAction<string>) => {
@@ -40,46 +49,45 @@ const authSlice = createSlice({
       state.isLoading = false;
     },
 
-    // Logout
     logout: (state) => {
       state.user = null;
-      state.token = null;
       state.isAuthenticated = false;
       state.error = null;
     },
 
-    // Register
     registerStart: (state) => {
       state.isLoading = true;
       state.error = null;
-    },
-    registerSuccess: (state) => {
-      state.isLoading = false;
     },
     registerFailure: (state, action: PayloadAction<string>) => {
       state.error = action.payload;
       state.isLoading = false;
     },
 
-    // Update user
     updateUser: (state, action: PayloadAction<User>) => {
       state.user = action.payload;
     },
 
-    // Restore session
-    restoreSession: (state, action: PayloadAction<AuthResponse>) => {
+    /** A session check for `realm` started: hold pages until it answers. */
+    sessionCheckStarted: (state, action: PayloadAction<User['realm']>) => {
+      // Another area's account is no answer for this one.
+      if (state.user && state.user.realm !== action.payload) {
+        state.user = null;
+        state.isAuthenticated = false;
+      }
+      state.realm = action.payload;
+      state.isInitialized = false;
+    },
+
+    /** The session check answered — with the signed-in account, or null for a visitor. */
+    sessionResolved: (state, action: PayloadAction<{ realm: User['realm']; user: User | null }>) => {
+      // A slower answer for an area the reader has already left is stale.
+      if (state.realm !== action.payload.realm) return;
       state.user = action.payload.user;
-      state.token = action.payload.token;
-      state.isAuthenticated = true;
+      state.isAuthenticated = Boolean(action.payload.user);
       state.isInitialized = true;
     },
 
-    // Mark the initial session-restore attempt as finished (with or without a user)
-    sessionInitialized: (state) => {
-      state.isInitialized = true;
-    },
-
-    // Clear error
     clearError: (state) => {
       state.error = null;
     },
@@ -92,11 +100,10 @@ export const {
   loginFailure,
   logout,
   registerStart,
-  registerSuccess,
   registerFailure,
   updateUser,
-  restoreSession,
-  sessionInitialized,
+  sessionCheckStarted,
+  sessionResolved,
   clearError,
 } = authSlice.actions;
 

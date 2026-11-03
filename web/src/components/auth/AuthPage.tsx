@@ -5,8 +5,11 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useDispatch } from 'react-redux';
 import { AuthToggle, type AuthAudience } from './AuthToggle';
 import { AppDispatch } from '@/store';
-import { apiClient } from '@/lib/api-client';
 import { getApiErrorMessage } from '@/lib/api-utils';
+import { registerCustomer, registerSeller, signIn } from '@/lib/auth-api';
+import { getCart } from '@/lib/cart-api';
+import type { Realm } from '@/lib/api-client';
+import type { User } from '@/types';
 import {
   loginStart,
   loginSuccess,
@@ -15,7 +18,6 @@ import {
   registerFailure,
 } from '@/store/slices/auth';
 import { loadCart } from '@/store/slices/cart';
-import { Cart } from '@/types';
 
 /** Only allow internal redirect targets (e.g. "/cart"), never external URLs. */
 const safeRedirect = (value: string | null, fallback: string): string => {
@@ -24,13 +26,14 @@ const safeRedirect = (value: string | null, fallback: string): string => {
 };
 
 /**
- * Where each audience signs in. Both still point at the one legacy account
- * table; when the Kotlin API takes over, sellers move to their own realm
- * (`/seller/auth/*`, see docs/ACCOUNTS.md) and only this map changes.
+ * Each audience is its own account realm (docs/ACCOUNTS.md): a shopper signs
+ * in at `/auth/*`, a seller at `/seller/auth/*`, staff at `/admin/auth/*`. The
+ * same email can hold an account in each, independently.
  */
-const ENDPOINTS: Record<AuthAudience, { login: string; register: string; home: string }> = {
-  customer: { login: '/auth/login', register: '/auth/register', home: '/' },
-  seller: { login: '/auth/login', register: '/auth/register', home: '/seller' },
+const AUDIENCES: Record<AuthAudience, { realm: Realm; home: string }> = {
+  customer: { realm: 'customer', home: '/' },
+  seller: { realm: 'seller', home: '/seller' },
+  staff: { realm: 'admin', home: '/admin' },
 };
 
 export function AuthPage({
@@ -46,8 +49,8 @@ export function AuthPage({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | undefined>();
 
-  const endpoints = ENDPOINTS[audience];
-  const redirectTo = safeRedirect(searchParams.get('redirect'), endpoints.home);
+  const { realm, home } = AUDIENCES[audience];
+  const redirectTo = safeRedirect(searchParams.get('redirect'), home);
 
   // Where the confirmation link in the sign-up email lands.
   const verified = searchParams.get('verified');
@@ -63,16 +66,15 @@ export function AuthPage({
             }
           : null;
 
-  const completeLogin = async (user: unknown, token: string) => {
-    localStorage.setItem('token', token);
-    dispatch(loginSuccess({ user: user as never, token }));
-    // Hydrate the cart so the header badge is immediately correct.
-    try {
-      const cartRes = await apiClient.get('/cart');
-      const cart = cartRes.data?.data?.cart;
-      if (cart) dispatch(loadCart(cart as unknown as Cart));
-    } catch {
-      /* non-fatal */
+  const completeLogin = async (user: User) => {
+    dispatch(loginSuccess(user));
+    // Hydrate the bag so the header badge is immediately correct.
+    if (realm === 'customer') {
+      try {
+        dispatch(loadCart(await getCart()));
+      } catch {
+        /* non-fatal */
+      }
     }
     router.push(redirectTo);
   };
@@ -82,13 +84,7 @@ export function AuthPage({
     setError(undefined);
     dispatch(loginStart());
     try {
-      const res = await apiClient.post(endpoints.login, {
-        email: data.email,
-        password: data.password,
-      });
-      const { user, token } = res.data?.data ?? {};
-      if (!user || !token) throw new Error('Unexpected response from the server.');
-      await completeLogin(user, token);
+      await completeLogin(await signIn(realm, data.email.trim(), data.password));
     } catch (err) {
       const message = getApiErrorMessage(err, 'Sign in failed. Please try again.');
       dispatch(loginFailure(message));
@@ -102,15 +98,22 @@ export function AuthPage({
     setError(undefined);
     dispatch(registerStart());
     try {
-      const res = await apiClient.post(endpoints.register, {
-        firstName: data.firstName,
-        lastName: data.lastName,
-        email: data.email,
-        password: data.password,
-      });
-      const { user, token } = res.data?.data ?? {};
-      if (!user || !token) throw new Error('Unexpected response from the server.');
-      await completeLogin(user, token);
+      const user =
+        realm === 'seller'
+          ? await registerSeller({
+              fullName: data.fullName.trim(),
+              phone: data.phone.trim(),
+              email: data.email.trim(),
+              password: data.password,
+            })
+          : await registerCustomer({
+              firstName: data.firstName.trim(),
+              lastName: data.lastName?.trim() || undefined,
+              email: data.email.trim(),
+              password: data.password,
+              phone: data.phone?.trim() || undefined,
+            });
+      await completeLogin(user);
     } catch (err) {
       const message = getApiErrorMessage(err, 'Registration failed. Please try again.');
       dispatch(registerFailure(message));

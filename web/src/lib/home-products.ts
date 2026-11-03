@@ -1,6 +1,6 @@
 import type { Product } from '@/types';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8082/api';
 
 /**
  * Server-side product loading for curated home-page sections.

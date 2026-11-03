@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "type-check": "tsc --noEmit",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "api:types": "node scripts/api-types.mjs"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.2.0",
@@ -39,6 +40,7 @@
     "autoprefixer": "^10.4.0",
     "eslint": "^9.0.0",
     "eslint-config-next": "^16.2.10",
+    "openapi-typescript": "^7.13.0",
     "postcss": "^8.4.0",
     "prettier": "^3.8.3",
     "prettier-plugin-tailwindcss": "^0.5.0",
