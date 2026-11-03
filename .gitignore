@@ -50,3 +50,6 @@ coverage/
 
 # Docker
 .dockerignore
+
+# Agent worktrees
+.claude/worktrees/
