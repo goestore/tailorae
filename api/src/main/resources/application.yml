@@ -20,6 +20,9 @@ spring:
       ddl-auto: validate
   flyway:
     locations: classpath:db/migration
+    # Modules own reserved version ranges (V30s catalog, V50s orders, V60s content,
+    # V70s admin), so a lower number can land after a higher one.
+    out-of-order: true
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
