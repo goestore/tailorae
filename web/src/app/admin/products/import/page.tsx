@@ -21,7 +21,8 @@ import {
  *
  * Always two steps. The file is checked and reported on before anything is
  * written, because a misread column applied to a whole catalogue is not a
- * mistake you notice until a shopper does.
+ * mistake you notice until a shopper does. Prices in the file are rupees; the
+ * API stores them as paise.
  */
 
 const TEMPLATE = [
@@ -85,7 +86,7 @@ export default function CatalogImportPage() {
     try {
       const outcome = await importCatalog(csv, {
         commit,
-        vendorId: vendorId || undefined,
+        sellerId: vendorId || undefined,
       });
       setMessage(outcome.message);
       if (outcome.plan) {
@@ -107,7 +108,8 @@ export default function CatalogImportPage() {
     setBusy(true);
     setError(null);
     try {
-      download('catalogue.csv', await exportCatalog(vendorId || undefined));
+      // A chosen shop exports its own listings; otherwise the whole catalogue.
+      await exportCatalog(vendorId || undefined);
     } catch (err) {
       setError((err as Error).message);
     } finally {

@@ -87,6 +87,12 @@ export interface ListingFormProps {
   productId?: string;
   /** Told the stored status after every save, so the page header can follow. */
   onSaved?: (product: SavedProduct) => void;
+  /**
+   * Saves the product body (create when `id` is null). Defaults to
+   * `saveListingProduct`; the staff console passes its own, which converts the
+   * form's rupee fields to the API's paise and reads its go-live refusal.
+   */
+  saveProduct?: typeof saveListingProduct;
 }
 
 interface CategoryOption {
@@ -206,7 +212,12 @@ const variantApi = (mode: FormMode) =>
         remove: (pid: string, vid: string) => deleteSellerVariant(pid, vid),
       };
 
-export const ListingForm: React.FC<ListingFormProps> = ({ mode, productId: initialId, onSaved }) => {
+export const ListingForm: React.FC<ListingFormProps> = ({
+  mode,
+  productId: initialId,
+  onSaved,
+  saveProduct = saveListingProduct,
+}) => {
   const router = useRouter();
   // Print / embroidery options of a saved clothing product.
   const [customizations, setCustomizations] = useState<ProductCustomizationRow[] | null>(null);
@@ -624,7 +635,7 @@ export const ListingForm: React.FC<ListingFormProps> = ({ mode, productId: initi
       group = (product.colourGroupId ?? '').trim() || product.sku;
       base.colourGroupId = group;
       if (!product.colourGroupId) {
-        await saveListingProduct(mode, id, { colourGroupId: group }).catch(() => undefined);
+        await saveProduct(mode, id, { colourGroupId: group }).catch(() => undefined);
       }
     }
     const sku = skuFromName(base.name, skuTail.current);
@@ -756,7 +767,7 @@ export const ListingForm: React.FC<ListingFormProps> = ({ mode, productId: initi
       //    listing stays live while it is edited; the server re-checks it).
       const status: ProductStatus | undefined =
         intent === 'publish' ? (isLive ? undefined : 'DRAFT') : secondaryStatus;
-      const saved = await saveListingProduct(
+      const saved = await saveProduct(
         mode,
         id,
         buildProductPayload(snapshot, spec, mode, status)
@@ -847,7 +858,7 @@ export const ListingForm: React.FC<ListingFormProps> = ({ mode, productId: initi
 
       // 3. Go live, which is where the server checks the listing is complete.
       if (intent === 'publish') {
-        const live = await saveListingProduct(mode, id, { status: 'ACTIVE' });
+        const live = await saveProduct(mode, id, { status: 'ACTIVE' });
         setStoredStatus(live.product.status);
         onSaved?.(live.product);
         if (/review/i.test(live.message)) reviewNote = live.message;

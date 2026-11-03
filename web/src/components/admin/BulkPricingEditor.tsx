@@ -2,7 +2,8 @@
 
 import React, { useState } from 'react';
 import { saveBulkPricing, type BulkPricingRow } from '@/lib/admin-products';
-import { cn, formatCurrency } from '@/utils/helpers';
+import { cn } from '@/utils/helpers';
+import { formatPaise } from '@/lib/money';
 import { LABEL_VOICE } from './ContentField';
 
 /**
@@ -26,12 +27,12 @@ const FIELD = 'flex flex-col gap-1.5';
 
 interface Props {
   productId: string;
-  /** The product's own price — every tier is a discount off this. */
-  price: number;
+  /** The product's own price in paise — every tier is a discount off this. */
+  pricePaise: number;
   initial: BulkPricingRow[];
 }
 
-export const BulkPricingEditor: React.FC<Props> = ({ productId, price, initial }) => {
+export const BulkPricingEditor: React.FC<Props> = ({ productId, pricePaise, initial }) => {
   const [rows, setRows] = useState<BulkPricingRow[]>(initial);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,8 +43,11 @@ export const BulkPricingEditor: React.FC<Props> = ({ productId, price, initial }
     setRows((current) => current.map((row, i) => (i === index ? { ...row, ...patch } : row)));
   };
 
-  const unitPrice = (discount: number) =>
-    Math.round(price * (1 - (Number.isFinite(discount) ? discount : 0) / 100) * 100) / 100;
+  /** Paise per unit after the discount — the same rounding as the server's. */
+  const unitPrice = (discount: number) => {
+    const bp = Math.round((Number.isFinite(discount) ? discount : 0) * 100);
+    return pricePaise - Math.round((pricePaise * bp) / 10_000);
+  };
 
   /**
    * The same checks the API makes, run as you type. The server is still the
@@ -97,7 +101,7 @@ export const BulkPricingEditor: React.FC<Props> = ({ productId, price, initial }
       <div className="flex flex-col gap-4 p-4">
         <p className="m-0 text-[13px] text-ink-3">
           Quantity bands shown on the product page. Each is a discount off{' '}
-          {formatCurrency(price)} — the per-unit price is worked out for you.
+          {formatPaise(pricePaise)} — the per-unit price is worked out for you.
         </p>
 
         {rows.length > 0 && (
@@ -152,7 +156,7 @@ export const BulkPricingEditor: React.FC<Props> = ({ productId, price, initial }
                 </div>
                 <div className="flex items-center justify-between gap-3 pb-2">
                   <span className="text-[13px] text-ink">
-                    {formatCurrency(unitPrice(row.discount))}
+                    {formatPaise(unitPrice(row.discount))}
                     <span className="text-ink-3"> each</span>
                   </span>
                   <button

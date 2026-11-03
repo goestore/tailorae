@@ -36,12 +36,12 @@ export interface AdminBrand {
   _count?: { products: number };
   /** Seller-registered brands start PENDING; platform brands are APPROVED. */
   status?: 'PENDING' | 'APPROVED' | 'REJECTED';
-  /** Private file name of the trademark certificate or reseller letter, if any. */
-  authorizationDoc?: string | null;
-  authorizationType?: 'TRADEMARK_OWNER' | 'AUTHORISED_RESELLER' | null;
   rejectionReason?: string | null;
   /** The shop that registered it; null for platform brands. */
-  ownerVendor?: { id: string; shopName: string; applicationStatus: string } | null;
+  ownerSellerId?: string | null;
+  ownerSeller?: { id: string; shopName: string; status: string } | null;
+  /** Other shops' requests to sell under it, still waiting (Brand authorisations). */
+  pendingAuthorizations?: number;
 }
 
 /** Everything the form can send. Omitted keys are left untouched by the server. */
@@ -86,6 +86,49 @@ export async function updateBrand(id: string, input: BrandInput): Promise<AdminB
     return response.data?.data?.brand;
   } catch (error) {
     throw new Error(getApiErrorMessage(error, 'Could not update that brand.'));
+  }
+}
+
+/**
+ * Approve or reject a brand — or, with `sellerId`, one shop's authorisation to
+ * sell under it. Rejecting needs a reason the seller will read.
+ */
+export async function reviewBrand(
+  brandId: string,
+  decision: 'approve' | 'reject',
+  reason?: string,
+  sellerId?: string
+): Promise<string> {
+  try {
+    const response = await apiClient.patch(`/admin/brands/${encodeURIComponent(brandId)}/review`, {
+      decision,
+      ...(reason ? { reason } : {}),
+      ...(sellerId ? { sellerId } : {}),
+    });
+    return response.data?.message ?? 'Decision recorded.';
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, 'Could not record that decision.'));
+  }
+}
+
+/**
+ * A five-minute link to the trademark certificate or reseller letter a shop
+ * uploaded for a brand (the owner's, when `sellerId` is left out).
+ */
+export async function getBrandAuthorizationDocUrl(
+  brandId: string,
+  sellerId?: string
+): Promise<string> {
+  try {
+    const response = await apiClient.get(
+      `/admin/brands/${encodeURIComponent(brandId)}/authorization-doc`,
+      { params: sellerId ? { sellerId } : undefined }
+    );
+    const url = response.data?.data?.url as string | undefined;
+    if (!url) throw new Error('No document link came back.');
+    return url;
+  } catch (error) {
+    throw new Error(getApiErrorMessage(error, 'Could not open that document.'));
   }
 }
 

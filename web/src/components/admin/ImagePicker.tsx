@@ -20,7 +20,8 @@ import { cn } from '@/utils/helpers';
  * uploaded through here, and a picker that could not address them would make
  * every existing default uneditable.
  *
- * The value is always a plain relative path. Nothing here stores a hostname.
+ * The value is a path under `public/` or, for an uploaded image, the
+ * absolute URL the media library returns.
  */
 
 /**

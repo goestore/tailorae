@@ -25,6 +25,7 @@ export const AREA_TONES = {
   marketplace: 'amber',
   customers: 'teal',
   content: 'rose',
+  settings: 'violet',
 } as const satisfies Record<string, Tone>;
 
 export type Area = keyof typeof AREA_TONES;

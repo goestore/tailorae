@@ -2,13 +2,16 @@
 
 import { apiClient } from '@/lib/api-client';
 import { getApiErrorMessage } from '@/lib/api-utils';
+import { blobErrorMessage, saveBlob } from '@/lib/admin-download';
 
 /**
- * Listing a catalogue from a marketplace sheet.
+ * Listing a catalogue from a marketplace sheet (`/admin/catalog-import`,
+ * MODERATOR).
  *
  * The review comes back whole and lives in the browser while it is being
  * worked on, so fixing a category across forty products is a local edit rather
- * than forty requests. Only the finished list goes back.
+ * than forty requests. Only the finished list goes back — with the same field
+ * names the review used, money in paise.
  */
 
 export interface ImportIssue {
@@ -22,7 +25,8 @@ export interface ImportVariant {
   size: string;
   colorName: string;
   stock: number;
-  price: number | null;
+  /** Paise; null means the product's own price. */
+  pricePaise: number | null;
   rowNumber: number;
   /** Marketplace per-size values, when the sheet is a known template. */
   standardSize?: string;
@@ -47,8 +51,8 @@ export interface ImportProduct {
   brand?: string;
   category?: string;
   colorName: string;
-  price: number;
-  mrp: number | null;
+  pricePaise: number;
+  mrpPaise: number | null;
   description?: string;
   shortDescription?: string;
   material?: string;
@@ -115,29 +119,27 @@ export interface CommitResponse {
  * Read one or more sheets without writing anything.
  *
  * `overrides` maps a header the importer did not recognise onto a field, and is
- * sent back on a second pass — which is how a sheet with unusual column names
- * gets read without anyone editing the file.
+ * sent back on a second pass. `sellerId` (a shop id, or empty for house stock)
+ * decides which of the shop's listings each row would update.
  */
 export async function reviewSheets(
   files: File[],
-  overrides: Record<string, string> = {}
+  overrides: Record<string, string> = {},
+  sellerId?: string
 ): Promise<ReviewResponse> {
   const form = new FormData();
   for (const file of files) form.append('files', file);
-  if (Object.keys(overrides).length > 0) {
-    form.append('overrides', JSON.stringify(overrides));
-  }
 
   try {
-    /**
-     * The shared client sets `Content-Type: application/json` for every
-     * request. Undoing it here lets the browser write the multipart header
-     * itself — which it has to, because only the browser knows the boundary
-     * string it just generated. Left as JSON the upload arrives with no files
-     * at all.
-     */
+    // `overrides` and `sellerId` are request parameters, not parts. The API
+    // client drops the JSON content type for FormData so the browser writes
+    // the multipart boundary itself.
     const response = await apiClient.post('/admin/catalog-import/review', form, {
-      headers: { 'Content-Type': undefined },
+      params: {
+        ...(Object.keys(overrides).length > 0 ? { overrides: JSON.stringify(overrides) } : {}),
+        ...(sellerId ? { sellerId } : {}),
+      },
+      timeout: 120000,
     });
     return { message: response.data?.message ?? '', ...(response.data?.data ?? {}) };
   } catch (error) {
@@ -145,16 +147,21 @@ export async function reviewSheets(
   }
 }
 
-/** Write the reviewed products, as edited. */
+/** Write the reviewed products, as edited. `sellerId` empty = house stock. */
 export async function commitImport(
   products: ImportProduct[],
-  options: { vendorId?: string; publish?: boolean } = {}
+  options: { sellerId?: string; publish?: boolean } = {}
 ): Promise<CommitResponse> {
   try {
-    const response = await apiClient.post('/admin/catalog-import/commit', {
-      products: products.filter((product) => !product.skip),
-      ...options,
-    });
+    const response = await apiClient.post(
+      '/admin/catalog-import/commit',
+      {
+        products: products.filter((product) => !product.skip),
+        ...(options.sellerId ? { sellerId: options.sellerId } : {}),
+        publish: Boolean(options.publish),
+      },
+      { timeout: 300000 }
+    );
     return { message: response.data?.message ?? '', ...(response.data?.data ?? {}) };
   } catch (error) {
     throw new Error(getApiErrorMessage(error, 'Those products could not be listed.'));
@@ -164,66 +171,42 @@ export async function commitImport(
 /**
  * Download listings as Myntra's own SKU template, one row per size.
  *
- * `vendorId` is a seller id or "house"; `ids` narrows to selected rows. The
- * file name comes from the server so it carries the article type and date.
+ * `sellerId` is a seller id or "house"; `ids` narrows to selected rows. The
+ * server's file name and its row / skipped counts travel in headers a browser
+ * on another origin cannot read, so the file is named here and the count comes
+ * from `myntraExportCounts`.
  */
 export async function exportMyntra(options: {
   articleType: string;
   ids?: string[];
-  vendorId?: string;
-}): Promise<{ filename: string; rows: number; skipped: string[] }> {
+  sellerId?: string;
+}): Promise<{ filename: string }> {
   const params: Record<string, string> = { articleType: options.articleType };
   if (options.ids?.length) params.ids = options.ids.join(',');
-  if (options.vendorId) params.vendorId = options.vendorId;
+  if (options.sellerId) params.sellerId = options.sellerId;
 
   try {
     const response = await apiClient.get('/admin/products/export/myntra', {
       params,
       responseType: 'blob',
+      timeout: 120000,
     });
-    const disposition = String(response.headers?.['content-disposition'] ?? '');
-    const filename =
-      /filename="?([^";]+)"?/i.exec(disposition)?.[1] ?? `myntra-${options.articleType.toLowerCase()}.xlsx`;
-    const url = URL.createObjectURL(response.data as Blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    return {
-      filename,
-      rows: Number(response.headers?.['x-export-rows'] ?? 0),
-      // Listings left out because they hold several colours in one listing.
-      skipped: String(response.headers?.['x-export-skipped'] ?? '')
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
-    };
+    const slug = options.articleType.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const filename = `myntra-${slug}-${new Date().toISOString().slice(0, 10)}.xlsx`;
+    saveBlob(response.data as Blob, filename);
+    return { filename };
   } catch (error) {
-    // A blob error body has to be read before its message can be shown.
-    const data = (error as { response?: { data?: unknown } })?.response?.data;
-    if (data instanceof Blob) {
-      let message = '';
-      try {
-        message = (JSON.parse(await data.text()) as { message?: string }).message ?? '';
-      } catch {
-        // Not JSON: fall through to the generic message.
-      }
-      if (message) throw new Error(message);
-    }
-    throw new Error(getApiErrorMessage(error, 'The Myntra sheet could not be built.'));
+    throw new Error(await blobErrorMessage(error, 'The Myntra sheet could not be built.'));
   }
 }
 
 /** How many listings of each article type an export with these filters would include. */
-export async function myntraExportCounts(options: { ids?: string[]; vendorId?: string } = {}): Promise<
+export async function myntraExportCounts(options: { ids?: string[]; sellerId?: string } = {}): Promise<
   Record<string, number>
 > {
   const params: Record<string, string> = {};
   if (options.ids?.length) params.ids = options.ids.join(',');
-  if (options.vendorId) params.vendorId = options.vendorId;
+  if (options.sellerId) params.sellerId = options.sellerId;
   try {
     const response = await apiClient.get('/admin/products/export/myntra/counts', { params });
     return (response.data?.data?.counts ?? {}) as Record<string, number>;

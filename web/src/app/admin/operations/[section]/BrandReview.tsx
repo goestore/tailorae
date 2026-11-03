@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import type { AdminBrand } from '@/lib/admin-brands';
-import { fetchBrandAuthorizationDoc, reviewBrand } from '@/lib/admin-sellers';
+import { getBrandAuthorizationDocUrl, reviewBrand, type AdminBrand } from '@/lib/admin-brands';
 
 /**
  * The approval block inside the brand editor, for brands a seller registered.
@@ -22,7 +21,7 @@ export const BrandReview: React.FC<{
   const [error, setError] = useState<string | null>(null);
 
   // Platform brands have nothing to review.
-  if (!brand.ownerVendor && (!brand.status || brand.status === 'APPROVED')) return null;
+  if (!brand.ownerSeller && (!brand.status || brand.status === 'APPROVED')) return null;
 
   const decide = async (decision: 'approve' | 'reject') => {
     if (decision === 'reject' && !reason.trim()) return;
@@ -41,11 +40,9 @@ export const BrandReview: React.FC<{
     // Opened before the fetch so popup blockers see it as a direct click.
     const tab = window.open('', '_blank');
     try {
-      const blob = await fetchBrandAuthorizationDoc(brand.id);
-      const url = URL.createObjectURL(blob);
+      const url = await getBrandAuthorizationDocUrl(brand.id);
       if (tab) tab.location.href = url;
-      else window.location.assign(url);
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      else window.open(url, '_blank', 'noopener');
     } catch (err) {
       tab?.close();
       setError((err as Error).message);
@@ -71,13 +68,8 @@ export const BrandReview: React.FC<{
         </span>
       </p>
       <p style={{ margin: '0 0 8px' }}>
-        Registered by <strong>{brand.ownerVendor?.shopName ?? 'the platform'}</strong>
-        {' · '}
-        {brand.authorizationType === 'AUTHORISED_RESELLER'
-          ? 'authorised reseller'
-          : brand.authorizationType === 'TRADEMARK_OWNER'
-            ? 'trademark owner'
-            : 'no proof uploaded (added from a listing)'}
+        Registered by <strong>{brand.ownerSeller?.shopName ?? 'the platform'}</strong>. Other
+        shops’ requests to sell it are under Brand authorisations.
       </p>
       {brand.status === 'REJECTED' && brand.rejectionReason && (
         <p style={{ margin: '0 0 8px', color: 'var(--admin-text-2)' }}>
@@ -121,7 +113,7 @@ export const BrandReview: React.FC<{
         </div>
       ) : (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {brand.authorizationDoc && (
+          {brand.ownerSeller && (
             <button type="button" className="btn btn-sm" onClick={() => void openDoc()}>
               View proof
             </button>

@@ -5,10 +5,12 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ContentDefinition, ContentGroup, ContentPath } from '@/content/define';
 import {
   discardDraft as discardDraftRequest,
+  fetchHistory,
   fetchStages,
   publishDraft,
   saveDraft as saveDraftRequest,
   type DraftEntry,
+  type PublishHistoryEntry,
 } from '@/content/admin-api';
 import type { StoredValue } from '@/content/resolve';
 import { sameFieldValue } from '@/content/field';
@@ -126,6 +128,83 @@ function buildSections(paths: readonly ContentPath[]): Section[] {
 
 const plural = (count: number) => (count === 1 ? '' : 's');
 
+/**
+ * Every publish of the namespace, newest first, loaded when opened. Loading
+ * an earlier version puts its values in the form (unsaved); publishing then
+ * restores it — the API keeps no other undo.
+ */
+const PublishHistory: React.FC<{
+  namespace: string;
+  disabled: boolean;
+  onRestore: (entry: PublishHistoryEntry) => void;
+}> = ({ namespace, disabled, onRestore }) => {
+  const [entries, setEntries] = useState<PublishHistoryEntry[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = () => {
+    setError(null);
+    fetchHistory(namespace)
+      .then(setEntries)
+      .catch((err: Error) => setError(err.message));
+  };
+
+  return (
+    <details
+      className="admin-apple-section"
+      onToggle={(event) => {
+        if ((event.currentTarget as HTMLDetailsElement).open && entries === null) load();
+      }}
+    >
+      <summary className="admin-apple-section-header" style={{ cursor: 'pointer' }}>
+        <span className="admin-apple-section-title">Publish history</span>
+      </summary>
+      <div style={{ padding: '0 16px 16px' }}>
+        {error && (
+          <p role="alert" className="alert alert-error text-sm">
+            {error}
+          </p>
+        )}
+        {entries === null && !error && <p className="text-sm">Loading…</p>}
+        {entries?.length === 0 && <p className="text-sm">Nothing has been published here yet.</p>}
+        {entries && entries.length > 0 && (
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+            {entries.map((entry, index) => (
+              <li
+                key={`${entry.publishedAt}-${index}`}
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '10px 0',
+                  borderTop: index === 0 ? undefined : '1px solid var(--a-edge)',
+                }}
+              >
+                <span className="text-sm" style={{ flex: '1 1 240px' }}>
+                  <strong>Version {entry.after?.version ?? '—'}</strong> ·{' '}
+                  {entry.publishedAt ? new Date(entry.publishedAt).toLocaleString('en-IN') : '—'} ·{' '}
+                  {entry.after?.values.length ?? 0} value{plural(entry.after?.values.length ?? 0)}{' '}
+                  live
+                </span>
+                {index > 0 && entry.after && (
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    disabled={disabled}
+                    onClick={() => onRestore(entry)}
+                  >
+                    Load this version
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </details>
+  );
+};
+
 const NamespaceEditor: React.FC<{ definition: EditableNamespace }> = ({ definition }) => {
   const [published, setPublished] = useState<Overrides>({});
   const [draft, setDraft] = useState<Overrides | null>(null);
@@ -137,6 +216,8 @@ const NamespaceEditor: React.FC<{ definition: EditableNamespace }> = ({ definiti
   const [confirming, setConfirming] = useState<'publish' | 'discard' | null>(null);
   const [onlyChanged, setOnlyChanged] = useState(false);
   const [loading, setLoading] = useState(true);
+  /** Publishes made in this session, to refresh the history panel. */
+  const [publishes, setPublishes] = useState(0);
   /** True while a save, publish or discard is in flight. */
   const [busy, setBusy] = useState(false);
 
@@ -144,7 +225,7 @@ const NamespaceEditor: React.FC<{ definition: EditableNamespace }> = ({ definiti
    * Loads both stages from the content API.
    *
    * Fetching in an effect is right here: the values live behind an admin-only
-   * endpoint that needs the browser's bearer token, so they cannot be read
+   * endpoint that needs the staff session cookie, so they cannot be read
    * during the server render, and seeding from them on the client would
    * mismatch hydration. The lint rule cannot tell this apart from a
    * cascading-render mistake.
@@ -336,6 +417,7 @@ const NamespaceEditor: React.FC<{ definition: EditableNamespace }> = ({ definiti
       setForm(formFrom(definition, live.values, null));
       setConfirming(null);
       setOnlyChanged(false);
+      setPublishes((count) => count + 1);
       setNotice(
         stages.revalidated
           ? {
@@ -460,6 +542,24 @@ const NamespaceEditor: React.FC<{ definition: EditableNamespace }> = ({ definiti
           </section>
         );
       })}
+
+      <PublishHistory
+        // Remounted after each publish so an open history shows it.
+        key={`${definition.namespace}:${publishes}`}
+        namespace={definition.namespace}
+        disabled={busy || loading}
+        onRestore={(entry) => {
+          const restored = accept(definition, entry.after?.values ?? []);
+          setForm(formFrom(definition, restored.values, null));
+          setErrors({});
+          setConfirming(null);
+          setOnlyChanged(true);
+          setNotice({
+            tone: 'ok',
+            text: `Version ${entry.after?.version ?? ''} is loaded into the form. Review the changes below, then publish to restore it.`,
+          });
+        }}
+      />
 
       {/* Bottom rather than top: the site header is already sticky, and the
           state of the draft has to stay readable next to the button that

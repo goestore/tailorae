@@ -1,48 +1,84 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ACTIONS_NEEDING_NOTE,
   BUSINESS_TYPE_LABELS,
-  KycRequiredError,
-  decideApplication,
-  fetchBrandAuthorizationDoc,
-  type AdminSeller,
-  type ApplicationStatus,
+  KYC_KIND_LABEL,
+  SELLER_STATUS_LABEL,
+  decideSeller,
+  getSellerReview,
+  getShopBrandAuthorizations,
+  type BrandAuthorization,
+  type PostalAddress,
+  type SellerAction,
+  type SellerReview,
+  type SellerStatus,
 } from '@/lib/admin-sellers';
+import { getBrandAuthorizationDocUrl } from '@/lib/admin-brands';
+import { useCan } from '@/components/admin/StaffContext';
 import { formatDateTime } from '@/utils/helpers';
 
 /**
- * One seller application on one screen: the business behind the shop, its
- * identity check, the brands it asked to sell under, and the decision.
+ * One seller application on one screen (KYC_REVIEW): the business, the owner,
+ * the KYC documents (five-minute signed links), the masked bank account, the
+ * brands it asked to sell under, the status history and the decision.
  *
- * Approving opens the catalogue to the shop and verifies it, so the server
- * refuses it until identity is approved; the refusal comes back here with an
- * explicit "approve anyway" rather than failing quietly. Rejecting and
+ * The buttons are the decisions the state machine allows from the current
+ * status (`allowedActions`). Rejecting, asking for more information and
  * suspending need a note — the seller reads it on their dashboard.
  */
 
-export const APPLICATION_LABEL: Record<ApplicationStatus, string> = {
-  APPLIED: 'Applied',
-  UNDER_REVIEW: 'Under review',
-  APPROVED: 'Approved',
-  REJECTED: 'Rejected',
-  SUSPENDED: 'Suspended',
-};
-
 // Mapped onto the shared badge palette (keyed by order/payment states).
-const APPLICATION_TONE: Record<ApplicationStatus, string | undefined> = {
-  APPLIED: 'NEW',
+const STATUS_TONE: Record<SellerStatus, string | undefined> = {
+  DRAFT: undefined,
+  SUBMITTED: 'NEW',
   UNDER_REVIEW: 'PENDING',
+  NEEDS_INFO: 'PENDING',
   APPROVED: 'APPROVED',
   REJECTED: 'REJECTED',
   SUSPENDED: 'SUSPENDED',
 };
 
-export const ApplicationBadge: React.FC<{ status: ApplicationStatus }> = ({ status }) => (
-  <span className="admin-status-badge" data-status={APPLICATION_TONE[status]}>
-    {APPLICATION_LABEL[status] ?? status}
+export const SellerStatusBadge: React.FC<{ status: SellerStatus }> = ({ status }) => (
+  <span className="admin-status-badge" data-status={STATUS_TONE[status]}>
+    {SELLER_STATUS_LABEL[status] ?? status}
   </span>
 );
+
+const ACTION_LABEL: Record<SellerAction, string> = {
+  SUBMIT: 'Submit',
+  START_REVIEW: 'Start review',
+  APPROVE: 'Approve seller',
+  REJECT: 'Reject…',
+  REQUEST_INFO: 'Ask for more information…',
+  SUSPEND: 'Suspend…',
+  REINSTATE: 'Reinstate',
+};
+
+const NOTE_PROMPT: Partial<
+  Record<SellerAction, { label: string; placeholder: string; confirm: string }>
+> = {
+  REJECT: {
+    label: 'Why is it rejected?',
+    placeholder: 'e.g. We could not confirm the registered address.',
+    confirm: 'Reject application',
+  },
+  REQUEST_INFO: {
+    label: 'What does the seller need to fix?',
+    placeholder: 'e.g. The PAN card scan is blurred — please upload a clearer copy.',
+    confirm: 'Send back to the seller',
+  },
+  SUSPEND: {
+    label: 'Why is the shop suspended?',
+    placeholder: 'e.g. Repeated late dispatches. Contact us to discuss reinstatement.',
+    confirm: 'Suspend shop',
+  },
+};
+
+/** Links are signed for five minutes; reload the review a little before that. */
+const LINK_LIFETIME_MS = 4 * 60 * 1000;
+const linksExpired = (loadedAt: number) => Date.now() - loadedAt > LINK_LIFETIME_MS;
 
 const labelStyle: React.CSSProperties = {
   display: 'block',
@@ -52,83 +88,150 @@ const labelStyle: React.CSSProperties = {
   letterSpacing: '-0.005em',
 };
 
+const mono: React.CSSProperties = { fontFamily: 'ui-monospace, monospace' };
+
+const twoCol: React.CSSProperties = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+  gap: 16,
+  marginBottom: 20,
+};
+
 const Detail: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
   <div style={{ minWidth: 0 }}>
     <p style={labelStyle}>{label}</p>
-    <p style={{ margin: 0, color: 'var(--admin-text)', fontSize: 13, overflowWrap: 'anywhere' }}>
+    <div style={{ margin: 0, color: 'var(--admin-text)', fontSize: 13, overflowWrap: 'anywhere' }}>
       {children}
-    </p>
+    </div>
   </div>
 );
 
-type Decision = Exclude<ApplicationStatus, 'APPLIED'>;
+const addressText = (address: PostalAddress | null | undefined) =>
+  address
+    ? [address.line1, address.line2, address.city, `${address.state} ${address.postalCode}`]
+        .filter(Boolean)
+        .join(', ')
+    : '—';
 
-const NEEDS_NOTE: Decision[] = ['REJECTED', 'SUSPENDED'];
+const when = (value: string | null | undefined) => (value ? formatDateTime(value) : '—');
+
+const sizeLabel = (bytes: number) =>
+  bytes >= 1024 * 1024
+    ? `${(bytes / 1024 / 1024).toFixed(1)} MB`
+    : `${Math.max(1, Math.round(bytes / 1024))} KB`;
 
 export const ApplicationPanel: React.FC<{
-  seller: AdminSeller;
+  sellerId: string;
   onClose: () => void;
   onDecided: (message: string) => void;
-  /** Opens the identity review for this shop. */
-  onReviewIdentity: () => void;
-}> = ({ seller, onClose, onDecided, onReviewIdentity }) => {
-  const [pending, setPending] = useState<Decision | null>(null);
+}> = ({ sellerId, onClose, onDecided }) => {
+  const can = useCan();
+  const canSeeBrands = can('MODERATOR');
+  const [review, setReview] = useState<SellerReview | null>(null);
+  const [loadedAt, setLoadedAt] = useState(0);
+  const [brands, setBrands] = useState<BrandAuthorization[] | null>(null);
+  const [pending, setPending] = useState<SellerAction | null>(null);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [kycBlocked, setKycBlocked] = useState<string | null>(null);
-  const [docLoading, setDocLoading] = useState<string | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
+  const load = useCallback(
+    () =>
+      getSellerReview(sellerId).then((data) => {
+        setReview(data);
+        setLoadedAt(Date.now());
+        return data;
+      }),
+    [sellerId]
+  );
+
   useEffect(() => {
+    let cancelled = false;
+    load().catch((err: Error) => !cancelled && setError(err.message));
+    if (canSeeBrands) {
+      getShopBrandAuthorizations(sellerId)
+        .then((rows) => !cancelled && setBrands(rows))
+        .catch(() => !cancelled && setBrands([]));
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [load, sellerId, canSeeBrands]);
+
+  useEffect(() => {
+    if (!review) return;
     headingRef.current?.focus();
     headingRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' });
-  }, [seller.id]);
+    // Only on first load of this seller, not on every refresh.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [review?.shop.id]);
 
-  const decide = async (status: Decision, overrideKyc = false) => {
-    if (NEEDS_NOTE.includes(status) && !note.trim()) return;
+  /** Opens a KYC document, refreshing the signed links first if they may have expired. */
+  const openDocument = async (documentId: string) => {
+    const tab = window.open('', '_blank');
+    try {
+      const fresh = linksExpired(loadedAt) ? await load() : review;
+      const url = fresh?.documents.find((row) => row.document.id === documentId)?.url;
+      if (!url) throw new Error('That document is no longer available.');
+      if (tab) tab.location.href = url;
+      else window.open(url, '_blank', 'noopener');
+    } catch (err) {
+      tab?.close();
+      setError((err as Error).message);
+    }
+  };
+
+  const openBrandDoc = async (row: BrandAuthorization) => {
+    const tab = window.open('', '_blank');
+    try {
+      const url = await getBrandAuthorizationDocUrl(row.brand.id, row.seller.id);
+      if (tab) tab.location.href = url;
+      else window.open(url, '_blank', 'noopener');
+    } catch (err) {
+      tab?.close();
+      setError((err as Error).message);
+    }
+  };
+
+  const decide = async (action: SellerAction) => {
+    if (ACTIONS_NEEDING_NOTE.includes(action) && !note.trim()) return;
     setBusy(true);
     setError(null);
     try {
-      const message = await decideApplication(seller.id, {
-        status,
-        note: note.trim() || undefined,
-        overrideKyc,
-      });
+      const result = await decideSeller(sellerId, action, note.trim() || undefined);
       setPending(null);
       setNote('');
-      setKycBlocked(null);
-      onDecided(message);
+      await load();
+      onDecided(result.message);
     } catch (err) {
-      if (err instanceof KycRequiredError) setKycBlocked(err.message);
-      else setError((err as Error).message);
+      setError((err as Error).message);
     } finally {
       setBusy(false);
     }
   };
 
-  const openBrandDoc = async (brandId: string) => {
-    // Opened before the fetch so popup blockers see it as a direct click.
-    const tab = window.open('', '_blank');
-    setDocLoading(brandId);
-    try {
-      const blob = await fetchBrandAuthorizationDoc(brandId);
-      const url = URL.createObjectURL(blob);
-      if (tab) tab.location.href = url;
-      else window.location.assign(url);
-      setTimeout(() => URL.revokeObjectURL(url), 60_000);
-    } catch (err) {
-      tab?.close();
-      setError((err as Error).message);
-    } finally {
-      setDocLoading(null);
-    }
-  };
+  const headingId = `application-heading-${sellerId}`;
+  const noteId = `application-note-${sellerId}`;
 
-  const address = seller.registeredAddress;
-  const headingId = `application-heading-${seller.id}`;
-  const noteId = `application-note-${seller.id}`;
-  const status = seller.applicationStatus;
+  if (!review) {
+    return (
+      <section className="admin-card" style={{ marginBottom: 16 }}>
+        <p className="admin-kpi-sub" style={{ margin: 0 }}>
+          {error ?? 'Loading the application…'}
+        </p>
+        {error && (
+          <button type="button" className="btn" style={{ marginTop: 12 }} onClick={onClose}>
+            Close
+          </button>
+        )}
+      </section>
+    );
+  }
+
+  const { shop, owner, documents, bank, history, allowedActions } = review;
+  const prompt = pending ? NOTE_PROMPT[pending] : undefined;
+  const decisions = allowedActions.filter((action) => action !== 'SUBMIT');
 
   return (
     <section className="admin-card" aria-labelledby={headingId} style={{ marginBottom: 16 }}>
@@ -158,9 +261,9 @@ export const ApplicationPanel: React.FC<{
               scrollMarginTop: 96,
             }}
           >
-            {seller.shopName}
+            {shop.shopName}
           </h2>
-          <ApplicationBadge status={status} />
+          <SellerStatusBadge status={shop.status} />
         </div>
         <button type="button" className="btn" onClick={onClose}>
           Close application
@@ -168,15 +271,15 @@ export const ApplicationPanel: React.FC<{
       </div>
 
       {error && (
-        <div className="admin-alert admin-alert--warn" role="alert">
+        <div className="admin-alert admin-alert--warn" role="alert" style={{ marginBottom: 16 }}>
           <span>{error}</span>
         </div>
       )}
 
-      {seller.applicationNote && (status === 'REJECTED' || status === 'SUSPENDED') && (
+      {shop.statusNote && (
         <div className="admin-alert" style={{ marginBottom: 16 }}>
           <span>
-            <strong>Note sent to the seller:</strong> {seller.applicationNote}
+            <strong>Note sent to the seller:</strong> {shop.statusNote}
           </span>
         </div>
       )}
@@ -184,141 +287,203 @@ export const ApplicationPanel: React.FC<{
       <p className="admin-kpi-label" style={{ marginBottom: 8 }}>
         Business
       </p>
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: 16,
-          marginBottom: 20,
-        }}
-      >
-        <Detail label="Legal name">{seller.legalName ?? '—'}</Detail>
+      <div style={twoCol}>
+        <Detail label="Legal name">{shop.legalName ?? '—'}</Detail>
         <Detail label="Type">
-          {seller.businessType ? BUSINESS_TYPE_LABELS[seller.businessType] : '—'}
+          {shop.businessType ? (BUSINESS_TYPE_LABELS[shop.businessType] ?? shop.businessType) : '—'}
         </Detail>
-        <Detail label="Registered address">
-          {address
-            ? [address.line1, address.line2, address.city, `${address.state} ${address.pincode}`]
-                .filter(Boolean)
-                .join(', ')
-            : '—'}
+        <Detail label="PAN">
+          <span style={mono}>{shop.pan ?? '—'}</span>
         </Detail>
+        <Detail label="GSTIN">
+          <span style={mono}>{shop.gstin ?? '—'}</span>
+        </Detail>
+        <Detail label="Registered address">{addressText(shop.registeredAddress)}</Detail>
+        <Detail label="Pickup address">{addressText(shop.pickupAddress)}</Detail>
         <Detail label="Contact">
-          {seller.contactPhone ?? '—'}
+          {shop.contactPhone ?? '—'}
           <br />
-          {seller.contactEmail ?? seller.user?.email ?? '—'}
+          {shop.contactEmail ?? '—'}
         </Detail>
-        <Detail label="Applied">{formatDateTime(seller.createdAt)}</Detail>
-        <Detail label="Last decision">
-          {seller.applicationReviewedAt ? formatDateTime(seller.applicationReviewedAt) : '—'}
+        <Detail label="Owner">
+          {owner ? (
+            <>
+              {owner.fullName}
+              <br />
+              {owner.email}
+            </>
+          ) : (
+            '—'
+          )}
         </Detail>
+        <Detail label="Created">{when(shop.createdAt)}</Detail>
+        <Detail label="Submitted">{when(shop.submittedAt)}</Detail>
+        <Detail label="Last decision">{when(shop.decidedAt)}</Detail>
+        <Detail label="Storefront">/sellers/{shop.shopSlug}</Detail>
       </div>
 
       <p className="admin-kpi-label" style={{ marginBottom: 8 }}>
-        Identity &amp; bank
+        KYC documents
       </p>
-      <div
-        style={{
-          display: 'flex',
-          flexWrap: 'wrap',
-          alignItems: 'center',
-          gap: 12,
-          marginBottom: 20,
-          fontSize: 13,
-          color: 'var(--admin-text)',
-        }}
-      >
-        <span>
-          KYC: <strong>{seller.kycStatus.replace(/_/g, ' ').toLowerCase()}</strong>
-          {seller.kycDocuments.length > 0 && ` · ${seller.kycDocuments.length} document(s)`}
-        </span>
-        <span>
-          Bank:{' '}
-          {seller.hasBankDetails ? `on file ····${seller.bankAccountLast4 ?? ''}` : 'not given'}
-        </span>
-        <button type="button" className="btn btn-sm" onClick={onReviewIdentity}>
-          Open identity review
-        </button>
-      </div>
-
-      <p className="admin-kpi-label" style={{ marginBottom: 8 }}>
-        Brands
-      </p>
-      {seller.brands.length === 0 ? (
+      {documents.length === 0 ? (
         <p className="admin-kpi-sub" style={{ marginBottom: 20 }}>
-          No brands registered.
+          No documents uploaded.
         </p>
       ) : (
-        <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 20px', display: 'grid', gap: 8 }}>
-          {seller.brands.map((brand) => (
-            <li
-              key={brand.id}
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                alignItems: 'center',
-                gap: 10,
-                fontSize: 13,
-              }}
-            >
-              <strong style={{ color: 'var(--admin-text)' }}>{brand.name}</strong>
-              <span className="admin-status-badge" data-status={brand.status}>
-                {brand.status.toLowerCase()}
-              </span>
-              <span className="admin-kpi-sub" style={{ margin: 0 }}>
-                {brand.authorizationType === 'AUTHORISED_RESELLER'
-                  ? 'Authorised reseller'
-                  : brand.authorizationType === 'TRADEMARK_OWNER'
-                    ? 'Trademark owner'
-                    : 'No proof uploaded'}
-              </span>
-              {brand.authorizationDoc && (
-                <button
-                  type="button"
-                  className="btn btn-sm"
-                  disabled={docLoading !== null}
-                  onClick={() => void openBrandDoc(brand.id)}
-                >
-                  {docLoading === brand.id ? 'Opening…' : 'View proof'}
-                </button>
-              )}
+        <ul
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 8,
+            listStyle: 'none',
+            padding: 0,
+            margin: '0 0 20px',
+          }}
+        >
+          {documents.map(({ document }) => (
+            <li key={document.id}>
+              <button
+                type="button"
+                className="btn"
+                title={`${document.filename} · ${sizeLabel(document.bytes)}`}
+                onClick={() => void openDocument(document.id)}
+              >
+                {KYC_KIND_LABEL[document.kind] ?? document.kind}
+              </button>
             </li>
           ))}
-          <li className="admin-kpi-sub" style={{ margin: 0 }}>
-            Approve or reject brands from Catalog → Brands.
-          </li>
         </ul>
       )}
 
-      {kycBlocked && (
-        <div
-          className="admin-alert admin-alert--warn"
-          role="alert"
-          style={{ marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}
-        >
-          <span style={{ flex: '1 1 240px' }}>{kycBlocked}</span>
-          <span className="admin-actions">
-            <button type="button" className="btn btn-sm" onClick={onReviewIdentity}>
-              Review identity
-            </button>
-            <button
-              type="button"
-              className="btn btn-sm btn-primary"
-              disabled={busy}
-              onClick={() => void decide('APPROVED', true)}
+      <p className="admin-kpi-label" style={{ marginBottom: 8 }}>
+        Bank account
+      </p>
+      {bank ? (
+        <div style={twoCol}>
+          <Detail label="Account">
+            <span style={{ ...mono, letterSpacing: '0.04em' }}>{bank.accountNumberMasked}</span>
+          </Detail>
+          <Detail label="Account name">{bank.accountName}</Detail>
+          <Detail label="IFSC">
+            <span style={mono}>{bank.ifsc}</span>
+          </Detail>
+          <Detail label="Bank">
+            {bank.bankName ?? '—'}
+            {bank.verified ? ' · verified' : ' · not verified'}
+          </Detail>
+        </div>
+      ) : (
+        <p className="admin-kpi-sub" style={{ marginBottom: 20 }}>
+          No bank details given yet.
+        </p>
+      )}
+
+      {canSeeBrands && (
+        <>
+          <p className="admin-kpi-label" style={{ marginBottom: 8 }}>
+            Brands
+          </p>
+          {brands === null ? (
+            <p className="admin-kpi-sub" style={{ marginBottom: 20 }}>
+              Loading…
+            </p>
+          ) : brands.length === 0 ? (
+            <p className="admin-kpi-sub" style={{ marginBottom: 20 }}>
+              No brand requests.
+            </p>
+          ) : (
+            <ul
+              style={{ listStyle: 'none', padding: 0, margin: '0 0 20px', display: 'grid', gap: 8 }}
             >
-              Approve without identity check
-            </button>
-          </span>
+              {brands.map((row) => (
+                <li
+                  key={row.brand.id}
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    gap: 10,
+                    fontSize: 13,
+                  }}
+                >
+                  <strong style={{ color: 'var(--admin-text)' }}>{row.brand.name}</strong>
+                  <span className="admin-status-badge" data-status={row.status}>
+                    {row.status.toLowerCase()}
+                  </span>
+                  <span className="admin-kpi-sub" style={{ margin: 0 }}>
+                    {row.authorizationType === 'AUTHORISED_RESELLER'
+                      ? 'Authorised reseller'
+                      : row.authorizationType === 'TRADEMARK_OWNER'
+                        ? 'Trademark owner'
+                        : 'No proof uploaded'}
+                  </span>
+                  {row.hasDocument && (
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      onClick={() => void openBrandDoc(row)}
+                    >
+                      View proof
+                    </button>
+                  )}
+                </li>
+              ))}
+              <li className="admin-kpi-sub" style={{ margin: 0 }}>
+                Decide brand requests in Catalogue → Brands → Brand authorisations.
+              </li>
+            </ul>
+          )}
+        </>
+      )}
+
+      <p className="admin-kpi-label" style={{ marginBottom: 8 }}>
+        History
+      </p>
+      {history.length === 0 ? (
+        <p className="admin-kpi-sub" style={{ marginBottom: 20 }}>
+          No status changes yet.
+        </p>
+      ) : (
+        <div className="admin-table-wrap" style={{ marginBottom: 20 }}>
+          <table className="admin-table">
+            <thead>
+              <tr>
+                <th>When</th>
+                <th>Change</th>
+                <th>By</th>
+                <th>Note</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.map((event, index) => (
+                <tr key={`${event.createdAt}-${index}`}>
+                  <td style={{ whiteSpace: 'nowrap' }}>{when(event.createdAt)}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    {event.fromStatus
+                      ? `${SELLER_STATUS_LABEL[event.fromStatus] ?? event.fromStatus} → `
+                      : ''}
+                    {SELLER_STATUS_LABEL[event.toStatus] ?? event.toStatus}
+                  </td>
+                  <td>
+                    {event.actorRealm === 'admin'
+                      ? 'Staff'
+                      : event.actorRealm === 'seller'
+                        ? 'Seller'
+                        : event.actorRealm}
+                  </td>
+                  <td>{event.note ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 
       <div style={{ borderTop: '1px solid var(--admin-line)', paddingTop: 16 }}>
-        {pending && NEEDS_NOTE.includes(pending) ? (
+        {pending && prompt ? (
           <div>
             <label htmlFor={noteId} style={labelStyle}>
-              {pending === 'REJECTED' ? 'Why is it rejected?' : 'Why is the shop suspended?'} * (the
-              seller will see this)
+              {prompt.label} * (the seller will see this)
             </label>
             <textarea
               id={noteId}
@@ -328,21 +493,17 @@ export const ApplicationPanel: React.FC<{
               maxLength={1000}
               value={note}
               onChange={(event) => setNote(event.target.value)}
-              placeholder={
-                pending === 'REJECTED'
-                  ? 'e.g. We could not confirm the registered address. Please update it and contact us.'
-                  : 'e.g. Repeated late dispatches. Contact us to discuss reinstatement.'
-              }
+              placeholder={prompt.placeholder}
               style={{ width: '100%', resize: 'vertical' }}
             />
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 10 }}>
               <button
                 type="button"
-                className="btn btn-danger"
+                className={pending === 'REQUEST_INFO' ? 'btn btn-primary' : 'btn btn-danger'}
                 onClick={() => void decide(pending)}
                 disabled={busy || !note.trim()}
               >
-                {busy ? 'Saving…' : pending === 'REJECTED' ? 'Reject application' : 'Suspend shop'}
+                {busy ? 'Saving…' : prompt.confirm}
               </button>
               <button
                 type="button"
@@ -354,54 +515,38 @@ export const ApplicationPanel: React.FC<{
               </button>
             </div>
           </div>
+        ) : decisions.length === 0 ? (
+          <p className="admin-kpi-sub" style={{ margin: 0 }}>
+            {shop.status === 'DRAFT'
+              ? 'The seller has not submitted this application yet.'
+              : shop.status === 'NEEDS_INFO'
+                ? 'Waiting for the seller to update and resubmit.'
+                : 'No decision is open at this stage.'}
+          </p>
         ) : (
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
-            {status !== 'APPROVED' && (
-              <button
-                type="button"
-                className="btn btn-primary"
-                disabled={busy}
-                onClick={() => void decide('APPROVED')}
-              >
-                {busy ? 'Saving…' : status === 'SUSPENDED' ? 'Reinstate' : 'Approve seller'}
-              </button>
-            )}
-            {status === 'APPLIED' && (
-              <button
-                type="button"
-                className="btn"
-                disabled={busy}
-                onClick={() => void decide('UNDER_REVIEW')}
-              >
-                Mark under review
-              </button>
-            )}
-            {(status === 'APPLIED' || status === 'UNDER_REVIEW') && (
-              <button
-                type="button"
-                className="btn"
-                disabled={busy}
-                onClick={() => {
-                  setPending('REJECTED');
-                  setNote('');
-                }}
-              >
-                Reject…
-              </button>
-            )}
-            {status === 'APPROVED' && (
-              <button
-                type="button"
-                className="btn"
-                disabled={busy}
-                onClick={() => {
-                  setPending('SUSPENDED');
-                  setNote('');
-                }}
-              >
-                Suspend…
-              </button>
-            )}
+            {decisions.map((action) => {
+              const needsNote = ACTIONS_NEEDING_NOTE.includes(action);
+              const primary = action === 'APPROVE' || action === 'REINSTATE';
+              return (
+                <button
+                  key={action}
+                  type="button"
+                  className={primary ? 'btn btn-primary' : 'btn'}
+                  disabled={busy}
+                  onClick={() => {
+                    if (needsNote) {
+                      setPending(action);
+                      setNote('');
+                    } else {
+                      void decide(action);
+                    }
+                  }}
+                >
+                  {busy && !needsNote ? 'Saving…' : ACTION_LABEL[action]}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>

@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
+  bpToPercent,
   deleteCategory,
   listCategories,
   updateCategory,
@@ -171,10 +172,10 @@ export default function AdminCategoriesPage() {
                         )}
                       </td>
                       <td style={{ ...cell, textAlign: 'right' }}>
-                        {row.commissionRate === null || row.commissionRate === undefined ? (
+                        {row.commissionRateBp === null || row.commissionRateBp === undefined ? (
                           <span style={muted}>Inherit</span>
                         ) : (
-                          `${row.commissionRate}%`
+                          `${bpToPercent(row.commissionRateBp)}%`
                         )}
                       </td>
                       <td style={{ ...cell, textAlign: 'right' }}>{row._count?.products ?? 0}</td>

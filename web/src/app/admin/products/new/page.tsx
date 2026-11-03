@@ -1,6 +1,7 @@
 'use client';
 
 import { ListingForm } from '@/components/catalog/listing-form';
+import { saveAdminListing } from '@/lib/admin-products';
 
 /**
  * Add a product.
@@ -22,7 +23,7 @@ export default function NewProductPage() {
         </div>
       </header>
 
-      <ListingForm mode="admin" />
+      <ListingForm mode="admin" saveProduct={saveAdminListing} />
     </div>
   );
 }

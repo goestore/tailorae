@@ -1,7 +1,8 @@
 import React from 'react';
 import { NEXT_ORDER_STATUS, ORDER_STATUSES, statusLabel } from '@/lib/admin-orders';
-import { formatCurrency } from '@/utils/helpers';
-import { ProductThumb } from '@/components/product/ProductThumb';
+import { couponToRequest, formatCouponValue, type AdminCoupon } from '@/lib/admin-coupons';
+import type { StaffPermission } from '@/lib/admin-staff';
+import { formatPaise } from '@/lib/money';
 import {
   Bell,
   Boxes,
@@ -12,12 +13,17 @@ import {
   Tags,
   Ticket,
   Users,
+  Wallet,
   type IconProps,
 } from '@/components/admin/icons';
 
 /**
  * The per-module configuration of the operations tables: which endpoint, which
  * columns, which row actions, and what the card says when it is empty.
+ *
+ * The API answers lists in two shapes — the paged `{items, total, page, limit,
+ * pages}` and, for modules that kept the legacy wrapper, `{<collection>: [...],
+ * pagination}`. The table reads either (see `fetchSection`).
  */
 
 export type Row = Record<string, unknown>;
@@ -26,10 +32,21 @@ export type Row = Record<string, unknown>;
 export type RowAction = {
   label: (item: Row) => string;
   path: (item: Row) => string;
-  body: (item: Row) => Row;
-  method?: 'patch' | 'put';
+  body?: (item: Row) => unknown;
+  method?: 'patch' | 'put' | 'post' | 'delete';
   /** Not applicable to this row: the button is left out rather than greyed. */
   hidden?: (item: Row) => boolean;
+  /** Permissions the call needs (any one); hidden for staff without them. */
+  anyOf?: StaffPermission[];
+  /**
+   * Ask for a note first (a reason the seller or customer will read). The
+   * answer is passed to `body` as `item.__note`; cancelling skips the call.
+   */
+  prompt?: string;
+  /** A GET whose `data.url` is a short-lived link, opened in a new tab. */
+  opensLink?: boolean;
+  /** Asked before the call, for actions that cannot be undone. */
+  confirm?: (item: Row) => string;
 };
 
 export type Column = {
@@ -47,15 +64,22 @@ export type Section = {
   title: string;
   description: string;
   endpoint: string;
+  /** Fixed query parameters, sent on every request. */
+  params?: Record<string, string | number | boolean>;
+  /** The legacy wrapper's list key; paged endpoints answer `items`. */
   collection?: string;
   columns?: Column[];
   actions?: RowAction[];
+  /** Rows of the answer this module shows (one endpoint serving two modules). */
+  filter?: (item: Row) => boolean;
   /**
    * The endpoint pages its results. Search and status filtering then have to go
    * to the server too — a filter applied here could only ever narrow the page
    * already in hand.
    */
   paginated?: boolean;
+  /** Query parameter the search box writes to on a paged endpoint (none: no search box). */
+  searchParam?: string;
   /** Query parameter the status select writes to on a paged endpoint. */
   statusParam?: string;
   /** Fixed vocabulary for that select: the rows on screen are not the whole set. */
@@ -70,7 +94,8 @@ export const text = (value: unknown) =>
   value === null || value === undefined || value === '' ? '—' : String(value);
 export const date = (value: unknown) =>
   value ? new Date(String(value)).toLocaleDateString('en-IN') : '—';
-export const money = (value: unknown) => formatCurrency(Number(value) || 0);
+/** Amounts arrive in paise. */
+export const money = (value: unknown) => formatPaise(Number(value) || 0);
 
 /** An enum value as a sentence: READY_FOR_SHIPMENT -> "Ready for shipment". */
 export const sentence = (value: unknown) => (value ? statusLabel(String(value)) : '—');
@@ -81,19 +106,11 @@ const badge = (status: string, label: string = sentence(status)) => (
   </span>
 );
 
-const ROLE_LABELS: Record<string, string> = {
-  B2B_BUYER: 'B2B buyer',
-  RETAIL_CUSTOMER: 'Retail',
-  VENDOR: 'Seller',
-  ADMIN: 'Admin',
-};
-const roleLabel = (role: unknown) => ROLE_LABELS[String(role)] ?? sentence(role);
-
 /** A status column: plain text for CSV, a badge on screen. */
-const statusColumn = (): Column => ({
-  label: 'Status',
-  value: (x) => sentence(x.status),
-  render: (x) => (x.status ? badge(String(x.status)) : '—'),
+const statusColumn = (read: (x: Row) => unknown = (x) => x.status, label = 'Status'): Column => ({
+  label,
+  value: (x) => sentence(read(x)),
+  render: (x) => (read(x) ? badge(String(read(x))) : '—'),
 });
 
 /** A yes/no field shown as a badge: green when on, neutral when off. */
@@ -107,51 +124,90 @@ const rowTitle = (value: string) => <span className="admin-row-title">{value}</s
 
 const fullName = (x: Row) => [x.firstName, x.lastName].filter(Boolean).join(' ') || text(x.email);
 
-const USER_STATUSES = ['ACTIVE', 'INACTIVE', 'SUSPENDED', 'PENDING_VERIFICATION'] as const;
+const nested = (x: Row, key: string) => (x[key] ?? {}) as Row;
 
 const nextOrderStatus = (x: Row) =>
   NEXT_ORDER_STATUS[x.status as keyof typeof NEXT_ORDER_STATUS];
 
+/* ----- Returns and exchanges --------------------------------------------- */
+
+/** `GET /admin/returns` rows: `{return, orderId, orderNumber, orderTotalPaise, customerEmail}`. */
+const returnOf = (x: Row) => nested(x, 'return');
+
 /** Approve, complete, reject — the three ends a return request can come to. */
 const returnActions = (): RowAction[] => [
   {
-    label: (x) => (x.status === 'APPROVED' ? 'Complete' : 'Approve'),
-    path: (x) => `/admin/returns/${text(x.id)}`,
-    body: (x) => ({ status: x.status === 'APPROVED' ? 'COMPLETED' : 'APPROVED' }),
-    hidden: (x) => x.status === 'COMPLETED',
+    label: (x) => (returnOf(x).status === 'APPROVED' ? 'Complete' : 'Approve'),
+    path: (x) => `/admin/returns/${text(returnOf(x).id)}`,
+    body: (x) => ({ status: returnOf(x).status === 'APPROVED' ? 'COMPLETED' : 'APPROVED' }),
+    hidden: (x) => ['COMPLETED', 'REJECTED'].includes(String(returnOf(x).status)),
+    confirm: (x) =>
+      returnOf(x).status === 'APPROVED'
+        ? 'Completing restocks the items, reverses the sellers’ earnings and raises the refund. Continue?'
+        : '',
+    anyOf: ['SUPPORT'],
   },
   {
-    // The backend has always accepted REJECTED. Without it the only way to
-    // close a request an admin will not honour was to approve it.
     label: () => 'Reject',
-    path: (x) => `/admin/returns/${text(x.id)}`,
-    body: () => ({ status: 'REJECTED' }),
-    hidden: (x) => x.status === 'REJECTED' || x.status === 'COMPLETED',
+    path: (x) => `/admin/returns/${text(returnOf(x).id)}`,
+    body: (x) => ({ status: 'REJECTED', notes: x.__note }),
+    prompt: 'Why is this request being rejected? The customer will see this.',
+    hidden: (x) => ['REJECTED', 'COMPLETED'].includes(String(returnOf(x).status)),
+    anyOf: ['SUPPORT'],
   },
 ];
 
 const requestColumns = (): Column[] => [
   {
     label: 'Order',
-    value: (x) => text((x.order as Row)?.orderNumber),
-    render: (x) => rowTitle(text((x.order as Row)?.orderNumber)),
+    value: (x) => text(x.orderNumber),
+    render: (x) => rowTitle(text(x.orderNumber)),
   },
-  { label: 'Reason', value: (x) => sentence(x.reason) },
-  { label: 'Detail', value: (x) => text(x.description), grow: true },
-  statusColumn(),
-  { label: 'Requested', value: (x) => date(x.createdAt) },
+  { label: 'Customer', value: (x) => text(x.customerEmail) },
+  { label: 'Reason', value: (x) => sentence(returnOf(x).reason) },
+  { label: 'Detail', value: (x) => text(returnOf(x).description), grow: true },
+  { label: 'Order total', value: (x) => money(x.orderTotalPaise), align: 'right' },
+  statusColumn((x) => returnOf(x).status),
+  { label: 'Requested', value: (x) => date(returnOf(x).createdAt) },
 ];
 
-const inventoryThumb = (x: Row): string | undefined => {
-  if (typeof x.thumbnail === 'string' && x.thumbnail) return x.thumbnail;
-  if (Array.isArray(x.images) && typeof x.images[0] === 'string') return x.images[0];
-  return undefined;
-};
+/* ----- Orders ------------------------------------------------------------ */
+
+const orderColumns = (): Column[] => [
+  { label: 'Order', value: (x) => text(x.orderNumber) },
+  { label: 'Customer', value: (x) => text(x.customerEmail), grow: true },
+  {
+    label: 'Items',
+    value: (x) =>
+      `${text(x.firstItemName)}${Number(x.itemCount) > 1 ? ` +${Number(x.itemCount) - 1}` : ''}`,
+  },
+  statusColumn(),
+  {
+    label: 'Payment',
+    value: (x) => `${text(x.paymentMethod)} · ${sentence(x.paymentStatus)}`,
+    render: (x) => (
+      <span>
+        {text(x.paymentMethod)} {badge(String(x.paymentStatus ?? 'NEUTRAL'))}
+      </span>
+    ),
+  },
+  { label: 'Total', value: (x) => money(x.totalPaise), align: 'right' },
+  { label: 'Placed', value: (x) => date(x.createdAt) },
+];
+
+/* ----- Coupons ----------------------------------------------------------- */
+
+const coupon = (x: Row) => x as unknown as AdminCoupon;
+
+/* ----- Brand authorisations ---------------------------------------------- */
+
+const authBrand = (x: Row) => nested(x, 'brand');
+const authSeller = (x: Row) => nested(x, 'seller');
 
 export const SECTIONS: Record<string, Section> = {
   analytics: {
     title: 'Analytics',
-    description: 'Store performance at a glance.',
+    description: 'Sales, sellers and categories over a date range.',
     endpoint: '/admin/reports',
   },
   inventory: {
@@ -159,92 +215,145 @@ export const SECTIONS: Record<string, Section> = {
     description: 'Current stock across the catalogue. Stock is editable in place.',
     endpoint: '/admin/inventory',
     collection: 'products',
-    empty: { icon: Boxes, title: 'No products yet', text: 'Stock levels appear here once products are added to the catalogue.' },
+    empty: {
+      icon: Boxes,
+      title: 'No products yet',
+      text: 'Stock levels appear here once products are added to the catalogue.',
+    },
     columns: [
       {
         label: 'Product',
         value: (x) => text(x.name),
         grow: true,
-        render: (x) => {
-          const thumb = inventoryThumb(x);
-          if (!thumb) return rowTitle(text(x.name));
-          return (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
-              <span
-                style={{ position: 'relative', flex: '0 0 32px', width: 32, height: 32, borderRadius: 6, overflow: 'hidden' }}
-              >
-                <ProductThumb src={thumb} alt={text(x.name)} fill sizes="32px" />
-              </span>
-              {rowTitle(text(x.name))}
-            </span>
-          );
-        },
+        render: (x) => rowTitle(text(x.name)),
       },
       { label: 'SKU', value: (x) => text(x.sku) },
+      { label: 'Shop', value: (x) => text(nested(x, 'seller').shopName) },
       statusColumn(),
       { label: 'Stock', value: (x) => text(x.quantity), align: 'right' },
+    ],
+  },
+  movements: {
+    title: 'Stock movements',
+    description: 'Every change to a stock level: sales, cancellations, returns and edits.',
+    endpoint: '/admin/inventory/movements',
+    params: { limit: 500 },
+    collection: 'movements',
+    empty: {
+      icon: Boxes,
+      title: 'No stock movements yet',
+      text: 'Each sale, cancellation, return and stock edit is recorded here.',
+    },
+    columns: [
+      {
+        label: 'Product',
+        value: (x) => text(x.productName),
+        render: (x) => rowTitle(text(x.productName)),
+        grow: true,
+      },
+      { label: 'Size SKU', value: (x) => text(x.variantSku) },
+      {
+        label: 'Change',
+        value: (x) => (Number(x.delta) > 0 ? `+${text(x.delta)}` : text(x.delta)),
+        align: 'right',
+      },
+      { label: 'Reason', value: (x) => sentence(x.reason) },
+      { label: 'Reference', value: (x) => text(x.reference) },
+      { label: 'Note', value: (x) => text(x.note) },
+      { label: 'When', value: (x) => date(x.createdAt) },
     ],
   },
   orders: {
     title: 'Orders',
     description: 'All customer orders and their current fulfilment status.',
     endpoint: '/admin/orders',
-    collection: 'orders',
     paginated: true,
+    searchParam: 'q',
     statusParam: 'status',
     statusOptions: ORDER_STATUSES,
     href: (x) => `/admin/orders/${text(x.id)}`,
-    empty: { icon: ShoppingBag, title: 'No orders yet', text: 'Orders placed in the shop will show up here, newest first.' },
-    columns: [
-      { label: 'Order', value: (x) => text(x.orderNumber) },
-      { label: 'Customer', value: (x) => text((x.user as Row)?.email), grow: true },
-      statusColumn(),
-      { label: 'Total', value: (x) => money(x.total), align: 'right' },
-      { label: 'Placed', value: (x) => date(x.createdAt) },
-    ],
+    empty: {
+      icon: ShoppingBag,
+      title: 'No orders yet',
+      text: 'Orders placed in the shop will show up here, newest first.',
+    },
+    columns: orderColumns(),
     actions: [
       {
         label: (x) => `Mark ${statusLabel(nextOrderStatus(x) ?? '').toLowerCase()}`,
         path: (x) => `/admin/orders/${text(x.id)}/status`,
         body: (x) => ({ status: nextOrderStatus(x) }),
-        hidden: (x) => !nextOrderStatus(x),
+        // Shipping needs a tracking number: that is done on the order page.
+        hidden: (x) => !nextOrderStatus(x) || nextOrderStatus(x) === 'SHIPPED',
+        anyOf: ['SUPPORT'],
       },
     ],
   },
   returns: {
     title: 'Returns',
     description: 'Review and process customer return requests.',
-    endpoint: '/admin/returns?type=RETURN',
-    collection: 'requests',
-    empty: { icon: RotateCcw, title: 'No returns yet', text: 'When a customer asks to send something back, the request lands here.' },
+    endpoint: '/admin/returns',
+    params: { limit: 100 },
+    filter: (x) => returnOf(x).requestType !== 'EXCHANGE',
+    href: (x) => `/admin/orders/${text(x.orderId)}`,
+    empty: {
+      icon: RotateCcw,
+      title: 'No returns yet',
+      text: 'When a customer asks to send something back, the request lands here.',
+    },
     columns: requestColumns(),
     actions: returnActions(),
   },
   exchanges: {
     title: 'Exchanges',
     description: 'Review exchange requests separately from returns.',
-    endpoint: '/admin/returns?type=EXCHANGE',
-    collection: 'requests',
-    empty: { icon: RotateCcw, title: 'No exchanges yet', text: 'Requests to swap a size or colour will appear here.' },
+    endpoint: '/admin/returns',
+    params: { limit: 100 },
+    filter: (x) => returnOf(x).requestType === 'EXCHANGE',
+    href: (x) => `/admin/orders/${text(x.orderId)}`,
+    empty: {
+      icon: RotateCcw,
+      title: 'No exchanges yet',
+      text: 'Requests to swap a size or colour will appear here.',
+    },
     columns: requestColumns(),
     actions: returnActions(),
   },
   cod: {
-    title: 'COD insights',
-    description: 'Cash-on-delivery exposure and outcomes.',
-    endpoint: '/admin/cod-insights',
+    title: 'Cash on delivery',
+    description: 'Cash-on-delivery orders whose payment has not been collected yet.',
+    endpoint: '/admin/orders',
+    params: { paymentMethod: 'COD', paymentStatus: 'PENDING' },
+    paginated: true,
+    searchParam: 'q',
+    statusParam: 'status',
+    statusOptions: ORDER_STATUSES,
+    href: (x) => `/admin/orders/${text(x.id)}`,
+    empty: {
+      icon: Wallet,
+      title: 'Nothing to collect',
+      text: 'Cash-on-delivery orders awaiting payment appear here until they are paid or cancelled.',
+    },
+    columns: orderColumns(),
   },
   coupons: {
     title: 'Coupons',
     description: 'Active and scheduled promotion codes.',
     endpoint: '/admin/coupons',
-    collection: 'coupons',
-    empty: { icon: Ticket, title: 'No coupons yet', text: 'Create a code to run a promotion or reward repeat customers.' },
+    params: { limit: 100 },
+    paginated: true,
+    searchParam: 'q',
+    empty: {
+      icon: Ticket,
+      title: 'No coupons yet',
+      text: 'Create a code to run a promotion or reward repeat customers.',
+    },
     columns: [
       { label: 'Code', value: (x) => text(x.code), render: (x) => rowTitle(text(x.code)) },
+      { label: 'Discount', value: (x) => formatCouponValue(coupon(x)), align: 'right' },
       {
-        label: 'Discount',
-        value: (x) => (x.discountType === 'PERCENTAGE' ? `${text(x.discountValue)}%` : money(x.discountValue)),
+        label: 'Minimum',
+        value: (x) => (Number(x.minOrderPaise) > 0 ? money(x.minOrderPaise) : '—'),
         align: 'right',
       },
       {
@@ -252,69 +361,98 @@ export const SECTIONS: Record<string, Section> = {
         value: (x) => `${text(x.usageCount)}${x.usageLimit ? ` / ${text(x.usageLimit)}` : ''}`,
         align: 'right',
       },
-      { label: 'Window', value: (x) => `${date(x.startDate)} – ${date(x.endDate)}`, grow: true },
+      { label: 'Window', value: (x) => `${date(x.startsAt)} – ${date(x.endsAt)}`, grow: true },
       flagColumn('Status', (x) => x.isActive, 'Active', 'Inactive'),
     ],
     actions: [
       {
         label: (x) => (x.isActive ? 'Deactivate' : 'Activate'),
         path: (x) => `/admin/coupons/${text(x.id)}`,
-        body: (x) => ({ isActive: !x.isActive }),
+        // The API saves a coupon whole; the toggle sends it back with one change.
+        body: (x) => ({ ...couponToRequest(coupon(x)), isActive: !x.isActive }),
         method: 'put',
+        anyOf: ['FINANCE', 'CONTENT'],
       },
     ],
   },
   customers: {
     title: 'Customers',
-    description: 'Customer accounts, roles, and account health.',
-    endpoint: '/admin/users',
-    collection: 'users',
+    description: 'Shopper accounts, their orders and spend, and account status.',
+    endpoint: '/admin/customers',
     paginated: true,
+    searchParam: 'q',
     statusParam: 'status',
-    statusOptions: USER_STATUSES,
-    empty: { icon: Users, title: 'No customers yet', text: 'Accounts appear here as soon as shoppers sign up.' },
+    statusOptions: ['ACTIVE', 'SUSPENDED'],
+    href: (x) => `/admin/customers/${text(x.id)}`,
+    empty: {
+      icon: Users,
+      title: 'No customers yet',
+      text: 'Accounts appear here as soon as shoppers sign up.',
+    },
     columns: [
-      { label: 'Customer', value: fullName, render: (x) => rowTitle(fullName(x)) },
+      { label: 'Customer', value: fullName },
       { label: 'Email', value: (x) => text(x.email), grow: true },
-      { label: 'Role', value: (x) => roleLabel(x.role), render: (x) => badge('NEUTRAL', roleLabel(x.role)) },
+      {
+        label: 'Type',
+        value: (x) => (x.type === 'BUSINESS' ? 'Business' : 'Individual'),
+        render: (x) => badge('NEUTRAL', x.type === 'BUSINESS' ? 'Business' : 'Individual'),
+      },
+      { label: 'Orders', value: (x) => text(x.orders), align: 'right' },
+      { label: 'Spent', value: (x) => money(x.spentPaise), align: 'right' },
       statusColumn(),
+      { label: 'Joined', value: (x) => date(x.createdAt) },
     ],
     actions: [
       {
-        label: (x) => (x.status === 'ACTIVE' ? 'Suspend' : 'Activate'),
-        path: (x) => `/admin/users/${text(x.id)}`,
+        label: (x) => (x.status === 'ACTIVE' ? 'Suspend' : 'Reinstate'),
+        path: (x) => `/admin/customers/${text(x.id)}/status`,
         body: (x) => ({ status: x.status === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE' }),
-        method: 'put',
-      },
-      // Wholesale access. Admin and seller roles are never set from here: sellers
-      // come through the seller application, admins are created deliberately.
-      {
-        label: (x) => (x.role === 'B2B_BUYER' ? 'Make retail' : 'Make B2B buyer'),
-        path: (x) => `/admin/users/${text(x.id)}`,
-        body: (x) => ({ role: x.role === 'B2B_BUYER' ? 'RETAIL_CUSTOMER' : 'B2B_BUYER' }),
-        method: 'put',
-        hidden: (x) => x.role === 'ADMIN' || x.role === 'VENDOR',
+        confirm: (x) =>
+          x.status === 'ACTIVE'
+            ? `Suspend ${text(x.email)}? They are signed out everywhere and cannot sign in until reinstated.`
+            : '',
+        anyOf: ['SUPPORT'],
       },
     ],
   },
   reviews: {
     title: 'Reviews',
-    description: 'Moderate customer feedback before it appears in the shop.',
+    description: 'Moderate customer feedback in the shop.',
     endpoint: '/admin/reviews',
-    collection: 'reviews',
-    empty: { icon: FileEdit, title: 'No reviews yet', text: 'Customer reviews wait here for moderation before they go live.' },
+    paginated: true,
+    statusParam: 'published',
+    statusOptions: ['true', 'false'],
+    empty: {
+      icon: FileEdit,
+      title: 'No reviews yet',
+      text: 'Customer reviews appear here as they are posted.',
+    },
     columns: [
-      { label: 'Product', value: (x) => text((x.product as Row)?.name), render: (x) => rowTitle(text((x.product as Row)?.name)) },
-      { label: 'Customer', value: (x) => text((x.user as Row)?.email) },
+      {
+        label: 'Review',
+        value: (x) => text(x.title),
+        render: (x) => rowTitle(text(x.title)),
+      },
+      { label: 'Author', value: (x) => text(x.authorName) },
       { label: 'Rating', value: (x) => `${text(x.rating)}/5`, align: 'right' },
-      { label: 'Review', value: (x) => text(x.comment), grow: true },
+      { label: 'Comment', value: (x) => text(x.comment), grow: true },
+      flagColumn('Buyer', (x) => x.isVerified, 'Verified', 'Unverified'),
       flagColumn('Status', (x) => x.isPublished, 'Published', 'Hidden'),
+      { label: 'Posted', value: (x) => date(x.createdAt) },
     ],
     actions: [
       {
         label: (x) => (x.isPublished ? 'Hide' : 'Publish'),
         path: (x) => `/admin/reviews/${text(x.id)}`,
         body: (x) => ({ isPublished: !x.isPublished }),
+        anyOf: ['MODERATOR'],
+      },
+      {
+        label: () => 'Delete',
+        path: (x) => `/admin/reviews/${text(x.id)}`,
+        method: 'delete',
+        confirm: () => 'Delete this review for good? Hiding it keeps the record.',
+        anyOf: ['MODERATOR'],
       },
     ],
   },
@@ -323,7 +461,14 @@ export const SECTIONS: Record<string, Section> = {
     description: 'Messages submitted through the storefront contact form.',
     endpoint: '/admin/contact-requests',
     collection: 'requests',
-    empty: { icon: Mail, title: 'No messages yet', text: 'Messages sent through the contact form will appear here.' },
+    paginated: true,
+    statusParam: 'status',
+    statusOptions: ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'CLOSED'],
+    empty: {
+      icon: Mail,
+      title: 'No messages yet',
+      text: 'Messages sent through the contact form will appear here.',
+    },
     columns: [
       { label: 'Name', value: (x) => text(x.name), render: (x) => rowTitle(text(x.name)) },
       { label: 'Email', value: (x) => text(x.email) },
@@ -334,26 +479,48 @@ export const SECTIONS: Record<string, Section> = {
     ],
     actions: [
       {
+        label: () => 'Start',
+        path: (x) => `/admin/contact-requests/${text(x.id)}`,
+        body: () => ({ status: 'IN_PROGRESS' }),
+        hidden: (x) => x.status !== 'OPEN',
+        anyOf: ['SUPPORT'],
+      },
+      {
         label: (x) => (x.status === 'RESOLVED' ? 'Close' : 'Resolve'),
         path: (x) => `/admin/contact-requests/${text(x.id)}`,
         body: (x) => ({ status: x.status === 'RESOLVED' ? 'CLOSED' : 'RESOLVED' }),
         hidden: (x) => x.status === 'CLOSED',
+        anyOf: ['SUPPORT'],
       },
     ],
   },
   // Demand signal for restocking: which design, which size, and how many people
-  // are waiting. Outstanding requests sort first.
+  // are waiting.
   'stock-requests': {
     title: 'Back-in-stock requests',
     description: 'Shoppers waiting on something that was sold out when they wanted it.',
     endpoint: '/admin/stock-notifications',
     collection: 'notifications',
-    empty: { icon: Bell, title: 'No one is waiting', text: 'When a shopper asks to hear about a sold-out size, the request shows up here.' },
+    paginated: true,
+    empty: {
+      icon: Bell,
+      title: 'No one is waiting',
+      text: 'When a shopper asks to hear about a sold-out size, the request shows up here.',
+    },
     columns: [
-      { label: 'Product', value: (x) => text((x.product as Row)?.name), render: (x) => rowTitle(text((x.product as Row)?.name)), grow: true },
-      { label: 'Size', value: (x) => text((x.variant as Row)?.name) },
+      {
+        label: 'Product',
+        value: (x) => text(nested(x, 'product').name),
+        render: (x) => rowTitle(text(nested(x, 'product').name)),
+        grow: true,
+      },
+      { label: 'Size SKU', value: (x) => text(nested(x, 'variant').sku) },
       { label: 'Email', value: (x) => text(x.email) },
-      { label: 'In stock now', value: (x) => text(((x.variant ?? x.product) as Row)?.quantity), align: 'right' },
+      {
+        label: 'In stock now',
+        value: (x) => text((x.variant ? nested(x, 'variant') : nested(x, 'product')).quantity),
+        align: 'right',
+      },
       { label: 'Asked', value: (x) => date(x.createdAt) },
       {
         label: 'Told',
@@ -366,6 +533,7 @@ export const SECTIONS: Record<string, Section> = {
         label: (x) => (x.notifiedAt ? 'Reopen' : 'Mark as told'),
         path: (x) => `/admin/stock-notifications/${text(x.id)}`,
         body: (x) => ({ notified: !x.notifiedAt }),
+        anyOf: ['SUPPORT'],
       },
     ],
   },
@@ -374,11 +542,24 @@ export const SECTIONS: Record<string, Section> = {
     description: 'Labels products are sold under. Each one gets its own storefront page.',
     endpoint: '/admin/brands',
     collection: 'brands',
-    empty: { icon: Tags, title: 'No brands yet', text: 'Add a brand to give its products a storefront page of their own.' },
+    empty: {
+      icon: Tags,
+      title: 'No brands yet',
+      text: 'Add a brand to give its products a storefront page of their own.',
+    },
     columns: [
-      { label: 'Brand', value: (x) => text(x.name), render: (x) => rowTitle(text(x.name)), grow: true },
+      {
+        label: 'Brand',
+        value: (x) => text(x.name),
+        render: (x) => rowTitle(text(x.name)),
+        grow: true,
+      },
       { label: 'Slug', value: (x) => text(x.slug) },
-      { label: 'Products', value: (x) => text((x._count as Row)?.products ?? 0), align: 'right' },
+      {
+        label: 'Products',
+        value: (x) => text(nested(x, '_count').products ?? 0),
+        align: 'right',
+      },
       {
         label: 'Featured',
         value: (x) => (x.isFeatured ? 'Featured' : ''),
@@ -392,9 +573,17 @@ export const SECTIONS: Record<string, Section> = {
         render: (x) => (x.status && x.status !== 'APPROVED' ? badge(String(x.status)) : '—'),
       },
       {
+        label: 'Requests',
+        value: (x) => text(Number(x.pendingAuthorizations) || ''),
+        render: (x) =>
+          Number(x.pendingAuthorizations) > 0
+            ? badge('PENDING', `${text(x.pendingAuthorizations)} pending`)
+            : '—',
+      },
+      {
         label: 'Shop',
-        value: (x) => text((x.ownerVendor as Row)?.shopName ?? ''),
-        render: (x) => text((x.ownerVendor as Row)?.shopName ?? '') || 'Platform',
+        value: (x) => text(nested(x, 'ownerSeller').shopName ?? ''),
+        render: (x) => text(nested(x, 'ownerSeller').shopName ?? '') || 'Platform',
       },
     ],
     actions: [
@@ -405,12 +594,75 @@ export const SECTIONS: Record<string, Section> = {
         method: 'put',
         // A brand under review is decided with Approve / Edit → Reject instead.
         hidden: (x) => Boolean(x.status) && x.status !== 'APPROVED',
+        anyOf: ['MODERATOR'],
       },
       {
         label: () => 'Approve',
         path: (x) => `/admin/brands/${text(x.id)}/review`,
         body: () => ({ decision: 'approve' }),
         hidden: (x) => !x.status || x.status === 'APPROVED',
+        anyOf: ['MODERATOR'],
+      },
+    ],
+  },
+  'brand-authorizations': {
+    title: 'Brand authorisations',
+    description:
+      'Shops asking to sell under a brand, with the trademark certificate or reseller letter they sent.',
+    endpoint: '/admin/brands/authorizations',
+    collection: 'authorizations',
+    statusParam: 'status',
+    statusOptions: ['PENDING', 'APPROVED', 'REJECTED'],
+    paginated: true,
+    empty: {
+      icon: Tags,
+      title: 'No requests',
+      text: 'When a seller asks to list under a brand, the request waits here for review.',
+    },
+    columns: [
+      {
+        label: 'Brand',
+        value: (x) => text(authBrand(x).name),
+        render: (x) => rowTitle(text(authBrand(x).name)),
+        grow: true,
+      },
+      { label: 'Shop', value: (x) => text(authSeller(x).shopName) },
+      {
+        label: 'Basis',
+        value: (x) =>
+          x.authorizationType === 'TRADEMARK_OWNER'
+            ? 'Owns the trademark'
+            : x.authorizationType === 'AUTHORISED_RESELLER'
+              ? 'Authorised reseller'
+              : sentence(x.authorizationType),
+      },
+      statusColumn(),
+      { label: 'Reason', value: (x) => text(x.rejectionReason) },
+      { label: 'Asked', value: (x) => date(x.createdAt) },
+    ],
+    actions: [
+      {
+        label: () => 'Document',
+        path: (x) =>
+          `/admin/brands/${text(authBrand(x).id)}/authorization-doc?sellerId=${text(authSeller(x).id)}`,
+        opensLink: true,
+        hidden: (x) => !x.hasDocument,
+        anyOf: ['MODERATOR'],
+      },
+      {
+        label: () => 'Approve',
+        path: (x) => `/admin/brands/${text(authBrand(x).id)}/review`,
+        body: (x) => ({ decision: 'approve', sellerId: authSeller(x).id }),
+        hidden: (x) => x.status === 'APPROVED',
+        anyOf: ['MODERATOR'],
+      },
+      {
+        label: () => 'Reject',
+        path: (x) => `/admin/brands/${text(authBrand(x).id)}/review`,
+        body: (x) => ({ decision: 'reject', sellerId: authSeller(x).id, reason: x.__note }),
+        prompt: 'Why is this request being rejected? The seller will see this.',
+        hidden: (x) => x.status === 'REJECTED',
+        anyOf: ['MODERATOR'],
       },
     ],
   },
@@ -419,9 +671,21 @@ export const SECTIONS: Record<string, Section> = {
     description: 'Addresses collected from the footer and homepage sign-up forms.',
     endpoint: '/admin/newsletter-subscribers',
     collection: 'subscribers',
-    empty: { icon: Mail, title: 'No subscribers yet', text: 'Sign-ups from the footer and homepage forms are collected here.' },
+    paginated: true,
+    statusParam: 'subscribed',
+    statusOptions: ['true', 'false'],
+    empty: {
+      icon: Mail,
+      title: 'No subscribers yet',
+      text: 'Sign-ups from the footer and homepage forms are collected here.',
+    },
     columns: [
-      { label: 'Email', value: (x) => text(x.email), render: (x) => rowTitle(text(x.email)), grow: true },
+      {
+        label: 'Email',
+        value: (x) => text(x.email),
+        render: (x) => rowTitle(text(x.email)),
+        grow: true,
+      },
       { label: 'Source', value: (x) => sentence(x.source) },
       flagColumn('Status', (x) => x.isSubscribed, 'Subscribed', 'Unsubscribed'),
       { label: 'Signed up', value: (x) => date(x.createdAt) },
@@ -431,52 +695,15 @@ export const SECTIONS: Record<string, Section> = {
         label: (x) => (x.isSubscribed ? 'Unsubscribe' : 'Re-subscribe'),
         path: (x) => `/admin/newsletter-subscribers/${text(x.id)}`,
         body: (x) => ({ isSubscribed: !x.isSubscribed }),
+        anyOf: ['CONTENT', 'SUPPORT'],
       },
     ],
   },
 };
 
-/* ----- Summary modules (analytics, COD) ----------------------------------- */
-
-const KPI_LABELS: Record<string, string> = {
-  revenue: 'Revenue',
-  orderCount: 'Orders',
-  activeProducts: 'Live products',
-  customers: 'Customers',
-  reviewsAwaitingModeration: 'Reviews to moderate',
-  productsAwaitingModeration: 'Listings to review',
-  sellersAwaitingKyc: 'Sellers awaiting KYC',
-  pendingOrders: 'Pending orders',
-  pendingValue: 'Pending value',
-  delivered: 'Delivered',
-  cancelled: 'Cancelled',
+/** Labels for the boolean filters some modules page on. */
+export const filterLabel = (section: string, value: string): string => {
+  if (section === 'reviews') return value === 'true' ? 'Published' : 'Hidden';
+  if (section === 'newsletter') return value === 'true' ? 'Subscribed' : 'Unsubscribed';
+  return statusLabel(value);
 };
-
-/** Counts that are a to-do list rather than a measure of the business. */
-export const ATTENTION_KEYS = new Set([
-  'reviewsAwaitingModeration',
-  'productsAwaitingModeration',
-  'sellersAwaitingKyc',
-]);
-
-/** Where each to-do is worked off, when it has a screen of its own. */
-export const ATTENTION_LINKS: Record<string, string> = {
-  reviewsAwaitingModeration: '/admin/operations/reviews',
-  productsAwaitingModeration: '/admin/moderation',
-  sellersAwaitingKyc: '/admin/sellers',
-};
-
-export const kpiLabel = (key: string) => {
-  if (KPI_LABELS[key]) return KPI_LABELS[key];
-  const words = key.replace(/([A-Z])/g, ' $1').trim().toLowerCase();
-  return words.charAt(0).toUpperCase() + words.slice(1);
-};
-
-const isCurrencyKey = (key: string) => /revenue|value|amount|total/i.test(key);
-
-export const kpiValue = (key: string, value: unknown) =>
-  typeof value === 'number'
-    ? isCurrencyKey(key)
-      ? money(value)
-      : value.toLocaleString('en-IN')
-    : text(value);

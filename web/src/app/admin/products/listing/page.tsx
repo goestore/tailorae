@@ -10,7 +10,7 @@ import {
   type ReviewResponse,
 } from '@/lib/catalog-import';
 import { listSellerOptions, type SellerOption } from '@/lib/admin-products';
-import { formatCurrency } from '@/utils/helpers';
+import { formatPaise } from '@/lib/money';
 import { Boxes } from '@/components/admin/icons';
 
 /**
@@ -105,7 +105,8 @@ export default function CatalogListingPage() {
     setBusy('review');
     setError(null);
     try {
-      const response = await reviewSheets(files);
+      // The shop decides which existing listings each row would update.
+      const response = await reviewSheets(files, {}, vendorId || undefined);
       setReview(response);
       setProducts(response.products);
       setResult(null);
@@ -135,7 +136,7 @@ export default function CatalogListingPage() {
     setBusy('commit');
     setError(null);
     try {
-      setResult(await commitImport(products, { vendorId: vendorId || undefined, publish }));
+      setResult(await commitImport(products, { sellerId: vendorId || undefined, publish }));
       setReview(null);
       setProducts([]);
     } catch (err) {
@@ -380,9 +381,9 @@ export default function CatalogListingPage() {
                           />
                         </td>
                         <td>
-                          {formatCurrency(product.price)}
-                          {product.mrp && product.mrp > product.price && (
-                            <span style={{ opacity: 0.45 }}> / {formatCurrency(product.mrp)}</span>
+                          {formatPaise(product.pricePaise)}
+                          {product.mrpPaise && product.mrpPaise > product.pricePaise && (
+                            <span style={{ opacity: 0.45 }}> / {formatPaise(product.mrpPaise)}</span>
                           )}
                         </td>
                         <td>{product.variants.length}</td>

@@ -9,6 +9,14 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useDispatch } from 'react-redux';
 import { signOut as endSession } from '@/lib/auth-api';
 import {
+  getStaffMe,
+  PERMISSION_LABELS,
+  permits,
+  type StaffMember,
+  type StaffPermission,
+} from '@/lib/admin-staff';
+import { StaffProvider } from '@/components/admin/StaffContext';
+import {
   ADMIN_QUEUES_CHANGED,
   getQueueCounts,
   type AdminQueueCounts,
@@ -72,6 +80,12 @@ interface NavItem {
   icon: React.FC<IconProps>;
   /** Which review queue's size, if any, is shown beside the label. */
   queue?: keyof AdminQueueCounts;
+  /**
+   * Permissions the page's API calls accept (any one is enough; SUPER_ADMIN
+   * always is). Left out: every staff member. An item the member cannot use is
+   * not shown at all — the API would answer 403 to everything on it.
+   */
+  anyOf?: StaffPermission[];
 }
 
 /**
@@ -85,23 +99,50 @@ const NAV_GROUPS: Array<{ title: string; area: Area; items: NavItem[] }> = [
     area: 'overview',
     items: [
       { href: '/admin', label: 'Dashboard', icon: LayoutDashboard },
-      { href: '/admin/operations/analytics', label: 'Analytics', icon: BarChart3 },
+      {
+        href: '/admin/operations/analytics',
+        label: 'Analytics',
+        icon: BarChart3,
+        anyOf: ['FINANCE', 'SUPPORT'],
+      },
     ],
   },
   {
     title: 'Catalogue',
     area: 'catalogue',
     items: [
-      { href: '/admin/products', label: 'Products', icon: Package },
-      { href: '/admin/products/listing', label: 'Sheet listing', icon: Boxes },
-      { href: '/admin/categories', label: 'Categories', icon: Boxes },
-      { href: '/admin/operations/brands', label: 'Brands', icon: Tags },
-      { href: '/admin/operations/inventory', label: 'Inventory', icon: Boxes },
+      { href: '/admin/products', label: 'Products', icon: Package, anyOf: ['MODERATOR'] },
+      {
+        href: '/admin/products/listing',
+        label: 'Sheet listing',
+        icon: Boxes,
+        anyOf: ['MODERATOR'],
+      },
+      {
+        href: '/admin/categories',
+        label: 'Categories',
+        icon: Boxes,
+        anyOf: ['MODERATOR', 'CONTENT'],
+      },
+      {
+        href: '/admin/operations/brands',
+        label: 'Brands',
+        icon: Tags,
+        queue: 'brandsAwaitingReview',
+        anyOf: ['MODERATOR'],
+      },
+      {
+        href: '/admin/operations/inventory',
+        label: 'Inventory',
+        icon: Boxes,
+        anyOf: ['MODERATOR', 'SUPPORT'],
+      },
       {
         href: '/admin/moderation',
         label: 'Moderation',
         icon: ShieldCheck,
         queue: 'productsAwaitingModeration',
+        anyOf: ['MODERATOR'],
       },
     ],
   },
@@ -109,43 +150,131 @@ const NAV_GROUPS: Array<{ title: string; area: Area; items: NavItem[] }> = [
     title: 'Orders',
     area: 'orders',
     items: [
-      { href: '/admin/operations/orders', label: 'Orders', icon: ShoppingBag },
-      { href: '/admin/operations/returns', label: 'Returns', icon: RotateCcw },
-      { href: '/admin/operations/exchanges', label: 'Exchanges', icon: RotateCcw },
-      { href: '/admin/operations/cod', label: 'Cash on delivery', icon: Wallet },
-      { href: '/admin/operations/coupons', label: 'Coupons', icon: Ticket },
+      {
+        href: '/admin/operations/orders',
+        label: 'Orders',
+        icon: ShoppingBag,
+        anyOf: ['SUPPORT', 'FINANCE'],
+      },
+      {
+        href: '/admin/operations/returns',
+        label: 'Returns',
+        icon: RotateCcw,
+        queue: 'returnsOpen',
+        anyOf: ['SUPPORT'],
+      },
+      {
+        href: '/admin/operations/exchanges',
+        label: 'Exchanges',
+        icon: RotateCcw,
+        anyOf: ['SUPPORT'],
+      },
+      {
+        href: '/admin/operations/cod',
+        label: 'Cash on delivery',
+        icon: Wallet,
+        anyOf: ['SUPPORT', 'FINANCE'],
+      },
+      {
+        href: '/admin/operations/coupons',
+        label: 'Coupons',
+        icon: Ticket,
+        anyOf: ['FINANCE', 'CONTENT'],
+      },
     ],
   },
   {
     title: 'Marketplace',
     area: 'marketplace',
     items: [
-      { href: '/admin/sellers', label: 'Sellers', icon: Store, queue: 'sellersAwaitingKyc' },
-      { href: '/admin/payouts', label: 'Payouts', icon: Wallet },
-      { href: '/admin/b2b', label: 'B2B quotes', icon: Ticket },
-      { href: '/admin/custom-wear', label: 'Custom Wear', icon: FileEdit },
-      { href: '/admin/settings', label: 'Marketplace settings', icon: Settings },
+      {
+        href: '/admin/sellers',
+        label: 'Sellers',
+        icon: Store,
+        queue: 'sellersAwaitingReview',
+        anyOf: ['KYC_REVIEW', 'SUPPORT', 'FINANCE'],
+      },
+      {
+        href: '/admin/payouts',
+        label: 'Payouts',
+        icon: Wallet,
+        queue: 'withdrawalsOpen',
+        anyOf: ['FINANCE'],
+      },
+      {
+        href: '/admin/b2b',
+        label: 'B2B quotes',
+        icon: Ticket,
+        anyOf: ['SUPPORT', 'KYC_REVIEW', 'FINANCE'],
+      },
+      {
+        href: '/admin/custom-wear',
+        label: 'Custom Wear',
+        icon: FileEdit,
+        anyOf: ['CONTENT', 'SUPPORT'],
+      },
+      {
+        href: '/admin/settings',
+        label: 'Marketplace settings',
+        icon: Settings,
+        anyOf: ['FINANCE', 'KYC_REVIEW'],
+      },
     ],
   },
   {
     title: 'Customers',
     area: 'customers',
     items: [
-      { href: '/admin/operations/customers', label: 'Customers', icon: Users },
-      { href: '/admin/operations/reviews', label: 'Reviews', icon: Bell },
-      { href: '/admin/operations/stock-requests', label: 'Back-in-stock', icon: Bell },
-      { href: '/admin/operations/newsletter', label: 'Newsletter', icon: Mail },
-      { href: '/admin/operations/contact-requests', label: 'Queries', icon: Mail },
+      {
+        href: '/admin/operations/customers',
+        label: 'Customers',
+        icon: Users,
+        anyOf: ['SUPPORT'],
+      },
+      { href: '/admin/operations/reviews', label: 'Reviews', icon: Bell, anyOf: ['MODERATOR'] },
+      {
+        href: '/admin/operations/stock-requests',
+        label: 'Back-in-stock',
+        icon: Bell,
+        anyOf: ['SUPPORT'],
+      },
+      {
+        href: '/admin/operations/newsletter',
+        label: 'Newsletter',
+        icon: Mail,
+        anyOf: ['CONTENT', 'SUPPORT'],
+      },
+      {
+        href: '/admin/operations/contact-requests',
+        label: 'Queries',
+        icon: Mail,
+        anyOf: ['SUPPORT'],
+      },
     ],
   },
   {
     title: 'Content',
     area: 'content',
     items: [
-      { href: '/admin/content/home', label: 'Homepage', icon: Home },
-      { href: '/admin/content/brand', label: 'Brand', icon: FileEdit },
-      { href: '/admin/content/layout', label: 'Site layout', icon: Settings },
-      { href: '/admin/preview', label: 'Preview', icon: ExternalLink },
+      { href: '/admin/content/home', label: 'Homepage', icon: Home, anyOf: ['CONTENT'] },
+      { href: '/admin/content/brand', label: 'Brand', icon: FileEdit, anyOf: ['CONTENT'] },
+      { href: '/admin/content/layout', label: 'Site layout', icon: Settings, anyOf: ['CONTENT'] },
+      {
+        href: '/admin/media',
+        label: 'Media library',
+        icon: Boxes,
+        anyOf: ['CONTENT', 'MODERATOR'],
+      },
+      { href: '/admin/banners', label: 'Banners', icon: Home, anyOf: ['CONTENT'] },
+      { href: '/admin/preview', label: 'Preview', icon: ExternalLink, anyOf: ['CONTENT'] },
+    ],
+  },
+  {
+    title: 'Settings',
+    area: 'settings',
+    items: [
+      { href: '/admin/staff', label: 'Staff', icon: Users, anyOf: ['SUPER_ADMIN'] },
+      { href: '/admin/audit', label: 'Audit log', icon: ShieldCheck, anyOf: ['SUPER_ADMIN'] },
     ],
   },
 ];
@@ -162,7 +291,8 @@ function subPageLabel(pathname: string, itemHref: string): string | null {
   if (!rest) return null;
   if (rest === 'new') return 'Add new';
   if (rest === 'import') return 'Import';
-  if (/^[a-z0-9]{20,}$/i.test(rest.split('/')[0])) return 'Details';
+  // Record ids are UUIDs (36 characters with dashes).
+  if (/^[a-z0-9-]{20,}$/i.test(rest.split('/')[0])) return 'Details';
   return rest
     .split('/')[0]
     .replace(/[-_]/g, ' ')
@@ -173,10 +303,54 @@ function subPageLabel(pathname: string, itemHref: string): string | null {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   if (pathname === '/admin/login') return <>{children}</>;
-  return <AdminConsole>{children}</AdminConsole>;
+  return <StaffGate>{children}</StaffGate>;
 }
 
-function AdminConsole({ children }: { children: React.ReactNode }) {
+/**
+ * Nothing in the console renders without a staff session. The probe is silent
+ * — a 401 here is an answer, after one refresh attempt — and no session sends
+ * the reader to the staff sign-in page with a way back to where they were.
+ */
+function StaffGate({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const [staff, setStaff] = useState<StaffMember | null | undefined>(undefined);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getStaffMe().then((member) => {
+      if (cancelled) return;
+      setStaff(member);
+      if (!member) {
+        const back = `${window.location.pathname}${window.location.search}`;
+        router.replace(`/admin/login?redirect=${encodeURIComponent(back)}`);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
+
+  if (!staff) {
+    return (
+      <div
+        className="admin-shell"
+        style={{ display: 'grid', placeItems: 'center', minHeight: '100vh' }}
+      >
+        <p className="admin-kpi-sub" role="status">
+          {staff === null ? 'Taking you to sign in…' : 'Loading the console…'}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <StaffProvider staff={staff}>
+      <AdminConsole staff={staff}>{children}</AdminConsole>
+    </StaffProvider>
+  );
+}
+
+function AdminConsole({ children, staff }: { children: React.ReactNode; staff: StaffMember }) {
   const pathname = usePathname();
   const router = useRouter();
   const dispatch = useDispatch<AppDispatch>();
@@ -199,6 +373,9 @@ function AdminConsole({ children }: { children: React.ReactNode }) {
    */
   const NAV_ALIASES: Array<{ prefix: string; href: string }> = [
     { prefix: '/admin/orders', href: '/admin/operations/orders' },
+    { prefix: '/admin/customers', href: '/admin/operations/customers' },
+    { prefix: '/admin/operations/movements', href: '/admin/operations/inventory' },
+    { prefix: '/admin/operations/brand-authorizations', href: '/admin/operations/brands' },
   ];
 
   const aliased = NAV_ALIASES.find((alias) => pathname.startsWith(alias.prefix))?.href ?? pathname;
@@ -206,6 +383,15 @@ function AdminConsole({ children }: { children: React.ReactNode }) {
   const activeItem = [...NAV_ITEMS]
     .sort((a, b) => b.href.length - a.href.length)
     .find((item) => aliased === item.href || aliased.startsWith(`${item.href}/`));
+
+  /** The member's own menu: groups with nothing they can open are left out entirely. */
+  const visibleGroups = NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.filter((item) => permits(staff.permissions, item.anyOf ?? [])),
+  })).filter((group) => group.items.length > 0);
+
+  /** A page the member's permissions do not cover: every call on it would be refused. */
+  const isForbidden = Boolean(activeItem && !permits(staff.permissions, activeItem.anyOf ?? []));
 
   // Refreshed on every navigation and whenever a page decides a queue item. A
   // failure just leaves the badges off — the sidebar must never block on it.
@@ -333,29 +519,39 @@ function AdminConsole({ children }: { children: React.ReactNode }) {
           </Link>
         </div>
 
-        <form role="search" onSubmit={runSearch} className="admin-topbar-search">
-          <Search size={16} aria-hidden="true" />
-          <input
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search products and SKUs"
-            aria-label="Search products"
-          />
-        </form>
+        {permits(staff.permissions, ['MODERATOR']) ? (
+          <form role="search" onSubmit={runSearch} className="admin-topbar-search">
+            <Search size={16} aria-hidden="true" />
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search products and SKUs"
+              aria-label="Search products"
+            />
+          </form>
+        ) : (
+          <span />
+        )}
 
         <div className="admin-topbar-actions">
           <a href="/" target="_blank" rel="noopener noreferrer" className="admin-topbar-btn">
             <ExternalLink size={16} />
             {!isCompact && <span>Storefront</span>}
           </a>
-          <div className="admin-account" title="Signed in as admin">
+          <div className="admin-account" title={`Signed in as ${staff.email}`}>
             <span className="admin-avatar admin-avatar--mark" aria-hidden="true">
               <Logo variant="mark" alt="" className="h-full" />
             </span>
             <span className="admin-account-name">
-              <strong>Admin</strong>
-              <span>TAILORAE</span>
+              <strong>{staff.fullName || 'Admin'}</strong>
+              <span>
+                {staff.permissions.includes('SUPER_ADMIN')
+                  ? 'Super admin'
+                  : staff.permissions
+                      .map((permission) => PERMISSION_LABELS[permission]?.label ?? permission)
+                      .join(', ')}
+              </span>
             </span>
           </div>
           <button type="button" onClick={signOut} className="admin-topbar-btn">
@@ -392,7 +588,7 @@ function AdminConsole({ children }: { children: React.ReactNode }) {
           }}
         >
           <nav className="admin-sidebar-nav" aria-label="Admin navigation">
-            {NAV_GROUPS.map((group) => (
+            {visibleGroups.map((group) => (
               <div
                 key={group.title}
                 className="admin-nav-group"
@@ -488,7 +684,17 @@ function AdminConsole({ children }: { children: React.ReactNode }) {
                   </ol>
                 </nav>
               )}
-              {children}
+              {isForbidden ? (
+                <div className="admin-card" role="alert">
+                  <p className="admin-kpi-label">No access</p>
+                  <p className="admin-kpi-sub" style={{ marginTop: 6 }}>
+                    Your account does not include the permission this page needs. Ask a super admin
+                    to grant it.
+                  </p>
+                </div>
+              ) : (
+                children
+              )}
             </div>
           </main>
         </div>

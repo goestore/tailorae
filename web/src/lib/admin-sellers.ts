@@ -1,20 +1,50 @@
 'use client';
 
-import axios from 'axios';
 import { apiClient } from '@/lib/api-client';
-import { getApiErrorMessage, getApiErrorStatus } from '@/lib/api-utils';
+import { getApiErrorMessage } from '@/lib/api-utils';
+import type { Page } from '@/lib/api/types';
 
 /**
- * Seller accounts, from an admin's side.
+ * Seller businesses, from the staff side (`/admin/sellers`).
  *
- * Two ways a shop comes into existence: someone applies at /seller and waits to
- * be approved, or an admin creates it here. Both end at the same record — this
- * module is the second path plus the decisions taken over both.
+ * A seller registers their own account, fills in the business, KYC documents
+ * and bank, and submits (docs/ACCOUNTS.md). Staff move the application through
+ * one state machine on `shop.status`:
+ *
+ *   DRAFT → SUBMITTED → UNDER_REVIEW → APPROVED ⇄ SUSPENDED
+ *                     ↘ REJECTED       ↖ NEEDS_INFO (back to the seller)
+ *
+ * The list is open to KYC_REVIEW, SUPPORT and FINANCE; the review (documents,
+ * bank, history) and every decision need KYC_REVIEW; commission needs FINANCE.
  */
 
-export type KycStatus = 'NOT_SUBMITTED' | 'PENDING' | 'APPROVED' | 'REJECTED';
+export const SELLER_STATUSES = [
+  'DRAFT',
+  'SUBMITTED',
+  'UNDER_REVIEW',
+  'NEEDS_INFO',
+  'APPROVED',
+  'REJECTED',
+  'SUSPENDED',
+] as const;
 
-export type ApplicationStatus = 'APPLIED' | 'UNDER_REVIEW' | 'APPROVED' | 'REJECTED' | 'SUSPENDED';
+export type SellerStatus = (typeof SELLER_STATUSES)[number];
+
+export const SELLER_STATUS_LABEL: Record<SellerStatus, string> = {
+  DRAFT: 'Draft',
+  SUBMITTED: 'Submitted',
+  UNDER_REVIEW: 'Under review',
+  NEEDS_INFO: 'Needs info',
+  APPROVED: 'Approved',
+  REJECTED: 'Rejected',
+  SUSPENDED: 'Suspended',
+};
+
+export type SellerAction =
+  'SUBMIT' | 'START_REVIEW' | 'APPROVE' | 'REJECT' | 'REQUEST_INFO' | 'SUSPEND' | 'REINSTATE';
+
+/** Decisions the seller reads a note on; the API refuses them without one. */
+export const ACTIONS_NEEDING_NOTE: SellerAction[] = ['REJECT', 'REQUEST_INFO', 'SUSPEND'];
 
 export type BusinessType =
   | 'INDIVIDUAL'
@@ -35,298 +65,207 @@ export const BUSINESS_TYPE_LABELS: Record<BusinessType, string> = {
   OTHER: 'Other',
 };
 
-export interface RegisteredAddress {
+export interface PostalAddress {
   line1: string;
-  line2?: string;
+  line2?: string | null;
   city: string;
   state: string;
-  pincode: string;
-  country?: string;
+  postalCode: string;
+  country: string;
 }
 
-export interface AdminSeller {
+export interface AdminShop {
   id: string;
   shopName: string;
   shopSlug: string;
-  shopDescription: string | null;
-  isVerified: boolean;
-  isActive: boolean;
-  /** Null: no override, so each item's category rate (or the platform default) applies. */
-  commissionRate: number | null;
-  totalEarnings: number;
-  rating: number;
-  ratingCount: number;
-  createdAt: string;
-  /** Identity check. Approving it is what lets the shop itself be verified. */
-  kycStatus: KycStatus;
-  pan: string | null;
-  gstin: string | null;
-  /** Stored file names, fetched one at a time through `fetchKycDocument`. */
-  kycDocuments: string[];
-  kycSubmittedAt: string | null;
-  kycReviewedAt: string | null;
-  kycRejectionReason: string | null;
-  /** The full account number is never in this payload — see `revealBank`. */
-  bankAccountLast4: string | null;
-  hasBankDetails: boolean;
-  /** The business behind the shop, as the seller applied with it. */
   legalName: string | null;
   businessType: BusinessType | null;
-  registeredAddress: RegisteredAddress | null;
+  pan: string | null;
+  gstin: string | null;
+  registeredAddress: PostalAddress | null;
+  pickupAddress: PostalAddress | null;
   contactPhone: string | null;
   contactEmail: string | null;
-  /** The owner's decision; only APPROVED shops may list products. */
-  applicationStatus: ApplicationStatus;
-  applicationNote: string | null;
-  applicationReviewedAt: string | null;
-  /** Brands the shop registered, with their review state. */
-  brands: Array<{
+  shopDescription: string | null;
+  shopImage: string | null;
+  shopBanner: string | null;
+  status: SellerStatus;
+  /** The note sent with the last decision (rejection reason, what to fix…). */
+  statusNote: string | null;
+  /** Null: no override, so each item's category rate (or the platform default) applies. */
+  commissionRateBp: number | null;
+  lowStockThreshold: number;
+  rating: number;
+  ratingCount: number;
+  isPlatform: boolean;
+  submittedAt: string | null;
+  decidedAt: string | null;
+  createdAt: string;
+  canSell: boolean;
+}
+
+export type KycDocumentKind =
+  'PAN' | 'GST_CERTIFICATE' | 'ADDRESS_PROOF' | 'CANCELLED_CHEQUE' | 'OTHER';
+
+export const KYC_KIND_LABEL: Record<KycDocumentKind, string> = {
+  PAN: 'PAN card',
+  GST_CERTIFICATE: 'GST certificate',
+  ADDRESS_PROOF: 'Address proof',
+  CANCELLED_CHEQUE: 'Cancelled cheque',
+  OTHER: 'Other document',
+};
+
+export interface ReviewDocument {
+  document: {
     id: string;
-    name: string;
-    status: 'PENDING' | 'APPROVED' | 'REJECTED';
-    authorizationType: string | null;
-    authorizationDoc: string | null;
-  }>;
-  user: {
-    id: string;
+    kind: KycDocumentKind;
+    filename: string;
+    contentType: string;
+    bytes: number;
+    createdAt: string;
+  };
+  /** A signed link, valid for five minutes from when the review was loaded. */
+  url: string;
+}
+
+export interface SellerReview {
+  shop: AdminShop;
+  owner: {
+    accountId: string;
+    fullName: string;
     email: string;
-    firstName: string | null;
-    lastName: string | null;
-    status: string;
+    role: string;
+    since: string;
   } | null;
-  _count: { products: number; sellerOrders: number };
+  documents: ReviewDocument[];
+  /** Masked: the full account number never reaches the browser. */
+  bank: {
+    accountName: string;
+    accountNumberMasked: string;
+    ifsc: string;
+    bankName: string | null;
+    verified: boolean;
+    updatedAt: string;
+  } | null;
+  history: Array<{
+    fromStatus: SellerStatus | null;
+    toStatus: SellerStatus;
+    note: string | null;
+    actorRealm: string;
+    createdAt: string;
+  }>;
+  /** The decisions the state machine allows from the current status. */
+  allowedActions: SellerAction[];
 }
 
-export interface NewSellerInput {
-  email: string;
-  shopName: string;
-  firstName?: string;
-  lastName?: string;
-  shopDescription?: string;
-  /** Null or omitted: no override. */
-  commissionRate?: number | null;
-  isVerified?: boolean;
-  legalName?: string;
-  businessType?: BusinessType;
-  registeredAddress?: RegisteredAddress;
-  contactPhone?: string;
-  contactEmail?: string;
-}
-
-export async function getSellers(): Promise<AdminSeller[]> {
+export async function getSellers(params: {
+  status?: SellerStatus | '';
+  q?: string;
+  page?: number;
+  limit?: number;
+}): Promise<Page<AdminShop>> {
   try {
-    const response = await apiClient.get('/admin/vendors');
-    return response.data?.data?.vendors ?? [];
+    const response = await apiClient.get('/admin/sellers', {
+      params: {
+        page: params.page ?? 1,
+        limit: params.limit ?? 25,
+        ...(params.status ? { status: params.status } : {}),
+        ...(params.q ? { q: params.q } : {}),
+      },
+    });
+    return response.data?.data as Page<AdminShop>;
   } catch (error) {
     throw new Error(getApiErrorMessage(error, 'Could not load sellers.'));
   }
 }
 
-/**
- * Create a seller.
- *
- * `temporaryPassword` comes back only when a brand-new login was created, and
- * only on this one response — it is hashed on the way in and cannot be read
- * back afterwards, so it has to be handed over now or reset later.
- */
-export async function createSeller(input: NewSellerInput): Promise<{
-  message: string;
-  temporaryPassword: string | null;
-  seller: AdminSeller;
-}> {
+/** The full application (KYC_REVIEW): business, owner, documents, bank, history. */
+export async function getSellerReview(id: string): Promise<SellerReview> {
   try {
-    const response = await apiClient.post('/admin/vendors', input);
+    const response = await apiClient.get(`/admin/sellers/${encodeURIComponent(id)}`);
+    const data = response.data?.data as SellerReview;
     return {
-      message: response.data?.message ?? 'Seller created.',
-      temporaryPassword: response.data?.data?.temporaryPassword ?? null,
-      seller: response.data?.data?.vendor,
+      ...data,
+      documents: data?.documents ?? [],
+      history: data?.history ?? [],
+      allowedActions: data?.allowedActions ?? [],
     };
   } catch (error) {
-    throw new Error(getApiErrorMessage(error, 'Could not create that seller.'));
+    throw new Error(getApiErrorMessage(error, 'Could not load that seller.'));
   }
 }
 
-/**
- * Raised when the server refuses to verify a shop whose identity check has not
- * been approved. Carries the server's own wording so the screen can show it,
- * and lets the caller offer the explicit override instead of failing quietly.
- */
-export class KycRequiredError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'KycRequiredError';
-  }
-}
-
-/**
- * Change a shop's standing or its commission.
- *
- * Verifying a shop is refused (409) until its identity check is approved;
- * `overrideKyc` is the deliberate escape hatch for that rule.
- */
-export async function updateSeller(
+/** Move the application along (KYC_REVIEW). REJECT, REQUEST_INFO and SUSPEND need a note. */
+export async function decideSeller(
   id: string,
-  input: Partial<Pick<AdminSeller, 'isVerified' | 'isActive' | 'commissionRate' | 'shopName'>> & {
-    overrideKyc?: boolean;
-  }
-): Promise<AdminSeller> {
+  action: SellerAction,
+  note?: string
+): Promise<{ message: string; shop: AdminShop }> {
   try {
-    const response = await apiClient.put(`/admin/vendors/${encodeURIComponent(id)}`, input);
-    return response.data?.data?.vendor;
-  } catch (error) {
-    const message = getApiErrorMessage(error, 'Could not update that seller.');
-    if (getApiErrorStatus(error) === 409 && input.isVerified === true) {
-      throw new KycRequiredError(message);
-    }
-    throw new Error(message);
-  }
-}
-
-export interface KycDecisionResult {
-  message: string;
-  vendor: {
-    id: string;
-    shopName: string;
-    kycStatus: KycStatus;
-    isVerified: boolean;
-    kycRejectionReason: string | null;
-  };
-}
-
-/**
- * Approve or reject a seller's identity check.
- *
- * Approving also verifies the shop. Rejecting needs a reason — the seller is
- * shown it, and it is the only guidance they get on what to resubmit.
- */
-export async function decideKyc(
-  id: string,
-  decision: 'approve' | 'reject',
-  reason?: string
-): Promise<KycDecisionResult> {
-  try {
-    const response = await apiClient.patch(`/admin/vendors/${encodeURIComponent(id)}/kyc`, {
-      decision,
-      ...(reason ? { reason } : {}),
+    const response = await apiClient.post(`/admin/sellers/${encodeURIComponent(id)}/decision`, {
+      action,
+      ...(note ? { note } : {}),
     });
     return {
-      message:
-        response.data?.message ??
-        (decision === 'approve' ? 'Identity approved.' : 'Identity check rejected.'),
-      vendor: response.data?.data?.vendor,
+      message: response.data?.message ?? 'Decision saved.',
+      shop: response.data?.data as AdminShop,
     };
   } catch (error) {
     throw new Error(getApiErrorMessage(error, 'Could not record that decision.'));
   }
 }
 
-export interface RevealedBank {
-  shopName: string;
-  accountName: string | null;
-  accountNumber: string | null;
-  ifsc: string | null;
-  bankName: string | null;
-}
-
 /**
- * The full bank account, on an explicit request only.
- *
- * Every call is written to the audit log against the admin who made it, so
- * this is never prefetched and the result is never cached — the caller holds
- * it in component state and drops it when hidden.
+ * The shop's own commission (FINANCE), in basis points; null removes the
+ * override so category rates apply. Orders already placed keep their rate.
  */
-export async function revealBank(id: string): Promise<RevealedBank> {
+export async function setSellerCommission(id: string, rateBp: number | null): Promise<AdminShop> {
   try {
-    const response = await apiClient.get(`/admin/vendors/${encodeURIComponent(id)}/bank`, {
-      headers: { 'Cache-Control': 'no-store' },
+    const response = await apiClient.put(`/admin/sellers/${encodeURIComponent(id)}/commission`, {
+      rateBp,
     });
-    return response.data?.data?.bank;
+    return response.data?.data as AdminShop;
   } catch (error) {
-    throw new Error(getApiErrorMessage(error, 'Could not load bank details.'));
+    throw new Error(getApiErrorMessage(error, 'Could not save that commission.'));
   }
 }
 
-/**
- * One identity document, as a Blob.
- *
- * Fetched through the API client because the route needs the admin's bearer
- * token — a plain link would arrive unauthenticated. The caller turns it into
- * an object URL and must revoke it when done.
- */
-export async function fetchKycDocument(id: string, name: string): Promise<Blob> {
+/** Open or close public seller sign-ups (KYC_REVIEW). */
+export async function setApplicationsOpen(open: boolean): Promise<string> {
   try {
-    const response = await apiClient.get(
-      `/admin/vendors/${encodeURIComponent(id)}/kyc/documents/${encodeURIComponent(name)}`,
-      { responseType: 'blob', timeout: 30000 }
+    const response = await apiClient.put('/admin/sellers/applications-open', { open });
+    return (
+      response.data?.message ?? (open ? 'Seller sign-ups are open.' : 'Seller sign-ups are closed.')
     );
-    return response.data as Blob;
   } catch (error) {
-    // A blob response hides the JSON error envelope; read it back out.
-    if (axios.isAxiosError(error) && error.response?.data instanceof Blob) {
-      try {
-        const body = JSON.parse(await error.response.data.text()) as { message?: string };
-        if (body.message) throw new Error(body.message);
-      } catch (parsed) {
-        if (parsed instanceof Error && !(parsed instanceof SyntaxError)) throw parsed;
-      }
-    }
-    throw new Error(getApiErrorMessage(error, 'Could not open that document.'));
+    throw new Error(getApiErrorMessage(error, 'Could not change seller sign-ups.'));
   }
 }
 
-/**
- * Decide a seller application.
- *
- * Rejecting or suspending needs a note, which the seller reads on their
- * dashboard. Approving needs the identity check approved first; the server
- * answers 409 otherwise, surfaced as `KycRequiredError` so the screen can offer
- * the explicit override.
- */
-export async function decideApplication(
-  id: string,
-  input: { status: Exclude<ApplicationStatus, 'APPLIED'>; note?: string; overrideKyc?: boolean }
-): Promise<string> {
+/** One shop's request to sell under a brand (`GET /admin/brands/authorizations`). */
+export interface BrandAuthorization {
+  brand: { id: string; name: string; slug: string; status: string };
+  seller: { id: string; shopName: string; shopSlug: string; status: string };
+  authorizationType: 'TRADEMARK_OWNER' | 'AUTHORISED_RESELLER' | string | null;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  rejectionReason: string | null;
+  hasDocument: boolean;
+  createdAt: string;
+  decidedAt: string | null;
+}
+
+/** Every brand request one shop has made, in any state (MODERATOR). */
+export async function getShopBrandAuthorizations(sellerId: string): Promise<BrandAuthorization[]> {
   try {
-    const response = await apiClient.patch(
-      `/admin/vendors/${encodeURIComponent(id)}/application`,
-      input
+    const lists = await Promise.all(
+      (['PENDING', 'APPROVED', 'REJECTED'] as const).map((status) =>
+        apiClient
+          .get('/admin/brands/authorizations', { params: { status } })
+          .then((response) => (response.data?.data?.authorizations ?? []) as BrandAuthorization[])
+      )
     );
-    return response.data?.message ?? 'Decision recorded.';
+    return lists.flat().filter((row) => row.seller?.id === sellerId);
   } catch (error) {
-    const message = getApiErrorMessage(error, 'Could not record that decision.');
-    if (getApiErrorStatus(error) === 409 && input.status === 'APPROVED') {
-      throw new KycRequiredError(message);
-    }
-    throw new Error(message);
-  }
-}
-
-/** A brand's trademark certificate or reseller letter, as a Blob (private, behind auth). */
-export async function fetchBrandAuthorizationDoc(brandId: string): Promise<Blob> {
-  try {
-    const response = await apiClient.get(
-      `/admin/brands/${encodeURIComponent(brandId)}/authorization-doc`,
-      { responseType: 'blob', timeout: 30000 }
-    );
-    return response.data as Blob;
-  } catch (error) {
-    throw new Error(getApiErrorMessage(error, 'Could not open that document.'));
-  }
-}
-
-/** Approve or reject a seller-registered brand. Rejecting needs a reason. */
-export async function reviewBrand(
-  brandId: string,
-  decision: 'approve' | 'reject',
-  reason?: string
-): Promise<string> {
-  try {
-    const response = await apiClient.patch(`/admin/brands/${encodeURIComponent(brandId)}/review`, {
-      decision,
-      ...(reason ? { reason } : {}),
-    });
-    return response.data?.message ?? 'Decision recorded.';
-  } catch (error) {
-    throw new Error(getApiErrorMessage(error, 'Could not record that decision.'));
+    throw new Error(getApiErrorMessage(error, 'Could not load that shop’s brands.'));
   }
 }
