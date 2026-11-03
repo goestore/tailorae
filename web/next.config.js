@@ -2,6 +2,8 @@
 
 const nextConfig = {
   reactStrictMode: true,
+  // The Docker image runs the self-contained server (web/Dockerfile sets this).
+  output: process.env.NEXT_OUTPUT === 'standalone' ? 'standalone' : undefined,
   pageExtensions: ['js', 'jsx', 'ts', 'tsx'],
 
   // Image optimization. Deliberately NOT disabled in development: serving raw

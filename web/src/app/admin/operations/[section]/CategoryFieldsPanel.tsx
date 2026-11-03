@@ -309,16 +309,19 @@ export const CategoryFieldsPanel: React.FC<{ categoryId: string }> = ({ category
   const [optionLabel, setOptionLabel] = useState('');
   const [optionValues, setOptionValues] = useState('');
 
-  const load = useCallback(async () => {
-    try {
-      const next = await getCategoryFields(categoryId);
-      setView(next);
-      setOptionLabel(next.category.optionLabel ?? '');
-      setOptionValues(next.category.optionValues.join(', '));
-    } catch (err) {
-      setError((err as Error).message);
-    }
-  }, [categoryId]);
+  // Nothing is set synchronously: the effect only starts the fetch, and every
+  // setState lands in a callback once it resolves.
+  const load = useCallback(
+    () =>
+      getCategoryFields(categoryId)
+        .then((next) => {
+          setView(next);
+          setOptionLabel(next.category.optionLabel ?? '');
+          setOptionValues(next.category.optionValues.join(', '));
+        })
+        .catch((err: Error) => setError(err.message)),
+    [categoryId]
+  );
 
   useEffect(() => {
     void load();

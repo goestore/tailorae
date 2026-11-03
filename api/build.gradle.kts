@@ -28,6 +28,8 @@ dependencies {
     implementation("org.springframework.boot:spring-boot-starter-mail")
     implementation("org.springframework.boot:spring-boot-starter-actuator")
     implementation("org.springframework.modulith:spring-modulith-starter-core")
+    // OpenAPI description at /v3/api-docs, from which the web app generates its TypeScript types.
+    implementation("org.springdoc:springdoc-openapi-starter-webmvc-api:3.0.0")
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.flywaydb:flyway-database-postgresql")
@@ -61,3 +63,7 @@ allOpen {
 }
 
 tasks.withType<Test> { useJUnitPlatform() }
+
+// One executable jar with a fixed name (the Dockerfile extracts its layers).
+tasks.named<Jar>("jar") { enabled = false }
+tasks.named<org.springframework.boot.gradle.tasks.bundling.BootJar>("bootJar") { archiveFileName = "tailorae-api.jar" }

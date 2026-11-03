@@ -42,7 +42,8 @@ class AccountSecurityIntegrationTest : IntegrationTest() {
         val laptop = customer(name)
         val phone = anonymous().apply { post("/api/auth/login", mapOf("email" to "$name@example.com", "password" to PASSWORD)).expect(200) }
 
-        laptop.post("/api/auth/verify-email/resend").expect(200)
+        // Sign-up already sent the first link; asking again straight away is refused.
+        laptop.post("/api/auth/verify-email/resend").expect(409)
         val token = lastSecret(IdentityTopics.EMAIL_VERIFICATION_REQUESTED, "$name@example.com", "token")
         val redirect = anonymous().get("/api/auth/verify-email?token=$token")
         assertEquals(302, redirect.status)

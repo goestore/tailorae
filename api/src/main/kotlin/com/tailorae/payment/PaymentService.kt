@@ -10,6 +10,8 @@ import com.tailorae.common.ProcessedEvents
 import com.tailorae.order.OnlinePaymentStatus
 import com.tailorae.order.OrderService
 import com.tailorae.order.OrderTopics
+import com.tailorae.order.OrderPaid
+import com.tailorae.common.Outbox
 import com.tailorae.order.RefundDue
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
@@ -45,6 +47,7 @@ class PaymentService(
     private val orders: OrderService,
     private val audit: Audit,
     private val json: JsonMapper,
+    private val outbox: Outbox,
 ) {
     private val log = LoggerFactory.getLogger(javaClass)
 
@@ -151,6 +154,7 @@ class PaymentService(
         ).param("p", paymentId).param("id", orderId).update()
         jdbc.sql("update seller_order set status = 'CONFIRMED', updated_at = now() where order_id = :o and status = 'PENDING'").param("o", orderId).update()
         orders.timeline(orderId, "PAYMENT_CAPTURED", "Payment received via Razorpay — ₹%.2f [$paymentId]".format(amountPaise / 100.0), "system", null)
+        outbox.record(OrderTopics.PAID, orderId.toString(), OrderPaid(orderId, o.orderNumber, o.email, amountPaise))
         return "PAID"
     }
 

@@ -41,6 +41,7 @@ class AuthService(
     private val passwords: PasswordEncoder,
     private val outbox: Outbox,
     private val props: AuthProperties,
+    private val security: AccountSecurity,
 ) {
     // Hashing a dummy on unknown emails keeps "no such account" and "wrong
     // password" the same speed, so response time cannot be used to find accounts.
@@ -63,7 +64,8 @@ class AuthService(
         if (customers.findByEmailIgnoreCase(normalised) != null) {
             throw ConflictException("An account with this email already exists — sign in instead")
         }
-        val customer = customers.save(
+        // Flushed now: the confirmation token below is written with plain SQL.
+        val customer = customers.saveAndFlush(
             Customer(
                 id = Ids.newId(),
                 email = normalised,
@@ -79,6 +81,7 @@ class AuthService(
             customer.id.toString(),
             CustomerRegistered(customer.id, customer.email, customer.firstName),
         )
+        security.sendEmailVerification(Realm.CUSTOMER, customer.id)
         return AuthResult(summary(Realm.CUSTOMER, customer), startSession(Realm.CUSTOMER, customer.id, client))
     }
 
@@ -93,7 +96,7 @@ class AuthService(
         if (sellers.existsByPhone(normalisedPhone)) {
             throw ConflictException("A seller account with this phone number already exists")
         }
-        val account = sellers.save(
+        val account = sellers.saveAndFlush(
             SellerAccount(
                 id = Ids.newId(),
                 email = normalised,
@@ -107,6 +110,7 @@ class AuthService(
             account.id.toString(),
             SellerRegistered(account.id, account.email, account.fullName),
         )
+        security.sendEmailVerification(Realm.SELLER, account.id)
         return AuthResult(summary(Realm.SELLER, account), startSession(Realm.SELLER, account.id, client))
     }
 

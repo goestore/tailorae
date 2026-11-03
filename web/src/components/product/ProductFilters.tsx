@@ -5,7 +5,6 @@ import React from 'react';
 import { CATALOG_CATEGORIES, CatalogCategory } from '@/lib/catalog';
 import type { Brand } from '@/types';
 import type { Facets } from '@/lib/products-api';
-import { ColorSwatch } from './ColorSwatch';
 
 export interface ProductFilterValues {
   category?: string;

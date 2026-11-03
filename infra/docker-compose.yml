@@ -13,6 +13,7 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
     networks:
       - tailorae-network
     healthcheck:
@@ -96,7 +97,57 @@ services:
     networks:
       - tailorae-network
 
+  # The application itself, for a full-stack run: `docker compose --profile app up --build`.
+  # Day-to-day development runs the API with ./gradlew bootRun and the web app with npm run dev.
+  api:
+    profiles: ["app"]
+    build: ../api
+    container_name: tailorae-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/tailorae_api
+      KAFKA_BOOTSTRAP_SERVERS: kafka:29092
+      SMTP_HOST: mailpit
+      JWT_SECRET: ${JWT_SECRET:-local-only-jwt-secret-change-me-0123456789abcdef}
+      FIELD_ENCRYPTION_KEY: ${FIELD_ENCRYPTION_KEY:-MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=}
+      SECURE_COOKIES: "false"
+      WEB_ORIGINS: http://localhost:3000
+      WEB_URL: http://localhost:3000
+      API_PUBLIC_URL: http://localhost:8081
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-admin@tailorae.com}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-}
+      RAZORPAY_WEBHOOK_SECRET: ${RAZORPAY_WEBHOOK_SECRET:-}
+    ports:
+      - "8081:8081"
+    volumes:
+      - api_storage:/data/storage
+    networks:
+      - tailorae-network
+
+  web:
+    profiles: ["app"]
+    build:
+      context: ../web
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:8081/api
+        NEXT_PUBLIC_APP_URL: http://localhost:3000
+    container_name: tailorae-web
+    depends_on:
+      - api
+    ports:
+      - "3000:3000"
+    networks:
+      - tailorae-network
+
 volumes:
+  api_storage:
+    driver: local
   postgres_data:
     driver: local
   redis_data:

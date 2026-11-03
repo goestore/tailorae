@@ -11,8 +11,10 @@ object OrderTopics {
     const val STATUS_CHANGED = "order.status.changed"
     /** Money must go back: a whole order cancelled, a seller's part cancelled, or a return completed. */
     const val REFUND_DUE = "order.refund.due"
+    /** An online order's payment was captured — its confirmation email goes out now. */
+    const val PAID = "order.paid"
 
-    val ALL = listOf(PLACED, STATUS_CHANGED, REFUND_DUE)
+    val ALL = listOf(PLACED, STATUS_CHANGED, REFUND_DUE, PAID)
 }
 
 data class CheckoutRequest(
@@ -116,6 +118,8 @@ data class SellerOrderView(
 data class OrderPlaced(val orderId: UUID, val orderNumber: String, val customerId: UUID, val email: String, val totalPaise: Long, val paymentMethod: PaymentMethod)
 
 data class OrderStatusChanged(val orderId: UUID, val orderNumber: String, val email: String, val status: OrderStatus)
+
+data class OrderPaid(val orderId: UUID, val orderNumber: String, val email: String, val amountPaise: Long)
 
 data class RefundDue(val orderId: UUID, val orderNumber: String, val amountPaise: Long, val reason: String)
 
