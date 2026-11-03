@@ -25,21 +25,7 @@ create table content_value (
 create index content_value_namespace_idx on content_value (namespace, status);
 
 -- An uploaded image, deduplicated by the hash of its bytes.
-create table media_asset (
-    id           uuid primary key,
-    hash         text        not null unique,
-    storage_key  text        not null,
-    url          text        not null,
-    filename     text        not null,
-    alt          text        not null default '',
-    content_type text        not null,
-    width        int         not null,
-    height       int         not null,
-    bytes        bigint      not null,
-    uploaded_by  uuid references admin_user (id) on delete set null,
-    created_at   timestamptz not null default now()
-);
-create index media_asset_created_idx on media_asset (created_at desc);
+-- The media library table (media_asset) lives in V31 with the catalog's uploads.
 
 create table banner (
     id            uuid primary key,
@@ -59,4 +45,4 @@ create table banner (
 );
 create index banner_position_idx on banner (position, display_order);
 
-revoke all on content_value, media_asset, banner from tailorae_seller_scope;
+revoke all on content_value, banner from tailorae_seller_scope;

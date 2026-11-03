@@ -103,42 +103,6 @@ class AdminContentController(
     }
 }
 
-@RestController
-@RequestMapping("/api/admin/media")
-class AdminMediaController(private val media: MediaService, private val access: AdminAccess) {
-
-    @GetMapping
-    fun list(@AuthenticationPrincipal jwt: Jwt, @RequestParam(defaultValue = "60") limit: Int): ApiResponse<Map<String, Any>> {
-        access.require(jwt, AdminPermission.CONTENT)
-        return ApiResponse.ok(mapOf("assets" to media.list(limit)), "Media fetched")
-    }
-
-    @PostMapping(consumes = ["multipart/form-data"])
-    fun upload(
-        @AuthenticationPrincipal jwt: Jwt,
-        @RequestPart(required = false) file: MultipartFile?,
-        @RequestParam(required = false) alt: String?,
-    ): ResponseEntity<ApiResponse<Map<String, MediaAssetView>>> {
-        val admin = access.require(jwt, AdminPermission.CONTENT)
-        if (file == null || file.isEmpty) throw BadRequestException("No file was uploaded.")
-        val asset = media.upload(admin, file.originalFilename ?: "upload", alt, file.bytes)
-        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(mapOf("asset" to asset), "Image uploaded"))
-    }
-
-    @PatchMapping("/{id}")
-    fun updateAlt(@AuthenticationPrincipal jwt: Jwt, @PathVariable id: UUID, @RequestBody(required = false) body: JsonNode?): ApiResponse<Map<String, MediaAssetView>> {
-        access.require(jwt, AdminPermission.CONTENT)
-        val alt = body?.get("alt")?.takeIf { it.isString }?.asString()
-        return ApiResponse.ok(mapOf("asset" to media.updateAlt(id, alt)), "Media updated")
-    }
-
-    @DeleteMapping("/{id}")
-    fun delete(@AuthenticationPrincipal jwt: Jwt, @PathVariable id: UUID): ApiResponse<Map<String, UUID>> {
-        access.require(jwt, AdminPermission.CONTENT)
-        media.delete(id)
-        return ApiResponse.ok(mapOf("id" to id), "Image deleted")
-    }
-}
 
 @RestController
 class BannerControllers(private val banners: BannerService, private val access: AdminAccess) {

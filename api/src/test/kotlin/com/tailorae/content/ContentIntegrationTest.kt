@@ -83,31 +83,6 @@ class ContentIntegrationTest : IntegrationTest() {
     }
 
     @Test
-    fun `media uploads are identified by their bytes and deduplicated`() {
-        val admin = admin()
-        val image = ImageProbeTest.encoded("png", 13 + (System.nanoTime() % 50).toInt(), 9)
-        val first = admin.upload("/api/admin/media", mapOf("alt" to "Linen swatch"), "file", "swatch.jpg", image, "image/jpeg").expect(201).data.get("asset")
-        assertEquals("Linen swatch", first.get("alt").asString())
-        assertEquals("image/png", first.get("contentType").asString())
-        assertEquals(9, first.get("height").asInt())
-        val again = admin.upload("/api/admin/media", emptyMap(), "file", "copy.png", image, "image/png").expect(201).data.get("asset")
-        assertEquals(first.get("id").asString(), again.get("id").asString())
-
-        // Served publicly from the PUBLIC bucket.
-        val path = URI(first.get("url").asString()).rawPath
-        assertEquals(200, anonymous().get(path).status)
-
-        admin.upload("/api/admin/media", emptyMap(), "file", "notes.png", "not an image".toByteArray(), "image/png").expect(400)
-        assertTrue(admin.get("/api/admin/media").expect(200).data.get("assets").items().any { it.get("id") == first.get("id") })
-
-        val id = first.get("id").asString()
-        assertEquals("Woven linen", admin.patch("/api/admin/media/$id", mapOf("alt" to "Woven linen")).expect(200).data.get("asset").get("alt").asString())
-        admin.delete("/api/admin/media/$id").expect(200)
-        admin.patch("/api/admin/media/$id", mapOf("alt" to "x")).expect(404)
-        assertEquals(404, anonymous().get(path).status)
-    }
-
-    @Test
     fun `banners are managed by staff and the storefront sees live ones`() {
         val admin = admin()
         val title = unique("Festive")

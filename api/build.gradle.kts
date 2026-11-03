@@ -33,6 +33,8 @@ dependencies {
     implementation("tools.jackson.module:jackson-module-kotlin")
     implementation("org.jetbrains.kotlin:kotlin-reflect")
     implementation("org.flywaydb:flyway-database-postgresql")
+    // Myntra SKU templates (catalog import/export).
+    implementation("org.apache.poi:poi-ooxml:5.4.1")
     runtimeOnly("org.postgresql:postgresql")
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
@@ -62,7 +64,11 @@ allOpen {
     annotation("jakarta.persistence.Embeddable")
 }
 
-tasks.withType<Test> { useJUnitPlatform() }
+tasks.withType<Test> {
+    useJUnitPlatform()
+    // POI holds a whole Myntra template (with its 43k-row masterdata tab) in memory.
+    maxHeapSize = "1536m"
+}
 
 // One executable jar with a fixed name (the Dockerfile extracts its layers).
 tasks.named<Jar>("jar") { enabled = false }
