@@ -53,7 +53,8 @@ class SecurityConfig(
             CorsConfiguration().apply {
                 allowedOrigins = web.origins
                 allowedMethods = listOf("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
-                allowedHeaders = listOf("Content-Type", "Accept")
+                // X-Seller-Id picks which of a person's shops a seller request acts for.
+                allowedHeaders = listOf("Content-Type", "Accept", "X-Seller-Id")
                 exposedHeaders = listOf("X-Total-Count")
                 allowCredentials = true
                 maxAge = 3600
