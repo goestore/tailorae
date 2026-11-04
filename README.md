@@ -280,6 +280,20 @@ npm run dev          # start API + website
 Code changes in the website appear in the browser immediately. Changes in the API need the API
 restarted (`Ctrl + C`, then `npm run dev` again).
 
+### Fast mode (production build)
+
+`npm run dev` is for **editing code**: it compiles each page the first time you open it and sends
+unminified JavaScript, so it feels slow. To **use** the site at full speed:
+
+```bash
+npm run build          # once after each code change (API package + optimised website)
+npm run start:prod     # API and website in production mode on the same ports (8081, 3000)
+```
+
+Measured on this project: pages answer in 5–40 ms instead of 100–200 ms (plus no multi-second
+first-visit compile), the browser downloads about 260 KB of JavaScript instead of over 1 MB, and
+API responses are gzip-compressed (a 166 KB JSON answer is sent as 14 KB).
+
 ## 8. Addresses to open in the browser
 
 | What | Address |
@@ -439,6 +453,7 @@ Run from the `tailorae` folder.
 | `npm run lint` | Check the website code style |
 | `npm run type-check` | Check the website's TypeScript types |
 | `npm run build` | Production builds of the API (jar) and the website |
+| `npm run start:prod` | Run both in fast production mode (after `npm run build`) |
 | `npm run api:types` | Regenerate the website's API types from the running API |
 | `npm run stack:up` | Run *everything* (incl. API and website) in Docker — see section 15 |
 | `npm run format` | Auto-format the website code |

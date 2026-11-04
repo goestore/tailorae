@@ -1,5 +1,10 @@
 server:
   port: ${PORT:8081}
+  # gzip JSON and CSV responses over 1 KB (a product list shrinks to about a fifth).
+  compression:
+    enabled: true
+    mime-types: application/json,text/csv,text/plain
+    min-response-size: 1024
   # Real client IPs behind the load balancer, for session records and rate limits.
   forward-headers-strategy: native
 

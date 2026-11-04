@@ -10,6 +10,7 @@
     "build:web": "npm run build --prefix apps/web",
     "build:api": "node tools/gradle.mjs bootJar",
     "start": "npm start --prefix apps/web",
+    "start:prod": "node tools/start-prod.mjs",
     "install:all": "npm install && npm install --prefix apps/web --legacy-peer-deps",
     "lint": "npm run lint --prefix apps/web",
     "type-check": "npm run type-check --prefix apps/web",
