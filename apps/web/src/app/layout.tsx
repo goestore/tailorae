@@ -10,7 +10,9 @@ import { fetchCategoryTree } from '@/lib/category-tree';
 
 const inter = Inter({
   subsets: ['latin'],
-  style: ['normal', 'italic'],
+  // Normal only: the italic file (~50 KB, preloaded on every page) served a
+  // handful of small notes, which the browser now slants itself.
+  style: ['normal'],
   display: 'swap',
   variable: '--font-inter-next',
 });

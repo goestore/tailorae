@@ -39,6 +39,8 @@ import tools.jackson.databind.json.JsonMapper
         "tailorae.crypto.field-key=MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=",
         // The mail sender is a mock here, which the mail health check cannot inspect.
         "management.health.mail.enabled=false",
+        // Tests count rows and requests; no background traffic.
+        "tailorae.warmup.enabled=false",
     ],
 )
 abstract class IntegrationTest {

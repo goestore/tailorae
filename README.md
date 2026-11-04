@@ -294,6 +294,21 @@ Measured on this project: pages answer in 5–40 ms instead of 100–200 ms (plu
 first-visit compile), the browser downloads about 260 KB of JavaScript instead of over 1 MB, and
 API responses are gzip-compressed (a 166 KB JSON answer is sent as 14 KB).
 
+Other speed settings worth knowing about:
+
+- **API warm-up.** Right after starting, the API calls its own shop endpoints a few times
+  (log line `Warm-up finished in … ms`), so the first shopper doesn't wait ~1 s per call for a
+  cold JVM. Turn it off with `TAILORAE_WARMUP_ENABLED=false`.
+- **Browser caching of the catalogue.** Public `GET /api/products/**` answers carry
+  `Cache-Control: max-age=30, stale-while-revalidate=60`, so moving between shop pages reuses
+  filters, brands and colours instead of asking again. A product change can take up to 30 s to
+  show in a browser that already has it.
+- **Images** are converted to WebP (not AVIF, which is several times slower to create on first
+  view) and browsers keep them for 30 days.
+- **Fonts.** Only the regular Inter font is preloaded. Italic text is slanted by the browser.
+
+Measured home page, empty browser cache: main content visible at ~0.3–0.6 s (it was ~2.4 s).
+
 ## 8. Addresses to open in the browser
 
 | What | Address |

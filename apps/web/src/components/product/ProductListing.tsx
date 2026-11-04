@@ -127,7 +127,9 @@ export const ProductListing: React.FC<ProductListingProps> = ({
   // skeleton. Starting at false rendered "Nothing matches those filters" for
   // the moment before the effect fired — an empty state on a page that had not
   // asked the API anything yet.
-  const [isLoading, setIsLoading] = useState(initialProducts.length === 0);
+  // An answer of "nothing matches" (total 0) is an answer too, not a reason to ask again.
+  const serverAnswered = initialProducts.length > 0 || initialTotal === 0;
+  const [isLoading, setIsLoading] = useState(!serverAnswered);
   const [error, setError] = useState<string | null>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
 
@@ -136,9 +138,7 @@ export const ProductListing: React.FC<ProductListingProps> = ({
   // not take the params into account, an arrival carrying any still has to
   // fetch — otherwise a shared filtered link would show the unfiltered grid.
   const hasParams = Array.from(searchParams.keys()).length > 0;
-  const skipFirstFetch = useRef(
-    initialProducts.length > 0 && (initialReflectsParams || !hasParams)
-  );
+  const skipFirstFetch = useRef(serverAnswered && (initialReflectsParams || !hasParams));
 
   /**
    * The filter set sent to the API. `baseQuery` is the section's permanent

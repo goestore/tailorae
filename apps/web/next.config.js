@@ -14,7 +14,12 @@ const nextConfig = {
       { protocol: 'https', hostname: 'picsum.photos' },
       { protocol: 'https', hostname: 's3.amazonaws.com' },
     ],
-    formats: ['image/avif', 'image/webp'],
+    // WebP only: AVIF is a little smaller but takes ~3x longer to encode, and
+    // every new image/width pays that on its first view (0.5–2 s per image).
+    formats: ['image/webp'],
+    // Optimised copies are keyed by source + width, and sources are either
+    // build-time files or uploads with unique names, so browsers can keep them.
+    minimumCacheTTL: 60 * 60 * 24 * 30,
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },

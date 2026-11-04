@@ -22,21 +22,28 @@ import { SITE_NAME } from '@/config/site';
  */
 type Variant = 'wordmark' | 'monogram' | 'mark';
 
-const ASSETS: Record<Variant, { dark: string; light: string; width: number; height: number }> = {
+/**
+ * `sizes` is the widest the lockup is ever drawn (CSS px). Without it the
+ * browser is offered widths for the artwork's own size, and fetched a 1920 px
+ * wordmark — 3840 on a retina screen — to show it 220 px wide.
+ */
+const ASSETS: Record<Variant, { dark: string; light: string; width: number; height: number; sizes: string }> = {
   wordmark: {
     dark: '/brand/tailorae-wordmark@2x.png',
     light: '/brand/tailorae-wordmark-light.png',
     width: 1752,
     height: 192,
+    sizes: '224px',
   },
   monogram: {
     dark: '/brand/tailorae-monogram.png',
     light: '/brand/tailorae-monogram-light.png',
     width: 720,
     height: 426,
+    sizes: '240px',
   },
   // The ring has its own white face, so one file serves both tones.
-  mark: { dark: '/brand/tailorae-mark.png', light: '/brand/tailorae-mark.png', width: 512, height: 512 },
+  mark: { dark: '/brand/tailorae-mark.png', light: '/brand/tailorae-mark.png', width: 512, height: 512, sizes: '64px' },
 };
 
 export interface LogoProps {
@@ -63,6 +70,7 @@ export const Logo: React.FC<LogoProps> = ({
       alt={alt}
       width={asset.width}
       height={asset.height}
+      sizes={asset.sizes}
       priority={priority}
       className={cn('block w-auto max-w-none select-none', className ?? 'h-6')}
       draggable={false}

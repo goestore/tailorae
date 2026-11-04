@@ -10,12 +10,17 @@ import com.tailorae.identity.AdminPermission
 import com.tailorae.seller.SellerContext
 import com.tailorae.seller.SellerPermission
 import jakarta.servlet.http.HttpServletRequest
+import org.springframework.core.MethodParameter
 import org.springframework.http.CacheControl
 import org.springframework.http.ContentDisposition
 import org.springframework.http.HttpHeaders
+import org.springframework.http.HttpMethod
 import org.springframework.http.HttpStatus
 import org.springframework.http.MediaType
 import org.springframework.http.ResponseEntity
+import org.springframework.http.converter.HttpMessageConverter
+import org.springframework.http.server.ServerHttpRequest
+import org.springframework.http.server.ServerHttpResponse
 import org.springframework.security.core.annotation.AuthenticationPrincipal
 import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.web.bind.annotation.DeleteMapping
@@ -29,7 +34,9 @@ import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestParam
 import org.springframework.web.bind.annotation.RequestPart
 import org.springframework.web.bind.annotation.RestController
+import org.springframework.web.bind.annotation.RestControllerAdvice
 import org.springframework.web.multipart.MultipartFile
+import org.springframework.web.servlet.mvc.method.annotation.ResponseBodyAdvice
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 
@@ -113,6 +120,38 @@ class StorefrontController(private val store: StorefrontService, private val cat
 
     @GetMapping("/{idOrSlug}")
     fun detail(@PathVariable idOrSlug: String) = ApiResponse.ok(mapOf("product" to store.detail(idOrSlug)), "Product fetched")
+}
+
+/**
+ * Storefront catalogue reads are the same for every visitor, so browsers may
+ * reuse one for 30 seconds and show it for a minute more while refetching.
+ * Moving between listing pages then stops re-asking for the same filters.
+ *
+ * Only successful GETs: errors are written by the shared exception handler,
+ * which is outside this advice's scope, so a 404 or 500 is never cached.
+ */
+@RestControllerAdvice(assignableTypes = [StorefrontController::class])
+class StorefrontCaching : ResponseBodyAdvice<Any> {
+    override fun supports(returnType: MethodParameter, converterType: Class<out HttpMessageConverter<*>>) = true
+
+    override fun beforeBodyWrite(
+        body: Any?,
+        returnType: MethodParameter,
+        selectedContentType: MediaType,
+        selectedConverterType: Class<out HttpMessageConverter<*>>,
+        request: ServerHttpRequest,
+        response: ServerHttpResponse,
+    ): Any? {
+        if (request.method == HttpMethod.GET && !response.headers.containsHeader(HttpHeaders.CACHE_CONTROL)) {
+            response.headers.cacheControl = STOREFRONT_CACHE.headerValue
+        }
+        return body
+    }
+
+    private companion object {
+        val STOREFRONT_CACHE: CacheControl = CacheControl.maxAge(30, TimeUnit.SECONDS)
+            .staleWhileRevalidate(60, TimeUnit.SECONDS)
+    }
 }
 
 /** The listing templates, for the product form. Static apart from a category's own fields, so it is public. */

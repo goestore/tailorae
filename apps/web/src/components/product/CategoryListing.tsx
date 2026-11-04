@@ -27,20 +27,21 @@ const SSR_PAGE_SIZE = 24;
  */
 async function fetchSectionProducts(
   section: CatalogSection
-): Promise<{ products: Product[]; total: number }> {
+): Promise<{ products: Product[]; total: number | undefined }> {
   const params = new URLSearchParams({ ...section.query, limit: String(SSR_PAGE_SIZE) });
 
   try {
     const res = await fetch(`${API_BASE}/products?${params.toString()}`, {
       next: { revalidate: 60 },
     });
-    if (!res.ok) return { products: [], total: 0 };
+    // Total unknown, not zero: the listing then retries from the browser.
+    if (!res.ok) return { products: [], total: undefined };
     const json = await res.json();
     const products: Product[] = json?.data?.products ?? [];
     const total = json?.data?.pagination?.total;
     return { products, total: typeof total === 'number' ? total : products.length };
   } catch {
-    return { products: [], total: 0 };
+    return { products: [], total: undefined };
   }
 }
 
