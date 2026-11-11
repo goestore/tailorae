@@ -1,5 +1,10 @@
 /** @type {import('next').NextConfig} */
 
+// Where uploaded images are served from in production: the API's
+// S3_PUBLIC_BASE_URL (the public bucket or a CDN in front of it). Read at build
+// time — the image optimizer refuses any host not listed here.
+const mediaBaseUrl = process.env.MEDIA_PUBLIC_BASE_URL?.trim().replace(/\/+$/, '');
+
 const nextConfig = {
   reactStrictMode: true,
   // The Docker image runs the self-contained server (apps/web/Dockerfile sets this).
@@ -13,6 +18,7 @@ const nextConfig = {
       { protocol: 'http', hostname: 'localhost' },
       { protocol: 'https', hostname: 'picsum.photos' },
       { protocol: 'https', hostname: 's3.amazonaws.com' },
+      ...(mediaBaseUrl ? [new URL(`${mediaBaseUrl}/**`)] : []),
     ],
     // WebP only: AVIF is a little smaller but takes ~3x longer to encode, and
     // every new image/width pays that on its first view (0.5–2 s per image).

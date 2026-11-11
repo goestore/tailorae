@@ -22,6 +22,21 @@ import { CategoryEditor, ConfirmDialog } from '../operations/[section]/editors';
 const cell: React.CSSProperties = { whiteSpace: 'nowrap', width: '1%' };
 const muted: React.CSSProperties = { color: 'var(--admin-text-2)' };
 
+/**
+ * The product form's "+ Add a new category" sends staff here with
+ * `?new=1&returnTo=/admin/products/…`. Only console paths are accepted as the
+ * way back, never another site.
+ */
+const safeReturn = (value: string | null): string | null =>
+  value && value.startsWith('/admin/') && !value.startsWith('//') ? value : null;
+
+/** The way back to the product form, with the chosen category selected there. */
+const backWith = (returnTo: string, categoryId: string): string => {
+  const url = new URL(returnTo, window.location.origin);
+  url.searchParams.set('category', categoryId);
+  return `${url.pathname}${url.search}`;
+};
+
 export default function AdminCategoriesPage() {
   const [rows, setRows] = useState<AdminCategory[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -29,6 +44,19 @@ export default function AdminCategoriesPage() {
   const [editing, setEditing] = useState<{ category: AdminCategory | null; parentId?: string } | null>(null);
   const [removing, setRemoving] = useState<AdminCategory | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  const [returnTo, setReturnTo] = useState<string | null>(null);
+  /** The category just created on a visit from the product form; offered as the one to use. */
+  const [created, setCreated] = useState<AdminCategory | null>(null);
+
+  // Arriving from the product form: open the editor straight away and remember the way back.
+  // Read after mount (not during render) so the server render and first client render agree.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    void Promise.resolve().then(() => {
+      setReturnTo(safeReturn(params.get('returnTo')));
+      if (params.get('new') === '1') setEditing({ category: null });
+    });
+  }, []);
 
   const load = useCallback(
     () =>
@@ -108,6 +136,26 @@ export default function AdminCategoriesPage() {
         </div>
       </div>
 
+      {returnTo && (
+        <div
+          className="admin-alert"
+          style={{ marginBottom: 16, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12 }}
+        >
+          <span style={{ flex: 1, minWidth: 200 }}>
+            {created
+              ? `“${created.name}” is ready. Add another (a subcategory, say), or go back to the product with it selected.`
+              : 'Adding a category for the product you were listing. Save it, then head back.'}
+          </span>
+          {created && (
+            <Link href={backWith(returnTo, created.id)} className="btn btn-primary btn-sm">
+              Use “{created.name}” for the product
+            </Link>
+          )}
+          <Link href={returnTo} className="btn btn-sm">
+            Back to the product
+          </Link>
+        </div>
+      )}
       {error && (
         <div className="admin-alert admin-alert--warn" style={{ marginBottom: 16 }}>
           <span>{error}</span>
@@ -239,7 +287,9 @@ export default function AdminCategoriesPage() {
           categories={rows ?? []}
           parentId={editing.parentId}
           onClose={() => setEditing(null)}
-          onSaved={(_category, message) => {
+          onSaved={(category, message) => {
+            // A new category (not an edit), on a visit from the product form: offer it there.
+            if (returnTo && !editing.category && category) setCreated(category);
             setEditing(null);
             setNotice(message);
             void load();

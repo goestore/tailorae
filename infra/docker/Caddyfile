@@ -1,0 +1,36 @@
+# Production reverse proxy (docker-compose.prod.yml). Caddy gets and renews
+# Let's Encrypt certificates on its own once DNS for both domains points here.
+
+(security) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		-Server
+	}
+	encode zstd gzip
+}
+
+{$WEB_DOMAIN} {
+	import security
+	reverse_proxy web:3000
+}
+
+www.{$WEB_DOMAIN} {
+	redir https://{$WEB_DOMAIN}{uri} permanent
+}
+
+{$API_DOMAIN} {
+	import security
+
+	# The API description and internal endpoints stay private; /actuator/health is public.
+	@private path /v3/api-docs* /swagger-ui* /actuator/*
+	@health path /actuator/health
+	handle @health {
+		reverse_proxy api:8081
+	}
+	handle @private {
+		respond 404
+	}
+	handle {
+		reverse_proxy api:8081
+	}
+}
