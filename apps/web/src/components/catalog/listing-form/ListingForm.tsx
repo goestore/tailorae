@@ -2,6 +2,7 @@
 
 import { CustomizationEditor } from '@/components/admin/CustomizationEditor';
 import type { ProductCustomizationRow } from '@/lib/admin-products';
+import { createBrand } from '@/lib/admin-brands';
 import './listing-form.css';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -225,7 +226,10 @@ export const ListingForm: React.FC<ListingFormProps> = ({ mode, productId: initi
     );
     const sellersP = mode === 'admin' ? listSellerOptions() : Promise.resolve<SellerOption[]>([]);
     const productP = initialId ? io.loadProduct(initialId) : Promise.resolve(null);
-    const lastP = initialId ? Promise.resolve(null) : getLastBusinessDetails();
+    // A seller-realm endpoint: staff have no seller session, and its 401 would bounce them
+    // to the seller sign-in page. Staff fill business details by hand.
+    const lastP =
+      initialId || mode !== 'seller' ? Promise.resolve(null) : getLastBusinessDetails();
 
     Promise.all([listArticleTypes(), categoriesP, brandsP, sellersP, productP, lastP])
       .then(async ([typeRows, categoryRows, brandRows, sellerRows, loaded, last]) => {
@@ -1111,7 +1115,9 @@ export const ListingForm: React.FC<ListingFormProps> = ({ mode, productId: initi
                     onSku={onSku}
                     onSlug={onSlug}
                     onAddBrand={async (name) => {
-                      const brand = await addBrand(name);
+                      // Each console creates brands through its own realm's endpoint.
+                      const brand =
+                        mode === 'admin' ? await createBrand({ name }) : await addBrand(name);
                       setBrands((current) =>
                         current.some((b) => b.value === brand.id)
                           ? current
