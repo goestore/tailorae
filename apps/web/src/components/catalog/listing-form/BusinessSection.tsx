@@ -5,6 +5,9 @@ import type { ArticleSpec, SpecColumn } from '@/lib/catalogue-api';
 import { AreaField, SelectField, TextField, type Option } from './controls';
 import { fieldId, type FormMode, type ListingDraft } from './model';
 
+/** Dropdown value for "+ Add a new brand…" — never a real brand id. */
+const NEW_BRAND = '__new_brand__';
+
 export const productColumn = (spec: ArticleSpec | null, field: string): SpecColumn | undefined =>
   spec?.columns.find((c) => c.scope === 'product' && c.field === field);
 
@@ -36,6 +39,12 @@ export const BusinessSection: React.FC<BusinessSectionProps> = ({
   const [newBrand, setNewBrand] = React.useState('');
   const [addingBrand, setAddingBrand] = React.useState(false);
   const [brandError, setBrandError] = React.useState<string | null>(null);
+  const newBrandInput = React.useRef<HTMLInputElement>(null);
+  /** "+ Add a new brand…" in the dropdown: bring the add box (just below) into view, ready to type. */
+  const focusNewBrand = () => {
+    newBrandInput.current?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    newBrandInput.current?.focus({ preventScroll: true });
+  };
   const addBrand = async () => {
     if (!onAddBrand || newBrand.trim().length < 2) return;
     setAddingBrand(true);
@@ -155,7 +164,7 @@ export const BusinessSection: React.FC<BusinessSectionProps> = ({
           label={label('brand', 'Brand')}
           required={req('brand')}
           value={draft.brandId}
-          options={brands}
+          options={onAddBrand ? [...brands, { value: NEW_BRAND, label: '+ Add a new brand…' }] : brands}
           placeholder={brands.length ? 'Select a brand…' : 'No brands available'}
           hint={
             mode === 'seller'
@@ -164,7 +173,7 @@ export const BusinessSection: React.FC<BusinessSectionProps> = ({
                 ? 'No brands yet. Add one below.'
                 : undefined
           }
-          onChange={(value) => update({ brandId: value })}
+          onChange={(value) => (value === NEW_BRAND ? focusNewBrand() : update({ brandId: value }))}
         />
         {onAddBrand && (
           <div className="lf-field">
@@ -173,6 +182,7 @@ export const BusinessSection: React.FC<BusinessSectionProps> = ({
             </label>
             <div style={{ display: 'flex', gap: 8 }}>
               <input
+                ref={newBrandInput}
                 id="lf-new-brand"
                 className="lf-input"
                 value={newBrand}
