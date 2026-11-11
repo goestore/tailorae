@@ -105,6 +105,9 @@ type Banner = {
 
 const FLASH_KEY = 'tl:listing-flash';
 
+/** Dropdown value for "+ Add a new category…" — never a real category id. */
+const NEW_CATEGORY = '__new_category__';
+
 const editHref = (mode: FormMode, id: string) =>
   mode === 'admin' ? `/admin/products/${id}` : `/seller/products/${id}`;
 const newHref = (mode: FormMode) => (mode === 'admin' ? '/admin/products/new' : '/seller/products/new');
@@ -618,6 +621,33 @@ export const ListingForm: React.FC<ListingFormProps> = ({ mode, productId: initi
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categories, productId]);
 
+  /** Off to the category tree with the editor open; it links back here with ?category=<new id>. */
+  const goAddCategory = () => {
+    if (
+      dirty &&
+      !window.confirm('Leave this product to add a category? Changes you have not saved here will be lost.')
+    ) {
+      return;
+    }
+    const here = new URL(window.location.href);
+    here.searchParams.delete('category');
+    const back = `${here.pathname}${here.search}`;
+    router.push(`/admin/categories?new=1&returnTo=${encodeURIComponent(back)}`);
+  };
+
+  // Back from adding a category (?category=<id>): select it once the list includes it.
+  const categoryParamUsed = useRef(false);
+  useEffect(() => {
+    if (productId || categoryParamUsed.current || categories.length === 0) return;
+    const id = new URLSearchParams(window.location.search).get('category');
+    if (!id || !categories.some((c) => c.id === id)) return;
+    categoryParamUsed.current = true;
+    // Started from a resolved promise: every state change lands in a callback.
+    void Promise.resolve(id).then(chooseCategory);
+    // chooseCategory is recreated every render; this must run once per arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categories, productId]);
+
   /* ── Checklist ───────────────────────────────────────────────────── */
 
   const checklist = useMemo(() => buildChecklist(draft, spec), [draft, spec]);
@@ -1002,8 +1032,16 @@ export const ListingForm: React.FC<ListingFormProps> = ({ mode, productId: initi
                     label="Category on our store"
                     required
                     value={draft.categoryId}
-                    options={categories.map((c) => ({ value: c.id, label: categoryLabel(c) }))}
-                    onChange={chooseCategory}
+                    options={[
+                      ...categories.map((c) => ({ value: c.id, label: categoryLabel(c) })),
+                      // Staff can make the category they need without hunting for the page.
+                      ...(mode === 'admin'
+                        ? [{ value: NEW_CATEGORY, label: '+ Add a new category…' }]
+                        : []),
+                    ]}
+                    onChange={(value) =>
+                      value === NEW_CATEGORY ? goAddCategory() : chooseCategory(value)
+                    }
                   />
                   {suggestion && suggestion.id !== draft.categoryId && (
                     <p className="lf-hint">
